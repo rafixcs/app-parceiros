@@ -70,7 +70,7 @@ Módulos de domínio: `contas` (usuários, workspaces, papéis, convites), `font
 3. O front mostra o player oficial (iframe) no card do produto.
 4. Um job periódico revalida os links e marca "indisponível" se o vídeo sumir.
 
-Links da Shopee Video não têm oEmbed. Para eles, guardamos o link e a miniatura do produto.
+Links da Shopee Video não têm oEmbed e ficam de fora no MVP: a API recusa o link com `link_video_invalido`.
 
 **Upload próprio:**
 1. O front (Uppy) pede à API uma URL pré-assinada de upload multipart e envia o arquivo **direto ao R2**, sem passar pelo nosso servidor. Isso funciona bem no celular e com arquivos grandes.
@@ -79,6 +79,7 @@ Links da Shopee Video não têm oEmbed. Para eles, guardamos o link e a miniatur
 4. O download de volta usa URL assinada de curta duração. O R2 não cobra a saída, o que importa porque o afiliado baixa o vídeo para postar.
 5. O usuário marca "tenho direito de uso" no upload, e isso fica registrado.
 6. Vídeos do mentor podem ser compartilhados com o workspace.
+7. O bucket precisa de CORS para a origem do app, com `PUT` e `GET` liberados e o cabeçalho `ETag` exposto, porque o navegador lê o ETag de cada parte.
 
 ### Workspaces: mentor + afiliados e avulsos
 - **Zitadel cuida só da identidade** (login, senha, Google, MFA). Workspaces, papéis e convites ficam no nosso Postgres. Isso mantém a regra de negócio no nosso código e evita depender do modelo de organizações do provedor.

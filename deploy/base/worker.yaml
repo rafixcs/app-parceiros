@@ -24,4 +24,5 @@ spec:
               cpu: 50m
               memory: 64Mi
             limits:
-              memory: 512Mi
+              # ffmpeg gera a prévia dos vídeos enviados.
+              memory: 1Gi

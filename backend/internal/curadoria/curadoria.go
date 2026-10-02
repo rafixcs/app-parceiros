@@ -25,6 +25,7 @@ import (
 	"github.com/rafixcs/app-parceiros/backend/internal/colecoes"
 	"github.com/rafixcs/app-parceiros/backend/internal/contas"
 	"github.com/rafixcs/app-parceiros/backend/internal/curadoria/curadoriadb"
+	"github.com/rafixcs/app-parceiros/backend/internal/midia"
 	"github.com/rafixcs/app-parceiros/backend/internal/notificacoes"
 	"github.com/rafixcs/app-parceiros/backend/internal/platform/postgres"
 	"github.com/rafixcs/app-parceiros/backend/internal/produtos"
@@ -62,11 +63,16 @@ type ItemLista struct {
 	// Importadores só aparece para dono e mentor.
 	Importadores *int64   `json:"importadores,omitempty"`
 	MeuItem      *MeuItem `json:"meu_item"`
+	// Videos são os vídeos do produto que quem vê enxerga: os dele e os
+	// compartilhados no workspace.
+	Videos []midia.Video `json:"videos"`
 }
 
 type ListaDetalhe struct {
 	Lista
 	Itens []ItemLista `json:"itens"`
+	// Videos são os vídeos anexados à lista pelo mentor.
+	Videos []midia.Video `json:"videos"`
 }
 
 type Importador struct {
@@ -103,6 +109,7 @@ var (
 	ErrNaoPublicada       = &Erro{http.StatusConflict, "lista_nao_publicada", "Publique a lista antes de importar."}
 	ErrOrdemInvalida      = &Erro{http.StatusUnprocessableEntity, "dados_invalidos", "Envie todos os produtos da lista, cada um uma vez, na nova ordem."}
 	ErrProdutoForaDaLista = &Erro{http.StatusUnprocessableEntity, "dados_invalidos", "Algum dos produtos escolhidos não está na lista."}
+	ErrVideoForaDaLista   = &Erro{http.StatusNotFound, "video_nao_encontrado", "Esse vídeo não está na lista."}
 )
 
 const (
@@ -131,17 +138,27 @@ type Notificador interface {
 	Notificar(ctx context.Context, n notificacoes.Nova) error
 }
 
+// Videos são os vídeos das listas e dos produtos (implementado por
+// midia.Service).
+type Videos interface {
+	DosAlvos(ctx context.Context, m contas.Membro, alvo midia.Alvo, ids []uuid.UUID) (map[uuid.UUID][]midia.Video, error)
+	VincularLista(ctx context.Context, m contas.Membro, videoID, listaID uuid.UUID) error
+	DesvincularLista(ctx context.Context, m contas.Membro, videoID, listaID uuid.UUID) error
+	DesvincularAlvo(ctx context.Context, m contas.Membro, alvo midia.Alvo, alvoID uuid.UUID) error
+}
+
 type Service struct {
 	pool        *pgxpool.Pool
 	produtos    *produtos.Service
 	colecoes    *colecoes.Service
 	turma       Turma
 	notificador Notificador
+	videos      Videos
 	log         *slog.Logger
 }
 
-func NewService(pool *pgxpool.Pool, p *produtos.Service, c *colecoes.Service, t Turma, n Notificador, log *slog.Logger) *Service {
-	return &Service{pool: pool, produtos: p, colecoes: c, turma: t, notificador: n, log: log}
+func NewService(pool *pgxpool.Pool, p *produtos.Service, c *colecoes.Service, t Turma, n Notificador, v Videos, log *slog.Logger) *Service {
+	return &Service{pool: pool, produtos: p, colecoes: c, turma: t, notificador: n, videos: v, log: log}
 }
 
 func escopo(m contas.Membro) postgres.Escopo {
@@ -262,13 +279,22 @@ func (s *Service) Ver(ctx context.Context, m contas.Membro, id uuid.UUID) (Lista
 	if err != nil {
 		return ListaDetalhe{}, err
 	}
+	videosProdutos, err := s.videos.DosAlvos(ctx, m, midia.AlvoProduto, ids)
+	if err != nil {
+		return ListaDetalhe{}, err
+	}
+	videosLista, err := s.videos.DosAlvos(ctx, m, midia.AlvoLista, []uuid.UUID{id})
+	if err != nil {
+		return ListaDetalhe{}, err
+	}
+	out.Videos = naoNulo(videosLista[id])
 	out.Itens = make([]ItemLista, 0, len(itens))
 	for _, it := range itens {
 		p, ok := prods[it.ProdutoID]
 		if !ok {
 			return ListaDetalhe{}, fmt.Errorf("produto %s da lista %s sumiu do catálogo", it.ProdutoID, id)
 		}
-		il := ItemLista{Produto: colecoes.ResumoDe(p), Comentario: it.Comentario, Ordem: it.Ordem}
+		il := ItemLista{Produto: colecoes.ResumoDe(p), Comentario: it.Comentario, Ordem: it.Ordem, Videos: naoNulo(videosProdutos[it.ProdutoID])}
 		if gestor {
 			n := porProduto[it.ProdutoID]
 			il.Importadores = &n
@@ -317,18 +343,61 @@ func (s *Service) Atualizar(ctx context.Context, m contas.Membro, id uuid.UUID, 
 }
 
 // Apagar apaga a lista. Os itens que os afiliados importaram continuam na
-// coleção deles.
+// coleção deles, e os vídeos anexados continuam na biblioteca de quem os
+// enviou.
 func (s *Service) Apagar(ctx context.Context, m contas.Membro, id uuid.UUID) error {
 	if err := exigirGestor(m); err != nil {
 		return err
 	}
-	return s.tx(ctx, m, func(q *curadoriadb.Queries) error {
+	err := s.tx(ctx, m, func(q *curadoriadb.Queries) error {
 		n, err := q.ApagarLista(ctx, curadoriadb.ApagarListaParams{ID: id, WorkspaceID: m.WorkspaceID})
 		if err == nil && n == 0 {
 			return ErrListaNaoEncontrada
 		}
 		return err
 	})
+	if err != nil {
+		return err
+	}
+	if err := s.videos.DesvincularAlvo(ctx, m, midia.AlvoLista, id); err != nil {
+		s.log.ErrorContext(ctx, "lista apagada ficou com vínculos de vídeo", "lista_id", id, "err", err)
+	}
+	return nil
+}
+
+// AnexarVideo anexa à lista um vídeo da biblioteca de quem a edita. O vídeo
+// passa a ser compartilhado com a turma.
+func (s *Service) AnexarVideo(ctx context.Context, m contas.Membro, id, videoID uuid.UUID) (ListaDetalhe, error) {
+	if err := s.editar(ctx, m, id, func(*curadoriadb.Queries) error { return nil }); err != nil {
+		return ListaDetalhe{}, err
+	}
+	if err := s.videos.VincularLista(ctx, m, videoID, id); err != nil {
+		return ListaDetalhe{}, err
+	}
+	return s.Ver(ctx, m, id)
+}
+
+// TirarVideo tira o vídeo da lista; ele continua na biblioteca de quem o
+// enviou.
+func (s *Service) TirarVideo(ctx context.Context, m contas.Membro, id, videoID uuid.UUID) (ListaDetalhe, error) {
+	if err := s.editar(ctx, m, id, func(*curadoriadb.Queries) error { return nil }); err != nil {
+		return ListaDetalhe{}, err
+	}
+	err := s.videos.DesvincularLista(ctx, m, videoID, id)
+	if errors.Is(err, midia.ErrVideoNaoEncontrado) {
+		return ListaDetalhe{}, ErrVideoForaDaLista
+	}
+	if err != nil {
+		return ListaDetalhe{}, err
+	}
+	return s.Ver(ctx, m, id)
+}
+
+func naoNulo(vs []midia.Video) []midia.Video {
+	if vs == nil {
+		return []midia.Video{}
+	}
+	return vs
 }
 
 // editar trava a lista e roda fn, conferindo que ela existe. Só dono e mentor.

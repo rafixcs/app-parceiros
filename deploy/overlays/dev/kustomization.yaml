@@ -19,6 +19,8 @@ secretGenerator:
       - DATABASE_URL=postgres://parceiros:parceiros@postgres:5432/parceiros?sslmode=disable
       - REDIS_URL=redis://redis:6379/0
       - S3_ENDPOINT=http://seaweedfs:8333
+      # O navegador envia e baixa os vídeos pelo port-forward do Tilt.
+      - S3_ENDPOINT_PUBLICO=http://localhost:8333
       - S3_BUCKET=parceiros
       - S3_ACCESS_KEY=parceiros
       - S3_SECRET_KEY=parceiros-dev

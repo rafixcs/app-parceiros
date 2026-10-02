@@ -77,9 +77,11 @@ O critério de aceite vem abaixo de cada história.
    - O player oficial aparece no card. Um job de revalidação marca o vídeo como "indisponível" quando ele some.
 2. **Upload próprio:** envio direto ao R2 (multipart pré-assinado, via Uppy), com checkbox obrigatório "tenho direito de uso".
    - O job `processar_video` extrai duração, gera miniatura e prévia em 720p.
-   - O upload respeita a cota do plano (GB). Uploads abandonados são limpos.
-3. **Vincular** vídeos a produtos, coleções e listas da curadoria.
-4. **Baixar** o próprio vídeo por URL assinada de curta duração.
+   - O upload respeita a cota do plano (GB), contada por workspace. Uploads abandonados são limpos depois de 24 h.
+   - Até 1 GB por arquivo, em MP4, MOV ou WebM.
+3. **Vincular** vídeos a produtos (o item da coleção mostra os vídeos do seu produto) e a listas da curadoria.
+   - Só o dono e o mentor compartilham vídeos com a turma. Anexar um vídeo a uma lista o compartilha.
+4. **Baixar** o próprio vídeo, ou um compartilhado pelo mentor, por URL assinada de curta duração.
 
 ### E7. Resultados
 1. **Sincronização diária** de conversões (`conversionReport`) por usuário conectado.
@@ -112,8 +114,9 @@ listas_curadoria(id, workspace_id, autor_id, titulo, descricao, publicada_em)
 lista_itens(lista_id, produto_id, comentario, ordem)
 importacoes(lista_id, usuario_id, importado_em)
 
-videos(id, workspace_id, dono_id, tipo[embed|upload], plataforma, url, titulo, autor, thumb_url, storage_key, duracao_s, status, direito_uso_em)
-video_vinculos(video_id, alvo_tipo[item|lista|produto], alvo_id)
+videos(id, workspace_id, dono_id, tipo[embed|upload], plataforma, url, titulo, autor, thumb_url, storage_key, duracao_s, status, compartilhado, direito_uso_em)
+video_vinculos(video_id, workspace_id, dono_id, alvo_tipo[produto|lista], alvo_id)
+uso_videos(workspace_id, bytes)
 
 links_canal(item_id, canal, sub_id, url)
 conversoes(id, usuario_id, workspace_id?, produto_id?, sub_id, pedido_id, status, valor_centavos, comissao_centavos, ocorrido_em)
@@ -132,10 +135,9 @@ Toda tabela com `workspace_id` tem RLS. Valores em dinheiro ficam em centavos (`
 | `calcular_tendencias` | default | depois de cada snapshot | Score = crescimento de vendas em 7 dias, ponderado por comissão e nota. |
 | `gerar_link` | shopee | ao salvar ou importar | Usa a credencial do usuário. Retry com backoff. |
 | `sync_conversoes` | shopee | diário por usuário | Janela ≤ 90 dias. |
-| `resolver_oembed` | default | ao colar link | Cache no Redis. |
-| `revalidar_embeds` | default | semanal | |
-| `processar_video` | midia | fim do upload | ffmpeg. |
-| `limpar_uploads` | midia | diário | |
+| `revalidar_embed` | default | 7 dias depois de colar, e a cada 7 dias | Um job por vídeo, com o escopo do dono. O oEmbed ao colar é síncrono, com cache de 24 h no Redis. |
+| `processar_video` | midia | fim do upload | ffmpeg: duração, miniatura e prévia em 720p. |
+| `limpar_upload` | midia | 24 h depois de iniciar o upload | Um job por upload; descarta o que não terminou e devolve a cota. |
 
 O rate limit é por credencial (token bucket no Redis).
 

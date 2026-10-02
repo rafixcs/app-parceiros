@@ -72,6 +72,12 @@ export const rotaLista = createRoute({
 
 export const rotaTurma = createRoute({ getParentRoute: () => app, path: "/w/$workspaceId/turma", component: Turma });
 
+export const rotaVideos = createRoute({
+  getParentRoute: () => app,
+  path: "/w/$workspaceId/videos",
+  component: lazyRouteComponent(() => import("./videos"), "Videos"),
+});
+
 export const rotaNotificacoes = createRoute({
   getParentRoute: () => app,
   path: "/w/$workspaceId/notificacoes",
@@ -94,6 +100,7 @@ export const router = createRouter({
       rotaListas,
       rotaLista,
       rotaTurma,
+      rotaVideos,
       rotaNotificacoes,
       shopee,
     ]),
