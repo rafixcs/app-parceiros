@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: parceiros-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: parceiros-worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: parceiros-worker
+    spec:
+      containers:
+        - name: worker
+          image: parceiros
+          args: ["worker"]
+          envFrom:
+            - secretRef:
+                name: parceiros-env
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 512Mi
