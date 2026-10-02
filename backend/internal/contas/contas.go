@@ -75,6 +75,15 @@ type Convite struct {
 	// Token e URL só aparecem na resposta da criação; o banco guarda o hash.
 	Token string `json:"token,omitempty"`
 	URL   string `json:"url,omitempty"`
+	// EmailEnviado só aparece na criação de um convite com e-mail.
+	EmailEnviado *bool `json:"email_enviado,omitempty"`
+}
+
+// Contato é o destino das notificações de um usuário.
+type Contato struct {
+	Nome            string
+	Email           string
+	EmailVerificado bool
 }
 
 type StatusConvite string

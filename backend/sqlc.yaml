@@ -1,4 +1,14 @@
 version: "2"
+# Nomes que a singularização em inglês do sqlc estraga.
+overrides:
+  go:
+    rename:
+      importaco: Importacao
+      listas_curadorium: ListaCuradoria
+      lista_iten: ListaItem
+      push_inscrico: PushInscricao
+      notificaco: Notificacao
+      preferencias_notificacao: PreferenciaNotificacao
 sql:
   - engine: postgresql
     schema: db/migrations
@@ -135,6 +145,70 @@ sql:
       go:
         package: colecoesdb
         out: internal/colecoes/colecoesdb
+        sql_package: pgx/v5
+        emit_pointers_for_null_types: true
+        overrides:
+          - db_type: uuid
+            go_type: github.com/google/uuid.UUID
+          - db_type: uuid
+            nullable: true
+            go_type:
+              import: github.com/google/uuid
+              type: UUID
+              pointer: true
+          - db_type: timestamptz
+            go_type: time.Time
+          - db_type: timestamptz
+            nullable: true
+            go_type:
+              type: time.Time
+              pointer: true
+          - db_type: pg_catalog.numeric
+            go_type: float64
+          - db_type: pg_catalog.numeric
+            nullable: true
+            go_type:
+              type: float64
+              pointer: true
+  - engine: postgresql
+    schema: db/migrations
+    queries: db/queries/curadoria.sql
+    gen:
+      go:
+        package: curadoriadb
+        out: internal/curadoria/curadoriadb
+        sql_package: pgx/v5
+        emit_pointers_for_null_types: true
+        overrides:
+          - db_type: uuid
+            go_type: github.com/google/uuid.UUID
+          - db_type: uuid
+            nullable: true
+            go_type:
+              import: github.com/google/uuid
+              type: UUID
+              pointer: true
+          - db_type: timestamptz
+            go_type: time.Time
+          - db_type: timestamptz
+            nullable: true
+            go_type:
+              type: time.Time
+              pointer: true
+          - db_type: pg_catalog.numeric
+            go_type: float64
+          - db_type: pg_catalog.numeric
+            nullable: true
+            go_type:
+              type: float64
+              pointer: true
+  - engine: postgresql
+    schema: db/migrations
+    queries: db/queries/notificacoes.sql
+    gen:
+      go:
+        package: notificacoesdb
+        out: internal/notificacoes/notificacoesdb
         sql_package: pgx/v5
         emit_pointers_for_null_types: true
         overrides:

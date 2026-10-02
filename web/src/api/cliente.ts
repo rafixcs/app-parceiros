@@ -7,6 +7,10 @@ export type RadarItem = Schemas["RadarItem"];
 export type Workspace = Schemas["Workspace"];
 export type Item = Schemas["Item"];
 export type Colecao = Schemas["Colecao"];
+export type Lista = Schemas["Lista"];
+export type ListaDetalhe = Schemas["ListaDetalhe"];
+export type ItemLista = Schemas["ItemLista"];
+export type Notificacao = Schemas["Notificacao"];
 
 /** Erro da API com o código estável e a mensagem pronta para o usuário. */
 export class ErroAPI extends Error {

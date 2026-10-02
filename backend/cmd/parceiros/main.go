@@ -3,6 +3,7 @@
 //	parceiros api      serve a API HTTP
 //	parceiros worker   processa os jobs do River
 //	parceiros migrate  aplica as migrations (goose + River) e sai
+//	parceiros vapid    gera um par de chaves VAPID para o Web Push e sai
 package main
 
 import (
@@ -23,8 +24,10 @@ import (
 	"github.com/rafixcs/app-parceiros/backend/db"
 	"github.com/rafixcs/app-parceiros/backend/internal/colecoes"
 	"github.com/rafixcs/app-parceiros/backend/internal/contas"
+	"github.com/rafixcs/app-parceiros/backend/internal/curadoria"
 	"github.com/rafixcs/app-parceiros/backend/internal/fontes"
 	"github.com/rafixcs/app-parceiros/backend/internal/fontes/shopee"
+	"github.com/rafixcs/app-parceiros/backend/internal/notificacoes"
 	"github.com/rafixcs/app-parceiros/backend/internal/platform/auth"
 	"github.com/rafixcs/app-parceiros/backend/internal/platform/config"
 	"github.com/rafixcs/app-parceiros/backend/internal/platform/crypto"
@@ -47,9 +50,17 @@ func main() {
 
 func run(log *slog.Logger, args []string) error {
 	if len(args) != 1 {
-		return errors.New("uso: parceiros api|worker|migrate")
+		return errors.New("uso: parceiros api|worker|migrate|vapid")
 	}
 	mode := args[0]
+	if mode == "vapid" {
+		publica, privada, err := notificacoes.GerarChavesVAPID()
+		if err != nil {
+			return err
+		}
+		fmt.Printf("VAPID_PUBLICA=%s\nVAPID_PRIVADA=%s\n", publica, privada)
+		return nil
+	}
 
 	cfg, err := config.Load()
 	if err != nil {
@@ -123,6 +134,23 @@ func catalogoDoApp(cfg config.Config, cliente *shopee.Cliente) fontes.Catalogo {
 	}
 }
 
+// canaisNotificacao monta o e-mail (SMTP) e o Web Push, se configurados.
+func canaisNotificacao(log *slog.Logger, cfg config.Config) (notificacoes.Remetente, notificacoes.Push) {
+	var remetente notificacoes.Remetente
+	if cfg.SMTPAddr != "" {
+		remetente = notificacoes.SMTP{Addr: cfg.SMTPAddr, Usuario: cfg.SMTPUsuario, Senha: cfg.SMTPSenha, De: cfg.SMTPRemetente}
+	} else {
+		log.Warn("sem SMTP_ADDR: as notificações não vão por e-mail")
+	}
+	var push notificacoes.Push
+	if cfg.VAPIDPublica != "" {
+		push = notificacoes.WebPush{Publica: cfg.VAPIDPublica, Privada: cfg.VAPIDPrivada, Assunto: cfg.VAPIDContato}
+	} else {
+		log.Warn("sem VAPID_PUBLICA e VAPID_PRIVADA: as notificações não vão por Web Push")
+	}
+	return remetente, push
+}
+
 func runAPI(ctx context.Context, log *slog.Logger, cfg config.Config, pool *pgxpool.Pool) error {
 	rdb, err := novoRedis(cfg)
 	if err != nil {
@@ -163,10 +191,16 @@ func runAPI(ctx context.Context, log *slog.Logger, cfg config.Config, pool *pgxp
 	radar := tendencias.NewService(pool, produtosSvc)
 	colecoesSvc := colecoes.NewService(pool, produtosSvc, catalogoDoApp(cfg, clienteShopee),
 		shopee.Afiliador{Credenciais: credenciais, Cliente: clienteShopee}, colecoes.FilaRiver{Client: fila}, log)
+	remetente, push := canaisNotificacao(log, cfg)
+	notificacoesSvc := notificacoes.NewService(pool, notificacoes.FilaRiver{Client: fila}, contasSvc, remetente, push, cfg.AppURL, log)
+	contasSvc.EnviarConvitesCom(notificacoesSvc.EnviarConvite)
+	curadoriaSvc := curadoria.NewService(pool, produtosSvc, colecoesSvc, contasSvc, notificacoesSvc, log)
 	contas.NewHandler(contasSvc, log).Rotas(router, verificador,
 		shopee.NewHandler(credenciais, log).Modulo(),
 		tendencias.NewHandler(radar, log).Modulo(),
 		colecoes.NewHandler(colecoesSvc, log).Modulo(),
+		curadoria.NewHandler(curadoriaSvc, log).Modulo(),
+		notificacoes.NewHandler(notificacoesSvc, log).Modulo(),
 	)
 
 	srv := &http.Server{Addr: cfg.HTTPAddr, Handler: router}
@@ -235,6 +269,11 @@ func runWorker(ctx context.Context, log *slog.Logger, cfg config.Config, pool *p
 	})
 	river.AddWorker(workers, &colecoes.GerarLinkWorker{
 		Svc: colecoes.NewService(pool, produtosSvc, catalogo, afiliador, nil, log), Log: log,
+	})
+	remetente, push := canaisNotificacao(log, cfg)
+	contasSvc := contas.NewService(pool, nil, cfg.AppURL) // só lê contatos
+	river.AddWorker(workers, &notificacoes.EntregarWorker{
+		Svc: notificacoes.NewService(pool, nil, contasSvc, remetente, push, cfg.AppURL, log),
 	})
 
 	client, err := jobs.NewWorkerClient(pool, workers, periodicos, log)

@@ -134,3 +134,18 @@ DELETE FROM colecao_itens WHERE item_id = @item_id AND workspace_id = @workspace
 INSERT INTO colecao_itens (colecao_id, item_id, workspace_id, usuario_id)
 VALUES (@colecao_id, @item_id, @workspace_id, @usuario_id)
 ON CONFLICT DO NOTHING;
+
+-- name: CriarItemImportado :one
+-- Item vindo de uma lista da curadoria, com o comentário do mentor nas notas.
+INSERT INTO itens_colecao (workspace_id, usuario_id, produto_id, titulo, notas, link_status)
+VALUES (@workspace_id, @usuario_id, @produto_id, @titulo, @notas, @link_status)
+ON CONFLICT (workspace_id, usuario_id, produto_id) DO NOTHING
+RETURNING *;
+
+-- name: ItensDosProdutos :many
+SELECT * FROM itens_colecao
+WHERE workspace_id = @workspace_id AND usuario_id = @usuario_id AND produto_id = ANY (@produto_ids::uuid[]);
+
+-- name: ColecaoPorNome :one
+SELECT id FROM colecoes
+WHERE workspace_id = @workspace_id AND usuario_id = @usuario_id AND lower(nome) = lower(@nome);

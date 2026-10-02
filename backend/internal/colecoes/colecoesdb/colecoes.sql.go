@@ -155,6 +155,24 @@ func (q *Queries) Colecao(ctx context.Context, arg ColecaoParams) (ColecaoRow, e
 	return i, err
 }
 
+const colecaoPorNome = `-- name: ColecaoPorNome :one
+SELECT id FROM colecoes
+WHERE workspace_id = $1 AND usuario_id = $2 AND lower(nome) = lower($3)
+`
+
+type ColecaoPorNomeParams struct {
+	WorkspaceID uuid.UUID
+	UsuarioID   uuid.UUID
+	Nome        string
+}
+
+func (q *Queries) ColecaoPorNome(ctx context.Context, arg ColecaoPorNomeParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, colecaoPorNome, arg.WorkspaceID, arg.UsuarioID, arg.Nome)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const colecoesDosItens = `-- name: ColecoesDosItens :many
 SELECT item_id, colecao_id FROM colecao_itens
 WHERE workspace_id = $1 AND usuario_id = $2 AND item_id = ANY ($3::uuid[])
@@ -298,6 +316,52 @@ func (q *Queries) CriarItem(ctx context.Context, arg CriarItemParams) (ItensCole
 	return i, err
 }
 
+const criarItemImportado = `-- name: CriarItemImportado :one
+INSERT INTO itens_colecao (workspace_id, usuario_id, produto_id, titulo, notas, link_status)
+VALUES ($1, $2, $3, $4, $5, $6)
+ON CONFLICT (workspace_id, usuario_id, produto_id) DO NOTHING
+RETURNING id, workspace_id, usuario_id, produto_id, titulo, descricao, notas, tags, status, link_afiliado, link_origem, link_status, criado_em, atualizado_em
+`
+
+type CriarItemImportadoParams struct {
+	WorkspaceID uuid.UUID
+	UsuarioID   uuid.UUID
+	ProdutoID   uuid.UUID
+	Titulo      string
+	Notas       string
+	LinkStatus  LinkStatus
+}
+
+// Item vindo de uma lista da curadoria, com o comentário do mentor nas notas.
+func (q *Queries) CriarItemImportado(ctx context.Context, arg CriarItemImportadoParams) (ItensColecao, error) {
+	row := q.db.QueryRow(ctx, criarItemImportado,
+		arg.WorkspaceID,
+		arg.UsuarioID,
+		arg.ProdutoID,
+		arg.Titulo,
+		arg.Notas,
+		arg.LinkStatus,
+	)
+	var i ItensColecao
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.UsuarioID,
+		&i.ProdutoID,
+		&i.Titulo,
+		&i.Descricao,
+		&i.Notas,
+		&i.Tags,
+		&i.Status,
+		&i.LinkAfiliado,
+		&i.LinkOrigem,
+		&i.LinkStatus,
+		&i.CriadoEm,
+		&i.AtualizadoEm,
+	)
+	return i, err
+}
+
 const definirLinkManual = `-- name: DefinirLinkManual :one
 UPDATE itens_colecao SET
     link_afiliado = $1, link_origem = 'manual', link_status = 'pronto', atualizado_em = now()
@@ -403,6 +467,52 @@ func (q *Queries) ItemPorProduto(ctx context.Context, arg ItemPorProdutoParams) 
 		&i.AtualizadoEm,
 	)
 	return i, err
+}
+
+const itensDosProdutos = `-- name: ItensDosProdutos :many
+SELECT id, workspace_id, usuario_id, produto_id, titulo, descricao, notas, tags, status, link_afiliado, link_origem, link_status, criado_em, atualizado_em FROM itens_colecao
+WHERE workspace_id = $1 AND usuario_id = $2 AND produto_id = ANY ($3::uuid[])
+`
+
+type ItensDosProdutosParams struct {
+	WorkspaceID uuid.UUID
+	UsuarioID   uuid.UUID
+	ProdutoIds  []uuid.UUID
+}
+
+func (q *Queries) ItensDosProdutos(ctx context.Context, arg ItensDosProdutosParams) ([]ItensColecao, error) {
+	rows, err := q.db.Query(ctx, itensDosProdutos, arg.WorkspaceID, arg.UsuarioID, arg.ProdutoIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ItensColecao
+	for rows.Next() {
+		var i ItensColecao
+		if err := rows.Scan(
+			&i.ID,
+			&i.WorkspaceID,
+			&i.UsuarioID,
+			&i.ProdutoID,
+			&i.Titulo,
+			&i.Descricao,
+			&i.Notas,
+			&i.Tags,
+			&i.Status,
+			&i.LinkAfiliado,
+			&i.LinkOrigem,
+			&i.LinkStatus,
+			&i.CriadoEm,
+			&i.AtualizadoEm,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const itensSemLink = `-- name: ItensSemLink :many
