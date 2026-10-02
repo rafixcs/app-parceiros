@@ -34,9 +34,10 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 
 // NewWorkerClient cria um cliente River que processa as filas. Os módulos de
 // domínio registram seus workers em `workers` antes da chamada.
-func NewWorkerClient(pool *pgxpool.Pool, workers *river.Workers, log *slog.Logger) (*river.Client[pgx.Tx], error) {
+func NewWorkerClient(pool *pgxpool.Pool, workers *river.Workers, periodicos []*river.PeriodicJob, log *slog.Logger) (*river.Client[pgx.Tx], error) {
 	return river.NewClient(riverpgxv5.New(pool), &river.Config{
-		Logger: log,
+		Logger:       log,
+		PeriodicJobs: periodicos,
 		Queues: map[string]river.QueueConfig{
 			FilaDefault: {MaxWorkers: 10},
 			FilaShopee:  {MaxWorkers: 2},

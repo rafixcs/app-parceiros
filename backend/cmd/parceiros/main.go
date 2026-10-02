@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
@@ -21,11 +22,18 @@ import (
 
 	"github.com/rafixcs/app-parceiros/backend/db"
 	"github.com/rafixcs/app-parceiros/backend/internal/contas"
+	"github.com/rafixcs/app-parceiros/backend/internal/fontes"
+	"github.com/rafixcs/app-parceiros/backend/internal/fontes/shopee"
 	"github.com/rafixcs/app-parceiros/backend/internal/platform/auth"
 	"github.com/rafixcs/app-parceiros/backend/internal/platform/config"
+	"github.com/rafixcs/app-parceiros/backend/internal/platform/crypto"
 	"github.com/rafixcs/app-parceiros/backend/internal/platform/httpserver"
 	"github.com/rafixcs/app-parceiros/backend/internal/platform/jobs"
 	"github.com/rafixcs/app-parceiros/backend/internal/platform/postgres"
+	"github.com/rafixcs/app-parceiros/backend/internal/platform/ratelimit"
+	"github.com/rafixcs/app-parceiros/backend/internal/platform/storage"
+	"github.com/rafixcs/app-parceiros/backend/internal/produtos"
+	"github.com/rafixcs/app-parceiros/backend/internal/tendencias"
 )
 
 func main() {
@@ -70,19 +78,47 @@ func run(log *slog.Logger, args []string) error {
 	case "api":
 		return runAPI(ctx, log, cfg, pool)
 	case "worker":
-		return runWorker(ctx, log, pool)
+		return runWorker(ctx, log, cfg, pool)
 	default:
 		return fmt.Errorf("modo desconhecido %q", mode)
 	}
 }
 
-func runAPI(ctx context.Context, log *slog.Logger, cfg config.Config, pool *pgxpool.Pool) error {
+func novoRedis(cfg config.Config) (*redis.Client, error) {
 	redisOpts, err := redis.ParseURL(cfg.RedisURL)
 	if err != nil {
-		return fmt.Errorf("REDIS_URL inválida: %w", err)
+		return nil, fmt.Errorf("REDIS_URL inválida: %w", err)
 	}
-	rdb := redis.NewClient(redisOpts)
+	return redis.NewClient(redisOpts), nil
+}
+
+// novoClienteShopee cria o cliente da Open API, ou o mock em dev, com rate
+// limit por credencial no Redis.
+func novoClienteShopee(log *slog.Logger, cfg config.Config, rdb *redis.Client) *shopee.Cliente {
+	c := shopee.Config{
+		URL: cfg.ShopeeURL,
+		Limitador: ratelimit.NovoRedis(rdb, "rl:", ratelimit.Taxa{
+			Por: cfg.ShopeeRatePorHora, Intervalo: time.Hour, Rajada: 10,
+		}),
+	}
+	if cfg.ShopeeModo == "mock" {
+		log.Warn("shopee em modo mock: respostas gravadas, sem chamar a API")
+		return shopee.NovoMock(&shopee.Mock{Evoluir: true}, c)
+	}
+	return shopee.NovoCliente(c)
+}
+
+func runAPI(ctx context.Context, log *slog.Logger, cfg config.Config, pool *pgxpool.Pool) error {
+	rdb, err := novoRedis(cfg)
+	if err != nil {
+		return err
+	}
 	defer func() { _ = rdb.Close() }()
+
+	kek, err := crypto.NovaKEKLocal(cfg.CryptoKEKID, cfg.CryptoKEK)
+	if err != nil {
+		return err
+	}
 
 	verificador, err := auth.Novo(ctx, cfg.AuthMode, cfg.Env, auth.ConfigOIDC{
 		Issuer:      cfg.OIDCIssuer,
@@ -102,7 +138,12 @@ func runAPI(ctx context.Context, log *slog.Logger, cfg config.Config, pool *pgxp
 		"redis":    func(ctx context.Context) error { return rdb.Ping(ctx).Err() },
 	})
 	contasSvc := contas.NewService(pool, verificador, cfg.AppURL)
-	contas.NewHandler(contasSvc, log).Rotas(router, verificador)
+	credenciais := shopee.NovasCredenciais(pool, crypto.NovoCofre(kek), novoClienteShopee(log, cfg, rdb))
+	radar := tendencias.NewService(pool, produtos.NewService(pool))
+	contas.NewHandler(contasSvc, log).Rotas(router, verificador,
+		shopee.NewHandler(credenciais, log).Modulo(),
+		tendencias.NewHandler(radar, log).Modulo(),
+	)
 
 	srv := &http.Server{Addr: cfg.HTTPAddr, Handler: router}
 	errCh := make(chan error, 1)
@@ -122,11 +163,46 @@ func runAPI(ctx context.Context, log *slog.Logger, cfg config.Config, pool *pgxp
 	return srv.Shutdown(shutdownCtx)
 }
 
-func runWorker(ctx context.Context, log *slog.Logger, pool *pgxpool.Pool) error {
+func runWorker(ctx context.Context, log *slog.Logger, cfg config.Config, pool *pgxpool.Pool) error {
+	rdb, err := novoRedis(cfg)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = rdb.Close() }()
+
+	produtosSvc := produtos.NewService(pool)
+	catalogo := shopee.CatalogoDoApp{
+		Cliente:    novoClienteShopee(log, cfg, rdb),
+		Credencial: shopee.Credencial{AppID: cfg.ShopeeAppID, Secret: cfg.ShopeeAppSecret},
+	}
+	var periodicos []*river.PeriodicJob
+	switch {
+	case cfg.ShopeeModo == "mock":
+		catalogo.Credencial = shopee.Credencial{AppID: "1", Secret: "mock"}
+		if err := cadastrarCategoriasMock(ctx, produtosSvc); err != nil {
+			return err
+		}
+		periodicos = append(periodicos, produtos.PeriodicoSnapshots())
+	case cfg.ShopeeAppID != "" && cfg.ShopeeAppSecret != "":
+		periodicos = append(periodicos, produtos.PeriodicoSnapshots())
+	default:
+		log.Warn("sem SHOPEE_APP_ID e SHOPEE_APP_SECRET: o catálogo não será coletado")
+	}
+
 	workers := river.NewWorkers()
 	river.AddWorker(workers, &jobs.PingWorker{Log: log})
+	river.AddWorker(workers, &produtos.AgendarSnapshotsWorker{
+		Svc: produtosSvc, Fonte: fontes.Shopee, Paginas: cfg.ShopeePaginas,
+	})
+	river.AddWorker(workers, &produtos.SnapshotCatalogoWorker{
+		Svc: produtosSvc, Catalogo: catalogo, Storage: novoStorage(ctx, log, cfg), Log: log,
+		Depois: tendencias.Enfileirar,
+	})
+	river.AddWorker(workers, &tendencias.CalcularTendenciasWorker{
+		Svc: tendencias.NewService(pool, produtosSvc), Log: log,
+	})
 
-	client, err := jobs.NewWorkerClient(pool, workers, log)
+	client, err := jobs.NewWorkerClient(pool, workers, periodicos, log)
 	if err != nil {
 		return err
 	}
@@ -137,4 +213,40 @@ func runWorker(ctx context.Context, log *slog.Logger, pool *pgxpool.Pool) error 
 
 	<-ctx.Done()
 	return client.Stop(context.Background())
+}
+
+// cadastrarCategoriasMock registra as categorias do catálogo gravado, todas
+// monitoradas, para o radar local ter filtros com nome.
+func cadastrarCategoriasMock(ctx context.Context, svc *produtos.Service) error {
+	cats, err := shopee.Categorias()
+	if err != nil {
+		return err
+	}
+	out := make([]produtos.Categoria, len(cats))
+	for i, c := range cats {
+		out[i] = produtos.Categoria{ID: c.ID, Nome: c.Nome, Monitorar: true}
+	}
+	return svc.SalvarCategorias(ctx, fontes.Shopee, out)
+}
+
+// novoStorage abre o bucket das respostas brutas. Sem S3_ENDPOINT, descarta.
+func novoStorage(ctx context.Context, log *slog.Logger, cfg config.Config) storage.Storage {
+	if cfg.S3Endpoint == "" {
+		log.Warn("sem S3_ENDPOINT: as respostas brutas da Shopee não serão guardadas")
+		return storage.Descartar{}
+	}
+	s3, err := storage.NovoS3(storage.Config{
+		Endpoint: cfg.S3Endpoint, Bucket: cfg.S3Bucket, AccessKey: cfg.S3AccessKey,
+		SecretKey: cfg.S3SecretKey, Region: cfg.S3Region,
+	})
+	if err != nil {
+		log.Error("bucket S3 inválido; respostas brutas não serão guardadas", "err", err)
+		return storage.Descartar{}
+	}
+	if cfg.Env == "dev" {
+		if err := s3.GarantirBucket(ctx); err != nil {
+			log.Warn("não foi possível criar o bucket local", "err", err)
+		}
+	}
+	return s3
 }

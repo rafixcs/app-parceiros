@@ -12,6 +12,90 @@ import (
 	"github.com/google/uuid"
 )
 
+type CredencialStatus string
+
+const (
+	CredencialStatusConectado CredencialStatus = "conectado"
+	CredencialStatusInvalido  CredencialStatus = "invalido"
+	CredencialStatusExpirado  CredencialStatus = "expirado"
+)
+
+func (e *CredencialStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = CredencialStatus(s)
+	case string:
+		*e = CredencialStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for CredencialStatus: %T", src)
+	}
+	return nil
+}
+
+type NullCredencialStatus struct {
+	CredencialStatus CredencialStatus
+	Valid            bool // Valid is true if CredencialStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullCredencialStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.CredencialStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.CredencialStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullCredencialStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.CredencialStatus), nil
+}
+
+type Fonte string
+
+const (
+	FonteShopee Fonte = "shopee"
+)
+
+func (e *Fonte) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = Fonte(s)
+	case string:
+		*e = Fonte(s)
+	default:
+		return fmt.Errorf("unsupported scan type for Fonte: %T", src)
+	}
+	return nil
+}
+
+type NullFonte struct {
+	Fonte Fonte
+	Valid bool // Valid is true if Fonte is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullFonte) Scan(value interface{}) error {
+	if value == nil {
+		ns.Fonte, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.Fonte.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullFonte) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.Fonte), nil
+}
+
 type MembroPapel string
 
 const (
@@ -97,6 +181,13 @@ func (ns NullWorkspaceTipo) Value() (driver.Value, error) {
 	return string(ns.WorkspaceTipo), nil
 }
 
+type Categoria struct {
+	Fonte     Fonte
+	ID        int64
+	Nome      string
+	Monitorar bool
+}
+
 type Convite struct {
 	ID          uuid.UUID
 	WorkspaceID uuid.UUID
@@ -108,6 +199,18 @@ type Convite struct {
 	RevogadoEm  *time.Time
 	CriadoPor   uuid.UUID
 	CriadoEm    time.Time
+}
+
+type CredenciaisShopee struct {
+	UsuarioID     uuid.UUID
+	AppID         string
+	SecretCifrado []byte
+	DekCifrada    []byte
+	KekID         string
+	Status        CredencialStatus
+	VerificadoEm  time.Time
+	CriadoEm      time.Time
+	AtualizadoEm  time.Time
 }
 
 type Limite struct {
@@ -122,6 +225,67 @@ type Membro struct {
 	Papel              MembroPapel
 	ConsenteResultados bool
 	EntrouEm           time.Time
+}
+
+type Produto struct {
+	ID               uuid.UUID
+	Fonte            Fonte
+	ItemID           int64
+	LojaID           int64
+	LojaNome         string
+	Nome             string
+	ImagemUrl        *string
+	CategoriaID      *int64
+	Categorias       []int64
+	Url              string
+	PrecoMinCentavos int64
+	PrecoMaxCentavos int64
+	ComissaoBp       int32
+	Vendas           int64
+	Nota             *float64
+	ColetadoEm       time.Time
+	CriadoEm         time.Time
+}
+
+type ProdutoSnapshot struct {
+	ProdutoID        uuid.UUID
+	ColetadoEm       time.Time
+	PrecoMinCentavos int64
+	PrecoMaxCentavos int64
+	ComissaoBp       int32
+	Vendas           int64
+	Nota             *float64
+}
+
+type ProdutoSnapshotsPadrao struct {
+	ProdutoID        uuid.UUID
+	ColetadoEm       time.Time
+	PrecoMinCentavos int64
+	PrecoMaxCentavos int64
+	ComissaoBp       int32
+	Vendas           int64
+	Nota             *float64
+}
+
+type Tendencia struct {
+	ProdutoID             uuid.UUID
+	CalculadoEm           time.Time
+	Score                 float64
+	GanhoPorVendaCentavos int64
+	VariacaoVendas7d      *int64
+	Nome                  string
+	LojaNome              string
+	ImagemUrl             *string
+	CategoriaID           *int64
+	Categorias            []int64
+	Url                   string
+	PrecoMinCentavos      int64
+	PrecoMaxCentavos      int64
+	ComissaoBp            int32
+	Vendas                int64
+	Nota                  *float64
+	AtualizadoEm          time.Time
+	Busca                 interface{}
 }
 
 type Usuario struct {

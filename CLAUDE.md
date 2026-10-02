@@ -18,7 +18,7 @@ App para afiliados da Shopee descobrirem produtos em alta, organizarem o que vã
   - Redis para cache e rate limit por credencial.
 - **Contrato:** `api/openapi.yaml` é a fonte da verdade. Altere o contrato primeiro e depois gere o código.
 - **Frontend:** `web/`, React + TypeScript + Vite (PWA), TanStack Query/Router, Tailwind + shadcn/ui, Uppy.
-- **Infra:** Docker, Kubernetes, Kustomize (`deploy/`), Tilt para dev local (kind/k3d), MinIO no lugar do R2.
+- **Infra:** Docker, Kubernetes, Kustomize (`deploy/`), Tilt para dev local (kind/k3d), SeaweedFS (S3) no lugar do R2.
 
 ## Estrutura
 ```
@@ -51,15 +51,18 @@ Os módulos não acessam as tabelas uns dos outros. Quando precisam, um módulo 
 
 ## Comandos
 - `make cluster`: cria o cluster local (kind) uma vez
-- `tilt up`: sobe Postgres, Redis, MinIO, migrations, API (porta 8080) e worker
+- `tilt up`: sobe Postgres, Redis, SeaweedFS (S3), migrations, API (porta 8080) e worker
 - `make test`: testes do backend
 - `make lint`: `go vet` + `golangci-lint`
 - `make sqlc`: gera o código Go das queries
 - `make migrate`: aplica as migrations no banco de `DATABASE_URL`
 - Binário: `parceiros api|worker|migrate` (`backend/cmd/parceiros`)
+- Front (`web/`): `npm run dev`, `npm test`, `npm run build`; `npm run api` regenera os tipos a partir do `api/openapi.yaml`
 
 ## Fluxo de trabalho
 - Um PR por história ou marco pequeno (veja os marcos em `docs/mvp.md` §7).
 - Antes de abrir PR: `make lint test` passando.
 - Testes de integração usam Postgres real (testcontainers, via `pgtest.New`), não mocks de banco. Com `TEST_DATABASE_URL`, usam um servidor já existente.
-- O cliente Shopee tem uma interface e um mock com respostas gravadas em `testdata/`, para desenvolver sem credencial.
+- O cliente Shopee tem uma interface e um mock com respostas gravadas em `testdata/`, para desenvolver sem credencial (`SHOPEE_MODO=mock`, padrão em dev).
+- Outros módulos registram rotas pelo `contas.Modulo` (`Autenticadas` e `DoWorkspace`), passado para `contas.Handler.Rotas`.
+- Catálogo global (`produtos`, `produto_snapshots`, `tendencias`) não tem `workspace_id`: a API só lê, e o worker escreve com o papel dono das tabelas.
