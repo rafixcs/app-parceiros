@@ -22,3 +22,25 @@ export DATABASE_URL=postgres://... REDIS_URL=redis://...
 make migrate
 ./bin/parceiros api      # ou: ./bin/parceiros worker
 ```
+
+## Autenticação
+
+A identidade vem do Zitadel (OIDC). A API valida o token de acesso (JWT) e, no primeiro acesso, cria o usuário e o seu workspace pessoal.
+
+| Variável | Uso |
+|---|---|
+| `AUTH_MODE` | `oidc` (padrão) ou `dev` |
+| `OIDC_ISSUER` | URL do Zitadel, ex.: `https://auth.exemplo.com.br` |
+| `OIDC_AUDIENCE` | ID do projeto ou do app no Zitadel (precisa estar no `aud` do token) |
+| `OIDC_JWKS_URL`, `OIDC_USERINFO_URL` | Opcionais; o padrão segue os caminhos do Zitadel |
+| `APP_URL` | Endereço do front, usado nos links de convite |
+
+No app do Zitadel, configure o token de acesso como **JWT** e peça os escopos `openid profile email`.
+
+No cluster local não há Zitadel: o overlay `dev` liga `AUTH_MODE=dev`, que aceita `Authorization: Bearer dev:<qualquer-nome>` (recusado fora de `APP_ENV=dev`). Exemplo do fluxo de convite:
+
+```sh
+curl -s -X POST localhost:8080/v1/workspaces -H 'Authorization: Bearer dev:mentor' -d '{"nome":"Minha turma"}'
+curl -s -X POST localhost:8080/v1/workspaces/<id>/convites -H 'Authorization: Bearer dev:mentor' -d '{}'
+curl -s -X POST localhost:8080/v1/convites/<token>/aceitar -H 'Authorization: Bearer dev:afiliada'
+```

@@ -42,16 +42,24 @@ Os módulos não acessam as tabelas uns dos outros. Quando precisam, um módulo 
 5. **Shopee:** paginação do `productOfferV2` sequencial dentro do job (o `scrollId` expira em ~30 s), no máximo 50 itens por página e janela de relatório de no máximo 90 dias. Respeite o rate limit por credencial.
 6. **LGPD:** o mentor só vê resultados de afiliados que consentiram.
 
+## Acesso a dados e multi-tenant
+- Toda leitura e escrita de dados de cliente passa por `postgres.InTx` (`backend/internal/platform/postgres`), que assume o papel `parceiros_app` e define o `Escopo` (`app.usuario_id`, `app.workspace_id`...). Esse papel não ignora RLS, mesmo com conexão de superusuário.
+- Tabela nova com `workspace_id`: `GRANT` para `parceiros_app`, `ENABLE` e `FORCE ROW LEVEL SECURITY`, e políticas usando `app_workspace_id()` (veja `00002_contas.sql`).
+- Rotas de um workspace ficam sob `/v1/workspaces/{workspaceId}/...` com o middleware `contas.ExigirMembro`; o handler lê o papel com `contas.MembroDoContexto`.
+- Queries ficam em `backend/db/queries/<módulo>.sql`; rode `make sqlc` depois de mudar uma query ou migration.
+- Autenticação: Zitadel (OIDC) valida o token; usuários, workspaces, papéis e convites ficam no Postgres (módulo `contas`). No cluster local, `AUTH_MODE=dev` aceita `Authorization: Bearer dev:<sub>`.
+
 ## Comandos
 - `make cluster`: cria o cluster local (kind) uma vez
 - `tilt up`: sobe Postgres, Redis, MinIO, migrations, API (porta 8080) e worker
 - `make test`: testes do backend
 - `make lint`: `go vet` + `golangci-lint`
+- `make sqlc`: gera o código Go das queries
 - `make migrate`: aplica as migrations no banco de `DATABASE_URL`
 - Binário: `parceiros api|worker|migrate` (`backend/cmd/parceiros`)
 
 ## Fluxo de trabalho
 - Um PR por história ou marco pequeno (veja os marcos em `docs/mvp.md` §7).
 - Antes de abrir PR: `make lint test` passando.
-- Testes de integração usam Postgres real (testcontainers), não mocks de banco.
+- Testes de integração usam Postgres real (testcontainers, via `pgtest.New`), não mocks de banco. Com `TEST_DATABASE_URL`, usam um servidor já existente.
 - O cliente Shopee tem uma interface e um mock com respostas gravadas em `testdata/`, para desenvolver sem credencial.
