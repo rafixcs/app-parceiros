@@ -18,7 +18,7 @@ App para afiliados da Shopee descobrirem produtos em alta, organizarem o que vã
   - Redis para cache e rate limit por credencial.
 - **Contrato:** `api/openapi.yaml` é a fonte da verdade. Altere o contrato primeiro e depois gere o código.
 - **Frontend:** `web/`, React + TypeScript + Vite (PWA), TanStack Query/Router, Tailwind + shadcn/ui, Uppy.
-- **Infra:** Docker, Kubernetes, Kustomize (`deploy/`), Tilt para dev local (kind/k3d), MinIO no lugar do R2.
+- **Infra:** Docker, Kubernetes, Kustomize (`deploy/`), Tilt para dev local (kind/k3d), SeaweedFS (S3) no lugar do R2.
 
 ## Estrutura
 ```
@@ -51,7 +51,7 @@ Os módulos não acessam as tabelas uns dos outros. Quando precisam, um módulo 
 
 ## Comandos
 - `make cluster`: cria o cluster local (kind) uma vez
-- `tilt up`: sobe Postgres, Redis, MinIO, migrations, API (porta 8080) e worker
+- `tilt up`: sobe Postgres, Redis, SeaweedFS (S3), migrations, API (porta 8080) e worker
 - `make test`: testes do backend
 - `make lint`: `go vet` + `golangci-lint`
 - `make sqlc`: gera o código Go das queries

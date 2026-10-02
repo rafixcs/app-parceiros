@@ -100,7 +100,7 @@ Asaas e Mercado Pago cobrem PIX recorrente, boleto e cartão, com webhooks. Uma 
 React + Vite em PWA, responsivo e pensado primeiro para o celular. Uppy cuida do upload com retomada, e Web Push avisa quando o mentor manda uma lista nova. Se o uso no celular exigir mais (salvar na galeria do iPhone, push mais confiável), a fase 2 é Expo, reaproveitando o cliente TypeScript gerado do OpenAPI.
 
 ### Itens iguais às versões anteriores
-OpenAPI primeiro; `pgx` + `sqlc` + `goose`; OpenTelemetry + Grafana + Sentry (com painel de saúde da integração Shopee); GitHub Actions + Argo CD + Kustomize; OpenTofu; Postgres e Redis gerenciados em produção; dev local com Tilt em `kind`/`k3d`, usando MinIO no lugar do R2.
+OpenAPI primeiro; `pgx` + `sqlc` + `goose`; OpenTelemetry + Grafana + Sentry (com painel de saúde da integração Shopee); GitHub Actions + Argo CD + Kustomize; OpenTofu; Postgres e Redis gerenciados em produção; dev local com Tilt em `kind`/`k3d`, usando SeaweedFS (compatível com S3) no lugar do R2.
 
 ## Estrutura do repositório (monorepo)
 

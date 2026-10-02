@@ -76,7 +76,7 @@ O radar usa a **credencial do app** (`SHOPEE_APP_ID` e `SHOPEE_APP_SECRET`) para
 | `SHOPEE_RATE_POR_HORA` | Chamadas por hora por credencial (padrão 1800) |
 | `SHOPEE_PAGINAS` | Páginas de 50 produtos por categoria em cada coleta (padrão 10) |
 | `CRYPTO_KEK`, `CRYPTO_KEK_ID` | Chave mestra (32 bytes em base64) que cifra as credenciais. Gere com `head -c32 /dev/urandom \| base64` |
-| `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` | Bucket onde ficam as respostas brutas da Shopee (R2 em produção, MinIO local) |
+| `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` | Bucket onde ficam as respostas brutas da Shopee (R2 em produção, SeaweedFS local) |
 
 Como funciona:
 - O job `agendar_snapshots` roda a cada 6 h (e quando o worker sobe) e enfileira um `snapshot_catalogo` geral e um por categoria com `monitorar = true` na tabela `categorias`.

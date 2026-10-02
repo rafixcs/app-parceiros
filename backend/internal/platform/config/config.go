@@ -41,7 +41,7 @@ type Config struct {
 	ShopeeRatePorHora int // chamadas por hora por credencial
 	ShopeePaginas     int // páginas de 50 itens por categoria em cada snapshot
 
-	// Bucket S3 (R2 em produção, MinIO local). Sem S3_ENDPOINT, as respostas
+	// Bucket S3 (R2 em produção, SeaweedFS local). Sem S3_ENDPOINT, as respostas
 	// brutas da Shopee não são guardadas.
 	S3Endpoint  string
 	S3Bucket    string

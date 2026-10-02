@@ -1,5 +1,5 @@
 // Package storage guarda objetos num bucket compatível com S3: Cloudflare R2
-// em produção e MinIO no ambiente local.
+// em produção e SeaweedFS no ambiente local.
 package storage
 
 import (
@@ -19,7 +19,7 @@ type Storage interface {
 }
 
 type Config struct {
-	Endpoint  string // ex.: http://minio:9000 ou https://<conta>.r2.cloudflarestorage.com
+	Endpoint  string // ex.: http://seaweedfs:8333 ou https://<conta>.r2.cloudflarestorage.com
 	Bucket    string
 	AccessKey string
 	SecretKey string
@@ -52,7 +52,7 @@ func NovoS3(c Config) (*S3, error) {
 	return &S3{cli: cli, bucket: c.Bucket}, nil
 }
 
-// GarantirBucket cria o bucket se ele não existir. Útil no MinIO local; em
+// GarantirBucket cria o bucket se ele não existir. Útil no ambiente local; em
 // produção o bucket é criado pela infra.
 func (s *S3) GarantirBucket(ctx context.Context) error {
 	ok, err := s.cli.BucketExists(ctx, s.bucket)
