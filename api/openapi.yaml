@@ -1,0 +1,49 @@
+openapi: 3.1.0
+info:
+  title: App Parceiros API
+  version: 0.1.0
+  description: >
+    Contrato da API do App Parceiros. É a fonte da verdade: altere aqui
+    antes de implementar e gere os clientes a partir deste arquivo.
+servers:
+  - url: http://localhost:8080
+paths:
+  /healthz:
+    get:
+      summary: Verificação de vida do processo
+      operationId: healthz
+      responses:
+        "200":
+          description: Processo ativo
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    const: ok
+  /readyz:
+    get:
+      summary: Verificação de prontidão (Postgres e Redis)
+      operationId: readyz
+      responses:
+        "200":
+          description: Todas as dependências respondem
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Prontidao"
+        "503":
+          description: Alguma dependência falhou
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Prontidao"
+components:
+  schemas:
+    Prontidao:
+      type: object
+      additionalProperties:
+        type: string
+        enum: [ok, falhou]
