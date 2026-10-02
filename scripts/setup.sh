@@ -11,6 +11,7 @@ set -euo pipefail
 
 GO_MINIMO="1.26"
 NODE_MAJOR="22"
+NODE_MINIMO="22.12.0"
 
 raiz="$(cd "$(dirname "$0")/.." && pwd)"
 so="$(uname -s)"
@@ -83,9 +84,9 @@ else
   fi
 fi
 
-passo "Node $NODE_MAJOR"
+passo "Node >= $NODE_MINIMO"
 node_atual="$(tem node && node -v | sed 's/^v//' || true)"
-if [ -n "$node_atual" ] && [ "${node_atual%%.*}" -ge "$NODE_MAJOR" ]; then
+if [ -n "$node_atual" ] && versao_ok "$node_atual" "$NODE_MINIMO"; then
   ok "Node $node_atual"
 elif [ "$so" = "Darwin" ]; then
   brew install "node@$NODE_MAJOR" && brew link --overwrite --force "node@$NODE_MAJOR"
