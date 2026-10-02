@@ -29,6 +29,24 @@ jobs:
           version: v2.14.0
           working-directory: backend
 
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - name: tipos da API em dia com o openapi.yaml
+        run: npm run api && git diff --exit-code src/api/schema.d.ts
+      - run: npm test
+      - run: npm run build
+
   manifests:
     runs-on: ubuntu-latest
     steps:
