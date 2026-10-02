@@ -684,6 +684,245 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{workspaceId}/listas/{listaId}/videos/{videoId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                listaId: components["parameters"]["ListaId"];
+                videoId: components["parameters"]["VideoId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Anexar vídeo à lista (dono e mentor)
+         * @description Anexa um vídeo da biblioteca de quem edita a lista. O vídeo passa a ser compartilhado com a turma.
+         */
+        put: operations["anexarVideoLista"];
+        post?: never;
+        /**
+         * Tirar vídeo da lista (dono e mentor)
+         * @description O vídeo continua na biblioteca de quem o enviou, ainda compartilhado.
+         */
+        delete: operations["tirarVideoLista"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{workspaceId}/videos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Biblioteca de vídeos
+         * @description Os vídeos do usuário no workspace e os que dono e mentores compartilharam com a turma, dos mais novos para os mais antigos (até 500). Com `produto_id`, só os ligados ao produto, na ordem em que foram ligados.
+         */
+        get: operations["listarVideos"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{workspaceId}/videos/cota": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Espaço de vídeos do workspace
+         * @description Bytes de upload usados (inclui envios em andamento) e o limite do plano.
+         */
+        get: operations["cotaVideos"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{workspaceId}/videos/embed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Colar link de vídeo de referência
+         * @description Aceita links do YouTube (vídeos e Shorts) e do TikTok, inclusive os curtos. A API resolve pelo oEmbed oficial (com cache de um dia) e guarda só título, autor, miniatura e URL; o vídeo toca no player da plataforma. Colar de novo o mesmo vídeo devolve o existente (200). O job `revalidar_embed` confere o vídeo a cada 7 dias e o marca como `indisponivel` se ele sumir.
+         */
+        post: operations["colarVideo"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{workspaceId}/videos/uploads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Iniciar upload de vídeo próprio
+         * @description Valida o arquivo (MP4, MOV ou WebM, até 1 GB), exige a declaração de direito de uso, reserva o espaço na cota do plano e abre um upload multipart no bucket. O navegador envia as partes direto ao bucket pelas URLs de `POST .../partes` e termina com `POST .../concluir`. Um envio que não termina em 24 h é descartado (job `limpar_upload`).
+         */
+        post: operations["iniciarUploadVideo"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{workspaceId}/videos/{videoId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                videoId: components["parameters"]["VideoId"];
+            };
+            cookie?: never;
+        };
+        /** Ver vídeo */
+        get: operations["verVideo"];
+        put?: never;
+        post?: never;
+        /**
+         * Apagar vídeo (só quem enviou)
+         * @description Apaga os arquivos do bucket (ou cancela o envio em andamento), os vínculos com produtos e listas, e devolve o espaço à cota.
+         */
+        delete: operations["apagarVideo"];
+        options?: never;
+        head?: never;
+        /**
+         * Renomear ou compartilhar (só quem enviou)
+         * @description `compartilhado` mostra o vídeo para todo o workspace; só dono e mentores de uma mentoria compartilham.
+         */
+        patch: operations["editarVideo"];
+        trace?: never;
+    };
+    "/v1/workspaces/{workspaceId}/videos/{videoId}/partes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                videoId: components["parameters"]["VideoId"];
+            };
+            cookie?: never;
+        };
+        /** Partes já enviadas (para retomar o upload) */
+        get: operations["partesUploadVideo"];
+        put?: never;
+        /**
+         * Assinar a URL de envio de uma parte
+         * @description Devolve uma URL pré-assinada (PUT, válida por 1 hora) para o navegador enviar a parte direto ao bucket. As partes têm pelo menos 5 MB, menos a última.
+         */
+        post: operations["assinarParteVideo"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{workspaceId}/videos/{videoId}/concluir": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                videoId: components["parameters"]["VideoId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Concluir upload
+         * @description Junta as partes, confere o tamanho com o que foi reservado e põe o vídeo na fila do `processar_video` (ffmpeg: duração, miniatura e prévia em 720p). Um arquivo maior do que o informado é descartado.
+         */
+        post: operations["concluirUploadVideo"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{workspaceId}/videos/{videoId}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                videoId: components["parameters"]["VideoId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Baixar o arquivo original
+         * @description URL assinada de 5 minutos que baixa o arquivo enviado (o próprio ou um compartilhado com a turma). Vídeos de referência não são baixados.
+         */
+        get: operations["baixarVideo"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{workspaceId}/videos/{videoId}/produtos/{produtoId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                videoId: components["parameters"]["VideoId"];
+                produtoId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Ligar vídeo a um produto (só quem enviou)
+         * @description O vídeo aparece no produto (radar, coleção e listas) para o dono e, se compartilhado, para a turma.
+         */
+        put: operations["vincularVideoProduto"];
+        post?: never;
+        /** Tirar vídeo do produto (só quem enviou) */
+        delete: operations["desvincularVideoProduto"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workspaces/{workspaceId}/notificacoes": {
         parameters: {
             query?: never;
@@ -789,7 +1028,7 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         Erro: {
-            /** @description Código estável para o front. Em contas: nao_autenticado, dados_invalidos, json_invalido, sem_permissao, workspace_nao_encontrado, membro_nao_encontrado, convite_nao_encontrado, so_mentoria, dono_nao_sai, sem_assentos, ja_membro, convite_expirado, convite_usado, convite_revogado, convite_outro_email, erro_interno. Em shopee: credencial_invalida, shopee_limite, shopee_indisponivel. Em radar: produto_nao_encontrado. Em coleções: item_nao_encontrado, colecao_nao_encontrada, colecao_existente, link_invalido, link_curto, sem_credencial, importacao_indisponivel. Em curadoria: lista_nao_encontrada, item_lista_nao_encontrado, limite_listas, lista_vazia, ja_na_lista, lista_cheia, lista_nao_publicada. Em notificações: notificacao_nao_encontrada, push_indisponivel, inscricao_invalida, inscricoes_demais. */
+            /** @description Código estável para o front. Em contas: nao_autenticado, dados_invalidos, json_invalido, sem_permissao, workspace_nao_encontrado, membro_nao_encontrado, convite_nao_encontrado, so_mentoria, dono_nao_sai, sem_assentos, ja_membro, convite_expirado, convite_usado, convite_revogado, convite_outro_email, erro_interno. Em shopee: credencial_invalida, shopee_limite, shopee_indisponivel. Em radar: produto_nao_encontrado. Em coleções: item_nao_encontrado, colecao_nao_encontrada, colecao_existente, link_invalido, link_curto, sem_credencial, importacao_indisponivel. Em curadoria: lista_nao_encontrada, item_lista_nao_encontrado, limite_listas, lista_vazia, ja_na_lista, lista_cheia, lista_nao_publicada. Em notificações: notificacao_nao_encontrada, push_indisponivel, inscricao_invalida, inscricoes_demais. Em mídia: video_nao_encontrado, link_video_invalido, video_indisponivel, plataforma_indisponivel, direito_uso_obrigatorio, formato_invalido, arquivo_grande, cota_videos, uploads_indisponiveis, upload_encerrado, upload_incompleto, video_nao_pronto. */
             codigo: string;
             /** @description Texto pronto para mostrar ao usuário */
             mensagem: string;
@@ -1055,9 +1294,13 @@ export interface components {
             /** @description Membros que importaram este produto (só para dono e mentor) */
             importadores?: number;
             meu_item: components["schemas"]["MeuItem"] | null;
+            /** @description Vídeos do produto que quem vê enxerga (os dele e os compartilhados) */
+            videos: components["schemas"]["Video"][];
         };
         ListaDetalhe: components["schemas"]["Lista"] & {
             itens: components["schemas"]["ItemLista"][];
+            /** @description Vídeos anexados à lista pelo mentor */
+            videos: components["schemas"]["Video"][];
         };
         ResultadoImportacao: {
             criados: number;
@@ -1115,6 +1358,70 @@ export interface components {
                 auth: string;
             };
         };
+        Video: {
+            /** Format: uuid */
+            id: string;
+            /**
+             * @description `embed`: referência de outro criador (só metadados). `upload`: vídeo próprio.
+             * @enum {string}
+             */
+            tipo: "embed" | "upload";
+            /** @enum {string} */
+            plataforma: "youtube" | "tiktok" | "upload";
+            /**
+             * @description `enviando`: upload em andamento. `processando`: na fila do ffmpeg. `falhou`: o arquivo não pôde ser lido como vídeo. `indisponivel`: o vídeo de referência sumiu da plataforma.
+             * @enum {string}
+             */
+            status: "enviando" | "processando" | "pronto" | "falhou" | "indisponivel";
+            titulo: string;
+            /** @description Autor no YouTube ou no TikTok (embed) */
+            autor: string;
+            /** @description Página do vídeo na plataforma (embed) */
+            url: string | null;
+            /** @description Player oficial da plataforma */
+            player_url: string | null;
+            /** @description Miniatura da plataforma (embed) ou gerada pelo worker (upload pronto, URL assinada) */
+            thumb_url: string | null;
+            /** @description Prévia em 720p do upload pronto (URL assinada de 6 horas) */
+            preview_url: string | null;
+            duracao_s: number | null;
+            /** @description Da prévia */
+            largura: number | null;
+            altura: number | null;
+            /** Format: int64 */
+            tamanho_bytes: number;
+            nome_arquivo: string | null;
+            /** @description Visível para todo o workspace */
+            compartilhado: boolean;
+            /** @description Se quem vê é quem enviou */
+            meu: boolean;
+            /** @description Produtos ligados (só nos vídeos do próprio usuário) */
+            produto_ids: string[];
+            /** @description Listas em que está anexado (só nos vídeos do próprio usuário) */
+            lista_ids: string[];
+            /** Format: date-time */
+            criado_em: string;
+        };
+        UploadIniciado: {
+            video: components["schemas"]["Video"];
+            /** @description Id do upload multipart no bucket */
+            upload_id: string;
+            /** @description Chave do objeto no bucket */
+            chave: string;
+        };
+        ParteUpload: {
+            numero: number;
+            /** @description ETag que o bucket devolveu no PUT da parte */
+            etag: string;
+            /** Format: int64 */
+            tamanho?: number;
+        };
+        CotaVideos: {
+            /** Format: int64 */
+            usados_bytes: number;
+            /** Format: int64 */
+            limite_bytes: number;
+        };
         Prontidao: {
             [key: string]: "ok" | "falhou";
         };
@@ -1143,6 +1450,7 @@ export interface components {
         WorkspaceId: string;
         ItemId: string;
         ListaId: string;
+        VideoId: string;
         TokenConvite: string;
     };
     requestBodies: never;
@@ -2601,6 +2909,562 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PainelLista"];
+                };
+            };
+            401: components["responses"]["NaoAutenticado"];
+            403: components["responses"]["Erro"];
+            404: components["responses"]["Erro"];
+        };
+    };
+    anexarVideoLista: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                listaId: components["parameters"]["ListaId"];
+                videoId: components["parameters"]["VideoId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Lista com o vídeo */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListaDetalhe"];
+                };
+            };
+            401: components["responses"]["NaoAutenticado"];
+            403: components["responses"]["Erro"];
+            /** @description `lista_nao_encontrada` ou `video_nao_encontrado` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+        };
+    };
+    tirarVideoLista: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                listaId: components["parameters"]["ListaId"];
+                videoId: components["parameters"]["VideoId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Lista sem o vídeo */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListaDetalhe"];
+                };
+            };
+            401: components["responses"]["NaoAutenticado"];
+            403: components["responses"]["Erro"];
+            404: components["responses"]["Erro"];
+        };
+    };
+    listarVideos: {
+        parameters: {
+            query?: {
+                produto_id?: string;
+                /** @description Só os vídeos do próprio usuário */
+                meus?: boolean;
+            };
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Vídeos */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Video"][];
+                };
+            };
+            401: components["responses"]["NaoAutenticado"];
+            404: components["responses"]["Erro"];
+        };
+    };
+    cotaVideos: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cota */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CotaVideos"];
+                };
+            };
+            401: components["responses"]["NaoAutenticado"];
+            404: components["responses"]["Erro"];
+        };
+    };
+    colarVideo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    url: string;
+                    /**
+                     * Format: uuid
+                     * @description Liga o vídeo a este produto
+                     */
+                    produto_id?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description O vídeo já estava na biblioteca */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Video"];
+                };
+            };
+            /** @description Vídeo guardado */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Video"];
+                };
+            };
+            401: components["responses"]["NaoAutenticado"];
+            /** @description `produto_nao_encontrado` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+            /** @description `link_video_invalido` ou `video_indisponivel` */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+            /** @description `plataforma_indisponivel` */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+        };
+    };
+    iniciarUploadVideo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description Nome do arquivo */
+                    nome: string;
+                    /** @enum {string} */
+                    content_type: "video/mp4" | "video/quicktime" | "video/webm";
+                    /** Format: int64 */
+                    tamanho: number;
+                    /** @description Declaração "tenho direito de uso" (precisa ser true) */
+                    direito_uso: boolean;
+                    /**
+                     * Format: uuid
+                     * @description Liga o vídeo a este produto
+                     */
+                    produto_id?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Upload aberto */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadIniciado"];
+                };
+            };
+            401: components["responses"]["NaoAutenticado"];
+            404: components["responses"]["Erro"];
+            /** @description `cota_videos` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+            /** @description `direito_uso_obrigatorio`, `formato_invalido`, `arquivo_grande` ou `dados_invalidos` */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+            /** @description `uploads_indisponiveis` (servidor sem bucket) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+        };
+    };
+    verVideo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                videoId: components["parameters"]["VideoId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Vídeo */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Video"];
+                };
+            };
+            401: components["responses"]["NaoAutenticado"];
+            404: components["responses"]["Erro"];
+        };
+    };
+    apagarVideo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                videoId: components["parameters"]["VideoId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Apagado */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["NaoAutenticado"];
+            403: components["responses"]["Erro"];
+            404: components["responses"]["Erro"];
+        };
+    };
+    editarVideo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                videoId: components["parameters"]["VideoId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    titulo?: string;
+                    compartilhado?: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description Vídeo */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Video"];
+                };
+            };
+            401: components["responses"]["NaoAutenticado"];
+            403: components["responses"]["Erro"];
+            404: components["responses"]["Erro"];
+            422: components["responses"]["Erro"];
+        };
+    };
+    partesUploadVideo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                videoId: components["parameters"]["VideoId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Partes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ParteUpload"][];
+                };
+            };
+            401: components["responses"]["NaoAutenticado"];
+            403: components["responses"]["Erro"];
+            404: components["responses"]["Erro"];
+            /** @description `upload_encerrado` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+        };
+    };
+    assinarParteVideo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                videoId: components["parameters"]["VideoId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    numero: number;
+                };
+            };
+        };
+        responses: {
+            /** @description URL assinada */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        url: string;
+                    };
+                };
+            };
+            401: components["responses"]["NaoAutenticado"];
+            403: components["responses"]["Erro"];
+            404: components["responses"]["Erro"];
+            /** @description `upload_encerrado` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+            422: components["responses"]["Erro"];
+        };
+    };
+    concluirUploadVideo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                videoId: components["parameters"]["VideoId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    partes: components["schemas"]["ParteUpload"][];
+                };
+            };
+        };
+        responses: {
+            /** @description Vídeo em processamento */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Video"];
+                };
+            };
+            401: components["responses"]["NaoAutenticado"];
+            403: components["responses"]["Erro"];
+            404: components["responses"]["Erro"];
+            /** @description `upload_encerrado` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+            /** @description `upload_incompleto` ou `dados_invalidos` */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+        };
+    };
+    baixarVideo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                videoId: components["parameters"]["VideoId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description URL de download */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        url: string;
+                    };
+                };
+            };
+            401: components["responses"]["NaoAutenticado"];
+            404: components["responses"]["Erro"];
+            /** @description `video_nao_pronto` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+            422: components["responses"]["Erro"];
+        };
+    };
+    vincularVideoProduto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                videoId: components["parameters"]["VideoId"];
+                produtoId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Vídeo */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Video"];
+                };
+            };
+            401: components["responses"]["NaoAutenticado"];
+            403: components["responses"]["Erro"];
+            404: components["responses"]["Erro"];
+        };
+    };
+    desvincularVideoProduto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                videoId: components["parameters"]["VideoId"];
+                produtoId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Vídeo */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Video"];
                 };
             };
             401: components["responses"]["NaoAutenticado"];

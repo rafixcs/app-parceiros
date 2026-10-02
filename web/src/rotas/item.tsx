@@ -13,6 +13,7 @@ import { useColecoes, useInvalidarColecao } from "./colecao-api";
 import { gerando, StatusLink, statusItem, useCanal } from "./colecao";
 import { Imagem } from "./radar";
 import { rotaItem } from "./router";
+import { VideosDoProduto } from "./videos-produto";
 
 type Edicao = paths["/v1/workspaces/{workspaceId}/itens/{itemId}"]["patch"]["requestBody"]["content"]["application/json"];
 
@@ -85,7 +86,10 @@ export function Item() {
       </Card>
 
       <div className="grid gap-4 lg:grid-cols-[1fr_22rem]">
-        <FormItem item={it} salvando={editar.isPending} erro={editar.error?.message} onSalvar={(b) => editar.mutate(b)} />
+        <div className="flex min-w-0 flex-col gap-4">
+          <FormItem item={it} salvando={editar.isPending} erro={editar.error?.message} onSalvar={(b) => editar.mutate(b)} />
+          <VideosDoProduto workspaceId={workspaceId} produtoId={p.id} />
+        </div>
         <div className="flex flex-col gap-4">
           <CopiarRapido item={it} />
           <LinkAfiliado item={it} workspaceId={workspaceId} />

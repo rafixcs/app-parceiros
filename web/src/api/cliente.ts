@@ -11,6 +11,7 @@ export type Lista = Schemas["Lista"];
 export type ListaDetalhe = Schemas["ListaDetalhe"];
 export type ItemLista = Schemas["ItemLista"];
 export type Notificacao = Schemas["Notificacao"];
+export type Video = Schemas["Video"];
 
 /** Erro da API com o código estável e a mensagem pronta para o usuário. */
 export class ErroAPI extends Error {

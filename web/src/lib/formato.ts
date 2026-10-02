@@ -41,3 +41,26 @@ export function haQuanto(iso: string, agora: Date = new Date()): string {
   const d = Math.floor(h / 24);
   return d === 1 ? "há 1 dia" : `há ${d} dias`;
 }
+
+const decimal = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 });
+
+/** 1536 → "1,5 KB"; 5368709120 → "5 GB" */
+export function tamanho(bytes: number): string {
+  const unidades = ["bytes", "KB", "MB", "GB", "TB"];
+  let v = bytes;
+  let i = 0;
+  while (v >= 1024 && i < unidades.length - 1) {
+    v /= 1024;
+    i++;
+  }
+  return `${i === 0 ? inteiro.format(v) : decimal.format(v)} ${unidades[i]}`;
+}
+
+/** 65 → "1:05"; 3725 → "1:02:05" */
+export function duracao(segundos: number): string {
+  const s = Math.max(0, Math.round(segundos));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const ss = String(s % 60).padStart(2, "0");
+  return h > 0 ? `${h}:${String(m).padStart(2, "0")}:${ss}` : `${m}:${ss}`;
+}
