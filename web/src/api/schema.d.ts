@@ -155,7 +155,7 @@ export interface paths {
         put?: never;
         /**
          * Convidar afiliado
-         * @description Gera um convite de uso único para um workspace de mentoria. Com e-mail, só a conta com aquele e-mail verificado pode aceitar. Convites pendentes ocupam assento do plano. O token só aparece nesta resposta.
+         * @description Gera um convite de uso único para um workspace de mentoria. Com e-mail, só a conta com aquele e-mail verificado pode aceitar, e o link também vai por e-mail (`email_enviado`). Convites pendentes ocupam assento do plano. O token só aparece nesta resposta.
          */
         post: operations["criarConvite"];
         delete?: never;
@@ -496,12 +496,300 @@ export interface paths {
         patch: operations["renomearColecao"];
         trace?: never;
     };
+    "/v1/workspaces/{workspaceId}/listas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Listas da curadoria
+         * @description Dono e mentor veem os rascunhos (primeiro) e as publicadas; os afiliados, só as publicadas. Das mais novas para as mais antigas.
+         */
+        get: operations["listarListas"];
+        put?: never;
+        /**
+         * Criar lista (dono e mentor)
+         * @description Cria um rascunho vazio num workspace de mentoria, dentro do limite de listas do plano.
+         */
+        post: operations["criarLista"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{workspaceId}/listas/{listaId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                listaId: components["parameters"]["ListaId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Lista com os produtos
+         * @description Cada produto que quem vê já tem na coleção vem em `meu_item`, com o link de afiliado dele. Rascunhos dão 404 para afiliados.
+         */
+        get: operations["verLista"];
+        put?: never;
+        post?: never;
+        /**
+         * Apagar lista (dono e mentor)
+         * @description O que os afiliados já importaram continua na coleção deles.
+         */
+        delete: operations["apagarLista"];
+        options?: never;
+        head?: never;
+        /** Editar título e descrição (dono e mentor) */
+        patch: operations["editarLista"];
+        trace?: never;
+    };
+    "/v1/workspaces/{workspaceId}/listas/{listaId}/itens": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                listaId: components["parameters"]["ListaId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Adicionar produto à lista (dono e mentor)
+         * @description Do radar (`produto_id`) ou colado como link da Shopee (`url`), como ao salvar na coleção. Entra no fim da lista. Até 100 produtos.
+         */
+        post: operations["adicionarProdutoLista"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{workspaceId}/listas/{listaId}/itens/{produtoId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                listaId: components["parameters"]["ListaId"];
+                produtoId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Tirar produto da lista (dono e mentor) */
+        delete: operations["removerProdutoLista"];
+        options?: never;
+        head?: never;
+        /** Trocar o comentário de um produto (dono e mentor) */
+        patch: operations["comentarProdutoLista"];
+        trace?: never;
+    };
+    "/v1/workspaces/{workspaceId}/listas/{listaId}/ordem": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                listaId: components["parameters"]["ListaId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Reordenar produtos (dono e mentor)
+         * @description Envie todos os produtos da lista, cada um uma vez, na nova ordem.
+         */
+        put: operations["ordenarLista"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{workspaceId}/listas/{listaId}/publicar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                listaId: components["parameters"]["ListaId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Publicar para a turma (dono e mentor)
+         * @description Mostra a lista para todo o workspace e avisa cada membro, menos quem publicou, na caixa de notificações, por e-mail e por Web Push (job `entregar_notificacao`). Publicar de novo não avisa de novo.
+         */
+        post: operations["publicarLista"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{workspaceId}/listas/{listaId}/importar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                listaId: components["parameters"]["ListaId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Importar a lista para a minha coleção
+         * @description Salva os produtos escolhidos (todos, se `produto_ids` vier vazio) na coleção de quem importa, com o comentário do mentor nas notas. Os links saem com a credencial da Shopee do próprio usuário (job `gerar_link`); sem credencial, ficam pendentes. Com `colecao` (padrão), os itens também vão para uma coleção com o nome da lista. Importar de novo só salva o que falta.
+         */
+        post: operations["importarLista"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{workspaceId}/listas/{listaId}/painel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                listaId: components["parameters"]["ListaId"];
+            };
+            cookie?: never;
+        };
+        /** Quem da turma importou a lista (dono e mentor) */
+        get: operations["painelLista"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{workspaceId}/notificacoes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Caixa de notificações do usuário no workspace
+         * @description As 50 mais recentes e o total de não lidas.
+         */
+        get: operations["caixaNotificacoes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{workspaceId}/notificacoes/lidas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Marcar todas como lidas */
+        post: operations["marcarTodasLidas"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{workspaceId}/notificacoes/{notificacaoId}/lida": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                notificacaoId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Marcar como lida */
+        post: operations["marcarLida"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/eu/notificacoes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Preferências de notificação */
+        get: operations["preferenciasNotificacao"];
+        /** Ligar ou desligar os e-mails */
+        put: operations["definirPreferenciasNotificacao"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/eu/push": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Inscrever este navegador no Web Push
+         * @description Recebe o `PushSubscription.toJSON()` do navegador. Só aceita endpoints dos serviços de push dos navegadores (Google, Mozilla, Microsoft e Apple).
+         */
+        post: operations["inscreverPush"];
+        /** Cancelar o Web Push deste navegador */
+        delete: operations["desinscreverPush"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         Erro: {
-            /** @description Código estável para o front. Em contas: nao_autenticado, dados_invalidos, json_invalido, sem_permissao, workspace_nao_encontrado, membro_nao_encontrado, convite_nao_encontrado, so_mentoria, dono_nao_sai, sem_assentos, ja_membro, convite_expirado, convite_usado, convite_revogado, convite_outro_email, erro_interno. Em shopee: credencial_invalida, shopee_limite, shopee_indisponivel. Em radar: produto_nao_encontrado. Em coleções: item_nao_encontrado, colecao_nao_encontrada, colecao_existente, link_invalido, link_curto, sem_credencial, importacao_indisponivel. */
+            /** @description Código estável para o front. Em contas: nao_autenticado, dados_invalidos, json_invalido, sem_permissao, workspace_nao_encontrado, membro_nao_encontrado, convite_nao_encontrado, so_mentoria, dono_nao_sai, sem_assentos, ja_membro, convite_expirado, convite_usado, convite_revogado, convite_outro_email, erro_interno. Em shopee: credencial_invalida, shopee_limite, shopee_indisponivel. Em radar: produto_nao_encontrado. Em coleções: item_nao_encontrado, colecao_nao_encontrada, colecao_existente, link_invalido, link_curto, sem_credencial, importacao_indisponivel. Em curadoria: lista_nao_encontrada, item_lista_nao_encontrado, limite_listas, lista_vazia, ja_na_lista, lista_cheia, lista_nao_publicada. Em notificações: notificacao_nao_encontrada, push_indisponivel, inscricao_invalida, inscricoes_demais. */
             codigo: string;
             /** @description Texto pronto para mostrar ao usuário */
             mensagem: string;
@@ -559,6 +847,8 @@ export interface components {
              * @description Link para enviar ao afiliado ({APP_URL}/convite/{token})
              */
             url: string;
+            /** @description Só em convites com e-mail. Falso quando o e-mail não saiu (o link continua valendo). */
+            email_enviado?: boolean;
         };
         ConvitePublico: {
             workspace_nome: string;
@@ -725,6 +1015,106 @@ export interface components {
             /** Format: date-time */
             criado_em: string;
         };
+        Lista: {
+            /** Format: uuid */
+            id: string;
+            titulo: string;
+            descricao: string;
+            /**
+             * Format: date-time
+             * @description Nula enquanto é rascunho
+             */
+            publicada_em: string | null;
+            /** Format: date-time */
+            criado_em: string;
+            /** Format: date-time */
+            atualizado_em: string;
+            produtos: number;
+            /** @description Membros que importaram algum produto (só para dono e mentor) */
+            importadores?: number;
+            /** @description Se quem vê já importou algum produto da lista */
+            importei: boolean;
+        };
+        /** @description O produto na coleção de quem vê a lista, com o link de afiliado dele */
+        MeuItem: {
+            /** Format: uuid */
+            id: string;
+            link_afiliado: string | null;
+            /** @enum {string} */
+            link_origem: "auto" | "manual";
+            /** @enum {string} */
+            link_status: "pendente" | "gerando" | "pronto" | "falhou";
+            links: components["schemas"]["LinkCanal"][];
+            titulo: string;
+            descricao: string;
+        };
+        ItemLista: {
+            produto: components["schemas"]["ProdutoResumo"];
+            comentario: string;
+            ordem: number;
+            /** @description Membros que importaram este produto (só para dono e mentor) */
+            importadores?: number;
+            meu_item: components["schemas"]["MeuItem"] | null;
+        };
+        ListaDetalhe: components["schemas"]["Lista"] & {
+            itens: components["schemas"]["ItemLista"][];
+        };
+        ResultadoImportacao: {
+            criados: number;
+            ja_salvos: number;
+            /** Format: uuid */
+            colecao_id: string | null;
+            /**
+             * @description Situação dos links dos itens novos
+             * @enum {string}
+             */
+            link_status: "pendente" | "gerando" | "falhou";
+        };
+        PainelLista: {
+            /** @description Afiliados no workspace */
+            afiliados: number;
+            importadores: {
+                /** Format: uuid */
+                usuario_id: string;
+                nome: string;
+                produtos: number;
+                /** Format: date-time */
+                ultima_em: string;
+            }[];
+        };
+        Notificacao: {
+            /** Format: uuid */
+            id: string;
+            /** @description ex.: lista_publicada */
+            tipo: string;
+            titulo: string;
+            corpo: string;
+            /** @description Caminho no app, ex.: /w/{workspaceId}/listas/{listaId} */
+            url: string;
+            /** Format: date-time */
+            criado_em: string;
+            /** Format: date-time */
+            lida_em: string | null;
+        };
+        CaixaNotificacoes: {
+            notificacoes: components["schemas"]["Notificacao"][];
+            nao_lidas: number;
+        };
+        PreferenciasNotificacao: {
+            /** @description Receber as notificações por e-mail */
+            email: boolean;
+            /** @description Chave VAPID para o navegador se inscrever; nula sem Web Push no servidor */
+            push_chave_publica: string | null;
+            /** @description Navegadores inscritos no Web Push */
+            inscricoes: number;
+        };
+        InscricaoPush: {
+            endpoint: string;
+            keys: {
+                p256dh: string;
+                auth: string;
+            };
+        };
         Prontidao: {
             [key: string]: "ok" | "falhou";
         };
@@ -752,6 +1142,7 @@ export interface components {
     parameters: {
         WorkspaceId: string;
         ItemId: string;
+        ListaId: string;
         TokenConvite: string;
     };
     requestBodies: never;
@@ -1803,6 +2194,611 @@ export interface operations {
                 };
             };
             422: components["responses"]["Erro"];
+        };
+    };
+    listarListas: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Listas */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Lista"][];
+                };
+            };
+            401: components["responses"]["NaoAutenticado"];
+            404: components["responses"]["Erro"];
+        };
+    };
+    criarLista: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    titulo: string;
+                    descricao?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Criada */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListaDetalhe"];
+                };
+            };
+            401: components["responses"]["NaoAutenticado"];
+            403: components["responses"]["Erro"];
+            404: components["responses"]["Erro"];
+            /** @description `so_mentoria` ou `limite_listas` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+            422: components["responses"]["Erro"];
+        };
+    };
+    verLista: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                listaId: components["parameters"]["ListaId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Lista */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListaDetalhe"];
+                };
+            };
+            401: components["responses"]["NaoAutenticado"];
+            404: components["responses"]["Erro"];
+        };
+    };
+    apagarLista: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                listaId: components["parameters"]["ListaId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Apagada */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["NaoAutenticado"];
+            403: components["responses"]["Erro"];
+            404: components["responses"]["Erro"];
+        };
+    };
+    editarLista: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                listaId: components["parameters"]["ListaId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    titulo?: string;
+                    descricao?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Lista editada */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListaDetalhe"];
+                };
+            };
+            401: components["responses"]["NaoAutenticado"];
+            403: components["responses"]["Erro"];
+            404: components["responses"]["Erro"];
+            422: components["responses"]["Erro"];
+        };
+    };
+    adicionarProdutoLista: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                listaId: components["parameters"]["ListaId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    produto_id?: string;
+                    url?: string;
+                    /** @description Dica do mentor sobre o produto */
+                    comentario?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Lista com o produto */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListaDetalhe"];
+                };
+            };
+            401: components["responses"]["NaoAutenticado"];
+            403: components["responses"]["Erro"];
+            /** @description `lista_nao_encontrada` ou `produto_nao_encontrado` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+            /** @description `ja_na_lista` ou `lista_cheia` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+            /** @description `dados_invalidos`, `link_invalido` ou `link_curto` */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+            429: components["responses"]["Erro"];
+            502: components["responses"]["Erro"];
+            503: components["responses"]["Erro"];
+        };
+    };
+    removerProdutoLista: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                listaId: components["parameters"]["ListaId"];
+                produtoId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Lista atualizada */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListaDetalhe"];
+                };
+            };
+            401: components["responses"]["NaoAutenticado"];
+            403: components["responses"]["Erro"];
+            404: components["responses"]["Erro"];
+        };
+    };
+    comentarProdutoLista: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                listaId: components["parameters"]["ListaId"];
+                produtoId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    comentario: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Lista atualizada */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListaDetalhe"];
+                };
+            };
+            401: components["responses"]["NaoAutenticado"];
+            403: components["responses"]["Erro"];
+            404: components["responses"]["Erro"];
+            422: components["responses"]["Erro"];
+        };
+    };
+    ordenarLista: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                listaId: components["parameters"]["ListaId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    produto_ids: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description Lista reordenada */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListaDetalhe"];
+                };
+            };
+            401: components["responses"]["NaoAutenticado"];
+            403: components["responses"]["Erro"];
+            404: components["responses"]["Erro"];
+            422: components["responses"]["Erro"];
+        };
+    };
+    publicarLista: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                listaId: components["parameters"]["ListaId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Lista publicada */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListaDetalhe"];
+                };
+            };
+            401: components["responses"]["NaoAutenticado"];
+            403: components["responses"]["Erro"];
+            404: components["responses"]["Erro"];
+            /** @description `lista_vazia` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+        };
+    };
+    importarLista: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                listaId: components["parameters"]["ListaId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    produto_ids?: string[];
+                    /** @default true */
+                    colecao?: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description Resultado da importação */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResultadoImportacao"];
+                };
+            };
+            401: components["responses"]["NaoAutenticado"];
+            404: components["responses"]["Erro"];
+            /** @description `lista_nao_publicada` ou `lista_vazia` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+            422: components["responses"]["Erro"];
+        };
+    };
+    painelLista: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                listaId: components["parameters"]["ListaId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Painel */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PainelLista"];
+                };
+            };
+            401: components["responses"]["NaoAutenticado"];
+            403: components["responses"]["Erro"];
+            404: components["responses"]["Erro"];
+        };
+    };
+    caixaNotificacoes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Caixa */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaixaNotificacoes"];
+                };
+            };
+            401: components["responses"]["NaoAutenticado"];
+            404: components["responses"]["Erro"];
+        };
+    };
+    marcarTodasLidas: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Marcadas */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["NaoAutenticado"];
+            404: components["responses"]["Erro"];
+        };
+    };
+    marcarLida: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                notificacaoId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Marcada */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["NaoAutenticado"];
+            404: components["responses"]["Erro"];
+        };
+    };
+    preferenciasNotificacao: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Preferências */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreferenciasNotificacao"];
+                };
+            };
+            401: components["responses"]["NaoAutenticado"];
+        };
+    };
+    definirPreferenciasNotificacao: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    email: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description Preferências */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreferenciasNotificacao"];
+                };
+            };
+            401: components["responses"]["NaoAutenticado"];
+            422: components["responses"]["Erro"];
+        };
+    };
+    inscreverPush: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InscricaoPush"];
+            };
+        };
+        responses: {
+            /** @description Inscrito */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["NaoAutenticado"];
+            /** @description `inscricoes_demais` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+            /** @description `inscricao_invalida` */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+            /** @description `push_indisponivel` (servidor sem chaves VAPID) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+        };
+    };
+    desinscreverPush: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    endpoint: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Cancelado */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["NaoAutenticado"];
         };
     };
 }

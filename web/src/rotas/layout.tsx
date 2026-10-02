@@ -1,12 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, Outlet, useNavigate, useParams } from "@tanstack/react-router";
-import { Bookmark, Flame, LogOut, Plug } from "lucide-react";
+import { Bell, Bookmark, Flame, ListChecks, LogOut, Plug, Users } from "lucide-react";
 import { useEffect } from "react";
 import { api, exigir } from "@/api/cliente";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/input";
 import { sair } from "@/lib/auth";
 import { cn } from "@/lib/utils";
+import { useNaoLidas } from "./listas-api";
 
 const chaveUltimo = "parceiros.workspace";
 
@@ -43,6 +44,11 @@ export function Layout() {
     }
   }, [workspaceId]);
   const atual = workspaceId ?? ultimoWorkspace() ?? "";
+  const ws = workspaces.data?.find((w) => w.id === atual);
+  // Na mentoria, só dono e mentor gerem a turma; no pessoal, o link leva a criar uma mentoria.
+  const verTurma = ws?.tipo === "pessoal" || ws?.papel === "dono" || ws?.papel === "mentor";
+  const naoLidas = useNaoLidas(atual || undefined).data?.nao_lidas ?? 0;
+  const secao = "flex h-9 items-center gap-2 rounded-lg px-3 text-sm hover:bg-zinc-100";
 
   return (
     <div className="min-h-dvh">
@@ -75,7 +81,7 @@ export function Layout() {
                 to="/w/$workspaceId/radar"
                 params={{ workspaceId: atual }}
                 search={{}}
-                className="flex h-9 items-center gap-2 rounded-lg px-3 text-sm hover:bg-zinc-100"
+                className={secao}
                 activeProps={{ className: "bg-zinc-100 font-medium" }}
               >
                 <Flame className="size-4" />
@@ -85,15 +91,53 @@ export function Layout() {
                 to="/w/$workspaceId/colecao"
                 params={{ workspaceId: atual }}
                 search={{}}
-                className="flex h-9 items-center gap-2 rounded-lg px-3 text-sm hover:bg-zinc-100"
+                className={secao}
                 activeProps={{ className: "bg-zinc-100 font-medium" }}
               >
                 <Bookmark className="size-4" />
                 <span className="hidden sm:inline">Coleção</span>
               </Link>
+              {ws?.tipo === "mentoria" && (
+                <Link
+                  to="/w/$workspaceId/listas"
+                  params={{ workspaceId: atual }}
+                  className={secao}
+                  activeProps={{ className: "bg-zinc-100 font-medium" }}
+                >
+                  <ListChecks className="size-4" />
+                  <span className="hidden sm:inline">Listas</span>
+                </Link>
+              )}
+              {verTurma && (
+                <Link
+                  to="/w/$workspaceId/turma"
+                  params={{ workspaceId: atual }}
+                  className={secao}
+                  activeProps={{ className: "bg-zinc-100 font-medium" }}
+                >
+                  <Users className="size-4" />
+                  <span className="hidden lg:inline">{ws?.tipo === "pessoal" ? "Mentoria" : "Turma"}</span>
+                </Link>
+              )}
             </nav>
           )}
           <nav className="ml-auto flex items-center gap-1">
+            {atual && (
+              <Link
+                to="/w/$workspaceId/notificacoes"
+                params={{ workspaceId: atual }}
+                className="relative flex h-9 items-center rounded-lg px-2.5 hover:bg-zinc-100"
+                activeProps={{ className: "bg-zinc-100" }}
+                aria-label={naoLidas ? `Notificações (${naoLidas} não lidas)` : "Notificações"}
+              >
+                <Bell className="size-4" />
+                {naoLidas > 0 && (
+                  <span className="absolute top-1 right-1 flex min-w-4 items-center justify-center rounded-full bg-marca px-1 text-[10px] font-semibold text-white">
+                    {naoLidas > 9 ? "9+" : naoLidas}
+                  </span>
+                )}
+              </Link>
+            )}
             <Link
               to="/conta/shopee"
               className="flex h-9 items-center gap-2 rounded-lg px-3 text-sm hover:bg-zinc-100"

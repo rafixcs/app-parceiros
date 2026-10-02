@@ -205,7 +205,8 @@ paths:
       summary: Convidar afiliado
       description: >
         Gera um convite de uso único para um workspace de mentoria. Com
-        e-mail, só a conta com aquele e-mail verificado pode aceitar. Convites
+        e-mail, só a conta com aquele e-mail verificado pode aceitar, e o link
+        também vai por e-mail (`email_enviado`). Convites
         pendentes ocupam assento do plano. O token só aparece nesta resposta.
       operationId: criarConvite
       tags: [contas]
@@ -781,6 +782,456 @@ paths:
         "204": { description: Apagada }
         "401": { $ref: "#/components/responses/NaoAutenticado" }
         "404": { $ref: "#/components/responses/Erro" }
+  /v1/workspaces/{workspaceId}/listas:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceId"
+    get:
+      summary: Listas da curadoria
+      description: >
+        Dono e mentor veem os rascunhos (primeiro) e as publicadas; os
+        afiliados, só as publicadas. Das mais novas para as mais antigas.
+      operationId: listarListas
+      tags: [curadoria]
+      security: [{ bearer: [] }]
+      responses:
+        "200":
+          description: Listas
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Lista" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "404": { $ref: "#/components/responses/Erro" }
+    post:
+      summary: Criar lista (dono e mentor)
+      description: Cria um rascunho vazio num workspace de mentoria, dentro do limite de listas do plano.
+      operationId: criarLista
+      tags: [curadoria]
+      security: [{ bearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [titulo]
+              additionalProperties: false
+              properties:
+                titulo: { type: string, minLength: 1, maxLength: 120 }
+                descricao: { type: string, maxLength: 2000 }
+      responses:
+        "201":
+          description: Criada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ListaDetalhe" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Erro" }
+        "404": { $ref: "#/components/responses/Erro" }
+        "409":
+          description: "`so_mentoria` ou `limite_listas`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "422": { $ref: "#/components/responses/Erro" }
+  /v1/workspaces/{workspaceId}/listas/{listaId}:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceId"
+      - $ref: "#/components/parameters/ListaId"
+    get:
+      summary: Lista com os produtos
+      description: >
+        Cada produto que quem vê já tem na coleção vem em `meu_item`, com o
+        link de afiliado dele. Rascunhos dão 404 para afiliados.
+      operationId: verLista
+      tags: [curadoria]
+      security: [{ bearer: [] }]
+      responses:
+        "200":
+          description: Lista
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ListaDetalhe" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "404": { $ref: "#/components/responses/Erro" }
+    patch:
+      summary: Editar título e descrição (dono e mentor)
+      operationId: editarLista
+      tags: [curadoria]
+      security: [{ bearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                titulo: { type: string, minLength: 1, maxLength: 120 }
+                descricao: { type: string, maxLength: 2000 }
+      responses:
+        "200":
+          description: Lista editada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ListaDetalhe" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Erro" }
+        "404": { $ref: "#/components/responses/Erro" }
+        "422": { $ref: "#/components/responses/Erro" }
+    delete:
+      summary: Apagar lista (dono e mentor)
+      description: O que os afiliados já importaram continua na coleção deles.
+      operationId: apagarLista
+      tags: [curadoria]
+      security: [{ bearer: [] }]
+      responses:
+        "204": { description: Apagada }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Erro" }
+        "404": { $ref: "#/components/responses/Erro" }
+  /v1/workspaces/{workspaceId}/listas/{listaId}/itens:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceId"
+      - $ref: "#/components/parameters/ListaId"
+    post:
+      summary: Adicionar produto à lista (dono e mentor)
+      description: >
+        Do radar (`produto_id`) ou colado como link da Shopee (`url`), como
+        ao salvar na coleção. Entra no fim da lista. Até 100 produtos.
+      operationId: adicionarProdutoLista
+      tags: [curadoria]
+      security: [{ bearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                produto_id: { type: string, format: uuid }
+                url: { type: string, maxLength: 2000 }
+                comentario: { type: string, maxLength: 1000, description: Dica do mentor sobre o produto }
+      responses:
+        "201":
+          description: Lista com o produto
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ListaDetalhe" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Erro" }
+        "404":
+          description: "`lista_nao_encontrada` ou `produto_nao_encontrado`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "409":
+          description: "`ja_na_lista` ou `lista_cheia`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "422":
+          description: "`dados_invalidos`, `link_invalido` ou `link_curto`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "429": { $ref: "#/components/responses/Erro" }
+        "502": { $ref: "#/components/responses/Erro" }
+        "503": { $ref: "#/components/responses/Erro" }
+  /v1/workspaces/{workspaceId}/listas/{listaId}/itens/{produtoId}:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceId"
+      - $ref: "#/components/parameters/ListaId"
+      - name: produtoId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    patch:
+      summary: Trocar o comentário de um produto (dono e mentor)
+      operationId: comentarProdutoLista
+      tags: [curadoria]
+      security: [{ bearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [comentario]
+              additionalProperties: false
+              properties:
+                comentario: { type: string, maxLength: 1000 }
+      responses:
+        "200":
+          description: Lista atualizada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ListaDetalhe" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Erro" }
+        "404": { $ref: "#/components/responses/Erro" }
+        "422": { $ref: "#/components/responses/Erro" }
+    delete:
+      summary: Tirar produto da lista (dono e mentor)
+      operationId: removerProdutoLista
+      tags: [curadoria]
+      security: [{ bearer: [] }]
+      responses:
+        "200":
+          description: Lista atualizada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ListaDetalhe" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Erro" }
+        "404": { $ref: "#/components/responses/Erro" }
+  /v1/workspaces/{workspaceId}/listas/{listaId}/ordem:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceId"
+      - $ref: "#/components/parameters/ListaId"
+    put:
+      summary: Reordenar produtos (dono e mentor)
+      description: Envie todos os produtos da lista, cada um uma vez, na nova ordem.
+      operationId: ordenarLista
+      tags: [curadoria]
+      security: [{ bearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [produto_ids]
+              additionalProperties: false
+              properties:
+                produto_ids: { type: array, items: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Lista reordenada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ListaDetalhe" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Erro" }
+        "404": { $ref: "#/components/responses/Erro" }
+        "422": { $ref: "#/components/responses/Erro" }
+  /v1/workspaces/{workspaceId}/listas/{listaId}/publicar:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceId"
+      - $ref: "#/components/parameters/ListaId"
+    post:
+      summary: Publicar para a turma (dono e mentor)
+      description: >
+        Mostra a lista para todo o workspace e avisa cada membro, menos quem
+        publicou, na caixa de notificações, por e-mail e por Web Push (job
+        `entregar_notificacao`). Publicar de novo não avisa de novo.
+      operationId: publicarLista
+      tags: [curadoria]
+      security: [{ bearer: [] }]
+      responses:
+        "200":
+          description: Lista publicada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ListaDetalhe" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Erro" }
+        "404": { $ref: "#/components/responses/Erro" }
+        "409":
+          description: "`lista_vazia`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+  /v1/workspaces/{workspaceId}/listas/{listaId}/importar:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceId"
+      - $ref: "#/components/parameters/ListaId"
+    post:
+      summary: Importar a lista para a minha coleção
+      description: >
+        Salva os produtos escolhidos (todos, se `produto_ids` vier vazio) na
+        coleção de quem importa, com o comentário do mentor nas notas. Os
+        links saem com a credencial da Shopee do próprio usuário (job
+        `gerar_link`); sem credencial, ficam pendentes. Com `colecao` (padrão),
+        os itens também vão para uma coleção com o nome da lista. Importar de
+        novo só salva o que falta.
+      operationId: importarLista
+      tags: [curadoria]
+      security: [{ bearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                produto_ids: { type: array, items: { type: string, format: uuid } }
+                colecao: { type: boolean, default: true }
+      responses:
+        "200":
+          description: Resultado da importação
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ResultadoImportacao" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "404": { $ref: "#/components/responses/Erro" }
+        "409":
+          description: "`lista_nao_publicada` ou `lista_vazia`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "422": { $ref: "#/components/responses/Erro" }
+  /v1/workspaces/{workspaceId}/listas/{listaId}/painel:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceId"
+      - $ref: "#/components/parameters/ListaId"
+    get:
+      summary: Quem da turma importou a lista (dono e mentor)
+      operationId: painelLista
+      tags: [curadoria]
+      security: [{ bearer: [] }]
+      responses:
+        "200":
+          description: Painel
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PainelLista" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Erro" }
+        "404": { $ref: "#/components/responses/Erro" }
+  /v1/workspaces/{workspaceId}/notificacoes:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceId"
+    get:
+      summary: Caixa de notificações do usuário no workspace
+      description: As 50 mais recentes e o total de não lidas.
+      operationId: caixaNotificacoes
+      tags: [notificacoes]
+      security: [{ bearer: [] }]
+      responses:
+        "200":
+          description: Caixa
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CaixaNotificacoes" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "404": { $ref: "#/components/responses/Erro" }
+  /v1/workspaces/{workspaceId}/notificacoes/lidas:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceId"
+    post:
+      summary: Marcar todas como lidas
+      operationId: marcarTodasLidas
+      tags: [notificacoes]
+      security: [{ bearer: [] }]
+      responses:
+        "204": { description: Marcadas }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "404": { $ref: "#/components/responses/Erro" }
+  /v1/workspaces/{workspaceId}/notificacoes/{notificacaoId}/lida:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceId"
+      - name: notificacaoId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      summary: Marcar como lida
+      operationId: marcarLida
+      tags: [notificacoes]
+      security: [{ bearer: [] }]
+      responses:
+        "204": { description: Marcada }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "404": { $ref: "#/components/responses/Erro" }
+  /v1/eu/notificacoes:
+    get:
+      summary: Preferências de notificação
+      operationId: preferenciasNotificacao
+      tags: [notificacoes]
+      security: [{ bearer: [] }]
+      responses:
+        "200":
+          description: Preferências
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PreferenciasNotificacao" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+    put:
+      summary: Ligar ou desligar os e-mails
+      operationId: definirPreferenciasNotificacao
+      tags: [notificacoes]
+      security: [{ bearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: boolean }
+      responses:
+        "200":
+          description: Preferências
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PreferenciasNotificacao" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "422": { $ref: "#/components/responses/Erro" }
+  /v1/eu/push:
+    post:
+      summary: Inscrever este navegador no Web Push
+      description: >
+        Recebe o `PushSubscription.toJSON()` do navegador. Só aceita
+        endpoints dos serviços de push dos navegadores (Google, Mozilla,
+        Microsoft e Apple).
+      operationId: inscreverPush
+      tags: [notificacoes]
+      security: [{ bearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/InscricaoPush" }
+      responses:
+        "204": { description: Inscrito }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "409":
+          description: "`inscricoes_demais`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "422":
+          description: "`inscricao_invalida`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "503":
+          description: "`push_indisponivel` (servidor sem chaves VAPID)"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+    delete:
+      summary: Cancelar o Web Push deste navegador
+      operationId: desinscreverPush
+      tags: [notificacoes]
+      security: [{ bearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [endpoint]
+              properties:
+                endpoint: { type: string }
+      responses:
+        "204": { description: Cancelado }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
 components:
   securitySchemes:
     bearer:
@@ -796,6 +1247,11 @@ components:
       schema: { type: string, format: uuid }
     ItemId:
       name: itemId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ListaId:
+      name: listaId
       in: path
       required: true
       schema: { type: string, format: uuid }
@@ -832,7 +1288,11 @@ components:
             shopee_limite, shopee_indisponivel. Em radar: produto_nao_encontrado.
             Em coleções: item_nao_encontrado, colecao_nao_encontrada,
             colecao_existente, link_invalido, link_curto, sem_credencial,
-            importacao_indisponivel.
+            importacao_indisponivel. Em curadoria: lista_nao_encontrada,
+            item_lista_nao_encontrado, limite_listas, lista_vazia, ja_na_lista,
+            lista_cheia, lista_nao_publicada. Em notificações:
+            notificacao_nao_encontrada, push_indisponivel, inscricao_invalida,
+            inscricoes_demais.
         mensagem: { type: string, description: Texto pronto para mostrar ao usuário }
     Usuario:
       type: object
@@ -882,6 +1342,9 @@ components:
           properties:
             token: { type: string, description: Só aparece na criação }
             url: { type: string, format: uri, description: "Link para enviar ao afiliado ({APP_URL}/convite/{token})" }
+            email_enviado:
+              type: boolean
+              description: Só em convites com e-mail. Falso quando o e-mail não saiu (o link continua valendo).
     ConvitePublico:
       type: object
       required: [workspace_nome, workspace_foto_url, status, expira_em]
@@ -1033,6 +1496,113 @@ components:
         nome: { type: string }
         itens: { type: integer, description: Quantidade de itens }
         criado_em: { type: string, format: date-time }
+    Lista:
+      type: object
+      required: [id, titulo, descricao, publicada_em, criado_em, atualizado_em, produtos, importei]
+      properties:
+        id: { type: string, format: uuid }
+        titulo: { type: string }
+        descricao: { type: string }
+        publicada_em: { type: [string, "null"], format: date-time, description: Nula enquanto é rascunho }
+        criado_em: { type: string, format: date-time }
+        atualizado_em: { type: string, format: date-time }
+        produtos: { type: integer }
+        importadores: { type: integer, description: Membros que importaram algum produto (só para dono e mentor) }
+        importei: { type: boolean, description: Se quem vê já importou algum produto da lista }
+    MeuItem:
+      type: object
+      description: O produto na coleção de quem vê a lista, com o link de afiliado dele
+      required: [id, link_afiliado, link_origem, link_status, links, titulo, descricao]
+      properties:
+        id: { type: string, format: uuid }
+        link_afiliado: { type: [string, "null"] }
+        link_origem: { type: string, enum: [auto, manual] }
+        link_status: { type: string, enum: [pendente, gerando, pronto, falhou] }
+        links: { type: array, items: { $ref: "#/components/schemas/LinkCanal" } }
+        titulo: { type: string }
+        descricao: { type: string }
+    ItemLista:
+      type: object
+      required: [produto, comentario, ordem, meu_item]
+      properties:
+        produto: { $ref: "#/components/schemas/ProdutoResumo" }
+        comentario: { type: string }
+        ordem: { type: integer }
+        importadores: { type: integer, description: Membros que importaram este produto (só para dono e mentor) }
+        meu_item:
+          oneOf:
+            - $ref: "#/components/schemas/MeuItem"
+            - type: "null"
+    ListaDetalhe:
+      allOf:
+        - $ref: "#/components/schemas/Lista"
+        - type: object
+          required: [itens]
+          properties:
+            itens: { type: array, items: { $ref: "#/components/schemas/ItemLista" } }
+    ResultadoImportacao:
+      type: object
+      required: [criados, ja_salvos, colecao_id, link_status]
+      properties:
+        criados: { type: integer }
+        ja_salvos: { type: integer }
+        colecao_id: { type: [string, "null"], format: uuid }
+        link_status:
+          type: string
+          enum: [pendente, gerando, falhou]
+          description: Situação dos links dos itens novos
+    PainelLista:
+      type: object
+      required: [afiliados, importadores]
+      properties:
+        afiliados: { type: integer, description: Afiliados no workspace }
+        importadores:
+          type: array
+          items:
+            type: object
+            required: [usuario_id, nome, produtos, ultima_em]
+            properties:
+              usuario_id: { type: string, format: uuid }
+              nome: { type: string }
+              produtos: { type: integer }
+              ultima_em: { type: string, format: date-time }
+    Notificacao:
+      type: object
+      required: [id, tipo, titulo, corpo, url, criado_em, lida_em]
+      properties:
+        id: { type: string, format: uuid }
+        tipo: { type: string, description: "ex.: lista_publicada" }
+        titulo: { type: string }
+        corpo: { type: string }
+        url: { type: string, description: "Caminho no app, ex.: /w/{workspaceId}/listas/{listaId}" }
+        criado_em: { type: string, format: date-time }
+        lida_em: { type: [string, "null"], format: date-time }
+    CaixaNotificacoes:
+      type: object
+      required: [notificacoes, nao_lidas]
+      properties:
+        notificacoes: { type: array, items: { $ref: "#/components/schemas/Notificacao" } }
+        nao_lidas: { type: integer }
+    PreferenciasNotificacao:
+      type: object
+      required: [email, push_chave_publica, inscricoes]
+      properties:
+        email: { type: boolean, description: Receber as notificações por e-mail }
+        push_chave_publica:
+          type: [string, "null"]
+          description: Chave VAPID para o navegador se inscrever; nula sem Web Push no servidor
+        inscricoes: { type: integer, description: Navegadores inscritos no Web Push }
+    InscricaoPush:
+      type: object
+      required: [endpoint, keys]
+      properties:
+        endpoint: { type: string, maxLength: 1000 }
+        keys:
+          type: object
+          required: [p256dh, auth]
+          properties:
+            p256dh: { type: string }
+            auth: { type: string }
     Prontidao:
       type: object
       additionalProperties:

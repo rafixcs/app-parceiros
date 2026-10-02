@@ -26,6 +26,8 @@ make setup     # uma vez: dependências e cluster kind
 tilt up        # sobe tudo; front em http://localhost:5173, API em http://localhost:8080/readyz
 ```
 
+Os e-mails do ambiente local (convites e avisos de listas) não saem de verdade: ficam no Mailpit, em http://localhost:8025. Nenhuma dependência nova precisa ser instalada para isso; o Mailpit roda no cluster.
+
 O front também roda sozinho, apontando para a API em `localhost:8080`:
 
 ```sh
@@ -57,7 +59,7 @@ A identidade vem do Zitadel (OIDC). A API valida o token de acesso (JWT) e, no p
 
 No app do Zitadel, configure o token de acesso como **JWT** e peça os escopos `openid profile email`.
 
-No cluster local não há Zitadel: o overlay `dev` liga `AUTH_MODE=dev`, que aceita `Authorization: Bearer dev:<qualquer-nome>` (recusado fora de `APP_ENV=dev`). Exemplo do fluxo de convite:
+No cluster local não há Zitadel: o overlay `dev` liga `AUTH_MODE=dev`, que aceita `Authorization: Bearer dev:<qualquer-nome>` (recusado fora de `APP_ENV=dev`). No front, o mesmo vale para o nome digitado em "Entrar". Exemplo do fluxo de convite pela API (pelo app, use "Mentoria" no topo):
 
 ```sh
 curl -s -X POST localhost:8080/v1/workspaces -H 'Authorization: Bearer dev:mentor' -d '{"nome":"Minha turma"}'
@@ -102,3 +104,25 @@ Para ligar a Shopee de verdade: defina `SHOPEE_MODO=api`, `SHOPEE_APP_ID` e `SHO
 ```sql
 INSERT INTO categorias (fonte, id, nome, monitorar) VALUES ('shopee', <id>, '<nome>', true);
 ```
+
+## Curadoria e notificações
+
+Num workspace de mentoria, dono e mentores montam **listas** em "Listas": buscam produtos do radar ou colam o link da Shopee, escrevem uma dica por produto, ordenam e publicam. Antes de publicar, a lista é um rascunho que só eles veem.
+
+- **Publicar** mostra a lista para a turma e avisa cada membro, menos quem publicou: na caixa de notificações do app (o sino no topo), por e-mail e por Web Push no navegador. Publicar de novo não avisa de novo.
+- **Importar:** o afiliado leva a lista inteira ou só os produtos marcados para a coleção dele. A dica do mentor vai para as notas, os itens podem ir para uma coleção com o nome da lista, e os links saem pelo `gerar_link` com a credencial da Shopee **do próprio afiliado**. Sem credencial, ficam pendentes como na coleção.
+- Na lista, cada produto que o afiliado já importou mostra o link dele e o botão de copiar. O mentor vê quantos afiliados importaram a lista e cada produto.
+- O plano limita o número de listas (`limites`, chave `listas`; mentoria = 200 por enquanto).
+- Em "Mentoria" (no workspace pessoal), qualquer usuário cria uma mentoria; em "Turma", dono e mentores convidam por link ou e-mail e veem os membros. O link do convite abre `/convite/<token>`, que leva ao login e depois aceita.
+
+A entrega é o job `entregar_notificacao` (fila `default`), um por destinatário. Ele grava a notificação com o escopo do destinatário e manda e-mail e push, sem repetir o que já saiu quando o job é refeito. E-mail só vai para endereços verificados e pode ser desligado pelo usuário em "Notificações".
+
+| Variável | Uso |
+|---|---|
+| `SMTP_ADDR` | `host:porta` do SMTP. Sem ela, nenhum e-mail sai (no cluster local, `mailpit:1025`) |
+| `SMTP_USUARIO`, `SMTP_SENHA` | Opcionais. Usa STARTTLS quando o servidor oferece |
+| `SMTP_REMETENTE` | Padrão `App Parceiros <nao-responda@parceiros.local>` |
+| `VAPID_PUBLICA`, `VAPID_PRIVADA` | Chaves do Web Push. Gere com `./bin/parceiros vapid`. Sem elas, o push fica desligado |
+| `VAPID_CONTATO` | E-mail de contato enviado aos serviços de push (padrão `contato@parceiros.local`) |
+
+O overlay `dev` já traz um par VAPID só para o ambiente local. O service worker do front também roda no `npm run dev`, então dá para testar o push em http://localhost:5173: em "Notificações", clique em "Ativar". O navegador precisa alcançar o serviço de push dele (Google, Mozilla, Microsoft ou Apple); são os únicos endpoints que a API aceita.

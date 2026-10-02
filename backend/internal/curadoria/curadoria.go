@@ -48,6 +48,7 @@ type Lista struct {
 type MeuItem struct {
 	ID           uuid.UUID            `json:"id"`
 	LinkAfiliado *string              `json:"link_afiliado"`
+	LinkOrigem   string               `json:"link_origem"`
 	LinkStatus   colecoes.LinkStatus  `json:"link_status"`
 	Links        []colecoes.LinkCanal `json:"links"`
 	Titulo       string               `json:"titulo"`
@@ -274,7 +275,7 @@ func (s *Service) Ver(ctx context.Context, m contas.Membro, id uuid.UUID) (Lista
 		}
 		if meu, ok := meus[it.ProdutoID]; ok {
 			il.MeuItem = &MeuItem{
-				ID: meu.ID, LinkAfiliado: meu.LinkAfiliado, LinkStatus: meu.LinkStatus, Links: meu.Links,
+				ID: meu.ID, LinkAfiliado: meu.LinkAfiliado, LinkOrigem: meu.LinkOrigem, LinkStatus: meu.LinkStatus, Links: meu.Links,
 				Titulo: meu.Titulo, Descricao: meu.Descricao,
 			}
 		}

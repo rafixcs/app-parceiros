@@ -1,16 +1,23 @@
 import { createRootRoute, createRoute, createRouter, lazyRouteComponent, redirect } from "@tanstack/react-router";
 import { token } from "@/lib/auth";
 import { Colecao, validarBuscaColecao } from "./colecao";
+import { Convite } from "./convite";
 import { Callback, Entrar } from "./entrar";
 import { Inicio } from "./inicio";
 import { Layout } from "./layout";
+import { Listas } from "./listas";
+import { Notificacoes } from "./notificacoes";
 import { Radar, validarBusca } from "./radar";
 import { ConexaoShopee } from "./shopee";
+import { Turma } from "./turma";
 
 const raiz = createRootRoute();
 
 const entrar = createRoute({ getParentRoute: () => raiz, path: "/entrar", component: Entrar });
 const callback = createRoute({ getParentRoute: () => raiz, path: "/callback", component: Callback });
+
+// O convite abre sem login: mostra a mentoria e leva ao login para aceitar.
+export const rotaConvite = createRoute({ getParentRoute: () => raiz, path: "/convite/$token", component: Convite });
 
 // Tudo abaixo exige login.
 const app = createRoute({
@@ -51,10 +58,46 @@ export const rotaItem = createRoute({
   component: lazyRouteComponent(() => import("./item"), "Item"),
 });
 
+export const rotaListas = createRoute({
+  getParentRoute: () => app,
+  path: "/w/$workspaceId/listas",
+  component: Listas,
+});
+
+export const rotaLista = createRoute({
+  getParentRoute: () => app,
+  path: "/w/$workspaceId/listas/$listaId",
+  component: lazyRouteComponent(() => import("./lista"), "Lista"),
+});
+
+export const rotaTurma = createRoute({ getParentRoute: () => app, path: "/w/$workspaceId/turma", component: Turma });
+
+export const rotaNotificacoes = createRoute({
+  getParentRoute: () => app,
+  path: "/w/$workspaceId/notificacoes",
+  component: Notificacoes,
+});
+
 const shopee = createRoute({ getParentRoute: () => app, path: "/conta/shopee", component: ConexaoShopee });
 
 export const router = createRouter({
-  routeTree: raiz.addChildren([entrar, callback, app.addChildren([inicio, rotaRadar, rotaProduto, rotaColecao, rotaItem, shopee])]),
+  routeTree: raiz.addChildren([
+    entrar,
+    callback,
+    rotaConvite,
+    app.addChildren([
+      inicio,
+      rotaRadar,
+      rotaProduto,
+      rotaColecao,
+      rotaItem,
+      rotaListas,
+      rotaLista,
+      rotaTurma,
+      rotaNotificacoes,
+      shopee,
+    ]),
+  ]),
   defaultPreload: "intent",
 });
 

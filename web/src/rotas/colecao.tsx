@@ -369,7 +369,7 @@ function Filtros({
   );
 }
 
-export function StatusLink({ item }: { item: Item }) {
+export function StatusLink({ item }: { item: Pick<Item, "link_status" | "link_origem"> }) {
   switch (item.link_status) {
     case "pronto":
       return item.link_origem === "manual" ? (

@@ -1,4 +1,4 @@
-# Ambiente local (Tilt + kind/k3d). Postgres, Redis e SeaweedFS (S3) rodam no cluster.
+# Ambiente local (Tilt + kind/k3d). Postgres, Redis, SeaweedFS (S3) e Mailpit (SMTP) rodam no cluster.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: parceiros
@@ -8,6 +8,7 @@ resources:
   - postgres.yaml
   - redis.yaml
   - seaweedfs.yaml
+  - mailpit.yaml
 secretGenerator:
   - name: parceiros-env
     literals:
@@ -26,3 +27,9 @@ secretGenerator:
       - CRYPTO_KEK_ID=dev-1
       # Sem credencial aprovada, a Shopee roda com as respostas gravadas.
       - SHOPEE_MODO=mock
+      # E-mails vão para o Mailpit (caixa em http://localhost:8025).
+      - SMTP_ADDR=mailpit:1025
+      # Chaves VAPID só do ambiente local (Web Push). Em staging e prod, gere
+      # outras com `parceiros vapid` e guarde no secret manager.
+      - VAPID_PUBLICA=BLXbTU9Hzbxo91E8FSaKzDJtrgJCEYeNfdym2p605AvtmKxHIc4pOEbSoRF3VCj6hqk1fp_UxTtgbLcwXxeBKns
+      - VAPID_PRIVADA=-peDNMTtbA8giu7uReUG-s2VQn7oF7TwC-6emmkn3UQ

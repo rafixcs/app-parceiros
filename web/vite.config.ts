@@ -20,8 +20,11 @@ export default defineConfig({
         display: "standalone",
         icons: [{ src: "/icone.svg", sizes: "any", type: "image/svg+xml", purpose: "any maskable" }],
       },
-      // A API nunca vai para o cache do service worker.
-      workbox: { navigateFallbackDenylist: [/^\/v1\//] },
+      // A API nunca vai para o cache do service worker. O push-sw.js mostra
+      // as notificações de Web Push.
+      workbox: { navigateFallbackDenylist: [/^\/v1\//], importScripts: ["/push-sw.js"] },
+      // O service worker também roda no `npm run dev`, para testar o push localmente.
+      devOptions: { enabled: true, type: "classic", navigateFallbackAllowlist: [/^\/$/] },
     }),
   ],
   resolve: { alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) } },

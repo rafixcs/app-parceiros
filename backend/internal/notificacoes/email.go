@@ -120,7 +120,9 @@ func montarMensagem(de, para *mail.Address, e Email, agora time.Time) ([]byte, e
 	cab := func(k, v string) { fmt.Fprintf(&b, "%s: %s\r\n", k, v) }
 	cab("From", de.String())
 	cab("To", para.String())
-	cab("Subject", mime.QEncoding.Encode("utf-8", e.Assunto))
+	// Quebra de linha no assunto viraria um cabeçalho novo.
+	assunto := strings.Join(strings.Fields(e.Assunto), " ")
+	cab("Subject", mime.QEncoding.Encode("utf-8", assunto))
 	cab("Date", agora.Format(time.RFC1123Z))
 	cab("Message-ID", "<"+hex.EncodeToString(limite)+"@"+dominio+">")
 	cab("MIME-Version", "1.0")
@@ -175,7 +177,7 @@ func (s *Service) emailNotificacao(c contas.Contato, n notificacoesdb.Notificaca
 }
 
 func emailConvite(c contas.EnvioConvite) Email {
-	titulo := "Você foi convidado para a mentoria " + c.WorkspaceNome
+	titulo := "Convite para a mentoria " + c.WorkspaceNome
 	return renderizar(c.Email, titulo, dadosEmail{
 		Titulo: titulo,
 		Corpo:  "Entre no App Parceiros para receber as listas de produtos da mentoria com o seu link de afiliado.",
