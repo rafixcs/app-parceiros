@@ -12,6 +12,50 @@ import (
 	"github.com/google/uuid"
 )
 
+type Canal string
+
+const (
+	CanalInstagram Canal = "instagram"
+	CanalTiktok    Canal = "tiktok"
+	CanalWhatsapp  Canal = "whatsapp"
+	CanalOutro     Canal = "outro"
+)
+
+func (e *Canal) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = Canal(s)
+	case string:
+		*e = Canal(s)
+	default:
+		return fmt.Errorf("unsupported scan type for Canal: %T", src)
+	}
+	return nil
+}
+
+type NullCanal struct {
+	Canal Canal
+	Valid bool // Valid is true if Canal is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullCanal) Scan(value interface{}) error {
+	if value == nil {
+		ns.Canal, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.Canal.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullCanal) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.Canal), nil
+}
+
 type CredencialStatus string
 
 const (
@@ -94,6 +138,135 @@ func (ns NullFonte) Value() (driver.Value, error) {
 		return nil, nil
 	}
 	return string(ns.Fonte), nil
+}
+
+type ItemStatus string
+
+const (
+	ItemStatusTestando   ItemStatus = "testando"
+	ItemStatusCampeao    ItemStatus = "campeao"
+	ItemStatusDescartado ItemStatus = "descartado"
+)
+
+func (e *ItemStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ItemStatus(s)
+	case string:
+		*e = ItemStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ItemStatus: %T", src)
+	}
+	return nil
+}
+
+type NullItemStatus struct {
+	ItemStatus ItemStatus
+	Valid      bool // Valid is true if ItemStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullItemStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.ItemStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ItemStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullItemStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ItemStatus), nil
+}
+
+type LinkOrigem string
+
+const (
+	LinkOrigemAuto   LinkOrigem = "auto"
+	LinkOrigemManual LinkOrigem = "manual"
+)
+
+func (e *LinkOrigem) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = LinkOrigem(s)
+	case string:
+		*e = LinkOrigem(s)
+	default:
+		return fmt.Errorf("unsupported scan type for LinkOrigem: %T", src)
+	}
+	return nil
+}
+
+type NullLinkOrigem struct {
+	LinkOrigem LinkOrigem
+	Valid      bool // Valid is true if LinkOrigem is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullLinkOrigem) Scan(value interface{}) error {
+	if value == nil {
+		ns.LinkOrigem, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.LinkOrigem.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullLinkOrigem) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.LinkOrigem), nil
+}
+
+type LinkStatus string
+
+const (
+	LinkStatusPendente LinkStatus = "pendente"
+	LinkStatusGerando  LinkStatus = "gerando"
+	LinkStatusPronto   LinkStatus = "pronto"
+	LinkStatusFalhou   LinkStatus = "falhou"
+)
+
+func (e *LinkStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = LinkStatus(s)
+	case string:
+		*e = LinkStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for LinkStatus: %T", src)
+	}
+	return nil
+}
+
+type NullLinkStatus struct {
+	LinkStatus LinkStatus
+	Valid      bool // Valid is true if LinkStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullLinkStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.LinkStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.LinkStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullLinkStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.LinkStatus), nil
 }
 
 type MembroPapel string
@@ -188,6 +361,22 @@ type Categoria struct {
 	Monitorar bool
 }
 
+type ColecaoIten struct {
+	ColecaoID    uuid.UUID
+	ItemID       uuid.UUID
+	WorkspaceID  uuid.UUID
+	UsuarioID    uuid.UUID
+	AdicionadoEm time.Time
+}
+
+type Coleco struct {
+	ID          uuid.UUID
+	WorkspaceID uuid.UUID
+	UsuarioID   uuid.UUID
+	Nome        string
+	CriadoEm    time.Time
+}
+
 type Convite struct {
 	ID          uuid.UUID
 	WorkspaceID uuid.UUID
@@ -213,10 +402,37 @@ type CredenciaisShopee struct {
 	AtualizadoEm  time.Time
 }
 
+type ItensColecao struct {
+	ID           uuid.UUID
+	WorkspaceID  uuid.UUID
+	UsuarioID    uuid.UUID
+	ProdutoID    uuid.UUID
+	Titulo       string
+	Descricao    string
+	Notas        string
+	Tags         []string
+	Status       ItemStatus
+	LinkAfiliado *string
+	LinkOrigem   LinkOrigem
+	LinkStatus   LinkStatus
+	CriadoEm     time.Time
+	AtualizadoEm time.Time
+}
+
 type Limite struct {
 	Plano string
 	Chave string
 	Valor int64
+}
+
+type LinksCanal struct {
+	ItemID      uuid.UUID
+	WorkspaceID uuid.UUID
+	UsuarioID   uuid.UUID
+	Canal       Canal
+	SubID       string
+	Url         string
+	GeradoEm    time.Time
 }
 
 type Membro struct {

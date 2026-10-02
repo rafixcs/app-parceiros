@@ -443,6 +443,344 @@ paths:
               schema: { $ref: "#/components/schemas/RadarDetalhe" }
         "401": { $ref: "#/components/responses/NaoAutenticado" }
         "404": { $ref: "#/components/responses/Erro" }
+  /v1/workspaces/{workspaceId}/itens:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceId"
+    get:
+      summary: Produtos salvos pelo usuário no workspace
+      description: >
+        A coleção é do usuário dentro do workspace. Ninguém mais a vê, nem o
+        mentor. Os mais recentes primeiro.
+      operationId: listarItens
+      tags: [colecoes]
+      security: [{ bearer: [] }]
+      parameters:
+        - { name: q, in: query, description: Busca no título próprio e no nome do produto, schema: { type: string, maxLength: 100 } }
+        - { name: status, in: query, schema: { $ref: "#/components/schemas/StatusItem" } }
+        - { name: colecao, in: query, description: Só os itens desta coleção, schema: { type: string, format: uuid } }
+        - { name: tag, in: query, schema: { type: string, maxLength: 30 } }
+        - { name: pagina, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: por_pagina, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 30 } }
+      responses:
+        "200":
+          description: Página de itens
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ItensPagina" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "404": { $ref: "#/components/responses/Erro" }
+        "422": { $ref: "#/components/responses/Erro" }
+    post:
+      summary: Salvar produto
+      description: >
+        Salva um produto do radar (`produto_id`) ou colado como link da Shopee
+        (`url`); informe só um dos dois. Um produto que não está no catálogo
+        é buscado na Shopee com a credencial do app. O link de afiliado é
+        gerado em segundo plano (job `gerar_link`) com a credencial do
+        usuário, um por canal. Sem credencial conectada, o item fica com
+        `link_status` = `pendente`. Salvar de novo o mesmo produto devolve o
+        item existente (200).
+      operationId: salvarItem
+      tags: [colecoes]
+      security: [{ bearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                produto_id: { type: string, format: uuid }
+                url: { type: string, maxLength: 2000, description: "Link do produto na Shopee, ex.: https://shopee.com.br/Nome-i.123.456" }
+      responses:
+        "200":
+          description: O produto já estava salvo
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Item" }
+        "201":
+          description: Salvo
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Item" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "404":
+          description: "`produto_nao_encontrado` (nem no catálogo nem na Shopee) ou `workspace_nao_encontrado`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "422":
+          description: "`dados_invalidos`, `link_invalido` ou `link_curto`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "429":
+          description: "`shopee_limite`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "502":
+          description: "`shopee_indisponivel`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "503":
+          description: "`importacao_indisponivel` (o servidor não tem a credencial do app para buscar produtos fora do catálogo)"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+  /v1/workspaces/{workspaceId}/itens/produtos:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceId"
+    get:
+      summary: IDs dos produtos já salvos (para marcar o radar)
+      operationId: produtosSalvos
+      tags: [colecoes]
+      security: [{ bearer: [] }]
+      responses:
+        "200":
+          description: produto_id de cada item salvo
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { type: string, format: uuid }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "404": { $ref: "#/components/responses/Erro" }
+  /v1/workspaces/{workspaceId}/itens/links-pendentes:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceId"
+    post:
+      summary: Gerar os links que ficaram pendentes ou falharam
+      description: Use depois de conectar a conta da Shopee. Itens com link manual não mudam.
+      operationId: gerarLinksPendentes
+      tags: [colecoes]
+      security: [{ bearer: [] }]
+      responses:
+        "202":
+          description: Itens enfileirados
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [enfileirados]
+                properties:
+                  enfileirados: { type: integer }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "404": { $ref: "#/components/responses/Erro" }
+        "409":
+          description: "`sem_credencial` (conecte a conta da Shopee antes)"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+  /v1/workspaces/{workspaceId}/itens/{itemId}:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceId"
+      - $ref: "#/components/parameters/ItemId"
+    get:
+      summary: Detalhe do item
+      operationId: verItem
+      tags: [colecoes]
+      security: [{ bearer: [] }]
+      responses:
+        "200":
+          description: Item
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Item" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "404": { $ref: "#/components/responses/Erro" }
+    patch:
+      summary: Editar título, descrição, notas, tags, status e link
+      description: >
+        Campos ausentes não mudam. Texto vazio apaga o campo. `link_afiliado`
+        com uma URL grava um link manual, que tem prioridade sobre o
+        automático; `null` volta ao link automático e gera de novo.
+      operationId: atualizarItem
+      tags: [colecoes]
+      security: [{ bearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                titulo: { type: string, maxLength: 200 }
+                descricao: { type: string, maxLength: 2000 }
+                notas: { type: string, maxLength: 5000 }
+                tags:
+                  type: array
+                  maxItems: 20
+                  items: { type: string, minLength: 1, maxLength: 30 }
+                status: { $ref: "#/components/schemas/StatusItem" }
+                link_afiliado: { type: [string, "null"], maxLength: 500, description: "URL https" }
+      responses:
+        "200":
+          description: Item atualizado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Item" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "404": { $ref: "#/components/responses/Erro" }
+        "422": { $ref: "#/components/responses/Erro" }
+    delete:
+      summary: Remover o item (e os seus links)
+      operationId: removerItem
+      tags: [colecoes]
+      security: [{ bearer: [] }]
+      responses:
+        "204": { description: Removido }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "404": { $ref: "#/components/responses/Erro" }
+  /v1/workspaces/{workspaceId}/itens/{itemId}/link:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceId"
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      summary: Gerar o link automático de novo
+      description: Descarta o link manual, se houver, e enfileira o job `gerar_link`.
+      operationId: gerarLinkItem
+      tags: [colecoes]
+      security: [{ bearer: [] }]
+      responses:
+        "202":
+          description: Item com `link_status` = `gerando`, ou `pendente` sem credencial
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Item" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "404": { $ref: "#/components/responses/Erro" }
+  /v1/workspaces/{workspaceId}/itens/{itemId}/colecoes:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceId"
+      - $ref: "#/components/parameters/ItemId"
+    put:
+      summary: Definir as coleções do item
+      description: Substitui a lista. Um item pode estar em várias coleções.
+      operationId: definirColecoesItem
+      tags: [colecoes]
+      security: [{ bearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [colecao_ids]
+              additionalProperties: false
+              properties:
+                colecao_ids:
+                  type: array
+                  maxItems: 100
+                  items: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Item atualizado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Item" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "404":
+          description: "`item_nao_encontrado` ou `colecao_nao_encontrada`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+  /v1/workspaces/{workspaceId}/colecoes:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceId"
+    get:
+      summary: Coleções (pastas) do usuário no workspace
+      operationId: listarColecoes
+      tags: [colecoes]
+      security: [{ bearer: [] }]
+      responses:
+        "200":
+          description: Coleções em ordem alfabética
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Colecao" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "404": { $ref: "#/components/responses/Erro" }
+    post:
+      summary: Criar coleção
+      operationId: criarColecao
+      tags: [colecoes]
+      security: [{ bearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nome]
+              additionalProperties: false
+              properties:
+                nome: { type: string, minLength: 1, maxLength: 60 }
+      responses:
+        "201":
+          description: Criada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Colecao" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "404": { $ref: "#/components/responses/Erro" }
+        "409":
+          description: "`colecao_existente`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "422": { $ref: "#/components/responses/Erro" }
+  /v1/workspaces/{workspaceId}/colecoes/{colecaoId}:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceId"
+      - name: colecaoId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    patch:
+      summary: Renomear coleção
+      operationId: renomearColecao
+      tags: [colecoes]
+      security: [{ bearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nome]
+              additionalProperties: false
+              properties:
+                nome: { type: string, minLength: 1, maxLength: 60 }
+      responses:
+        "200":
+          description: Renomeada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Colecao" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "404": { $ref: "#/components/responses/Erro" }
+        "409":
+          description: "`colecao_existente`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "422": { $ref: "#/components/responses/Erro" }
+    delete:
+      summary: Apagar coleção
+      description: Os itens continuam salvos; só saem da coleção.
+      operationId: apagarColecao
+      tags: [colecoes]
+      security: [{ bearer: [] }]
+      responses:
+        "204": { description: Apagada }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "404": { $ref: "#/components/responses/Erro" }
 components:
   securitySchemes:
     bearer:
@@ -453,6 +791,11 @@ components:
   parameters:
     WorkspaceId:
       name: workspaceId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ItemId:
+      name: itemId
       in: path
       required: true
       schema: { type: string, format: uuid }
@@ -487,6 +830,9 @@ components:
             ja_membro, convite_expirado, convite_usado, convite_revogado,
             convite_outro_email, erro_interno. Em shopee: credencial_invalida,
             shopee_limite, shopee_indisponivel. Em radar: produto_nao_encontrado.
+            Em coleções: item_nao_encontrado, colecao_nao_encontrada,
+            colecao_existente, link_invalido, link_curto, sem_credencial,
+            importacao_indisponivel.
         mensagem: { type: string, description: Texto pronto para mostrar ao usuário }
     Usuario:
       type: object
@@ -613,6 +959,80 @@ components:
       properties:
         produto: { $ref: "#/components/schemas/RadarItem" }
         historico: { type: array, items: { $ref: "#/components/schemas/Snapshot" } }
+    StatusItem:
+      type: string
+      enum: [testando, campeao, descartado]
+    Canal:
+      type: string
+      enum: [instagram, tiktok, whatsapp, outro]
+    ProdutoResumo:
+      type: object
+      required: [id, nome, imagem_url, loja_nome, url, preco_min_centavos, preco_max_centavos, comissao_bp, ganho_por_venda_centavos, vendas, nota, atualizado_em]
+      properties:
+        id: { type: string, format: uuid }
+        nome: { type: string }
+        imagem_url: { type: [string, "null"] }
+        loja_nome: { type: string }
+        url: { type: string, description: Página do produto na Shopee (sem link de afiliado) }
+        preco_min_centavos: { type: integer, format: int64 }
+        preco_max_centavos: { type: integer, format: int64 }
+        comissao_bp: { type: integer }
+        ganho_por_venda_centavos: { type: integer, format: int64 }
+        vendas: { type: integer, format: int64 }
+        nota: { type: [number, "null"] }
+        atualizado_em: { type: string, format: date-time }
+    LinkCanal:
+      type: object
+      required: [canal, sub_id, url]
+      properties:
+        canal: { $ref: "#/components/schemas/Canal" }
+        sub_id: { type: string, description: "subIds enviados à Shopee, separados por vírgula" }
+        url: { type: string }
+    Item:
+      type: object
+      required: [id, produto, titulo, descricao, notas, tags, status, link_afiliado, link_origem, link_status, links, colecao_ids, criado_em, atualizado_em]
+      properties:
+        id: { type: string, format: uuid }
+        produto: { $ref: "#/components/schemas/ProdutoResumo" }
+        titulo: { type: string, description: Título próprio; vazio usa o nome do produto }
+        descricao: { type: string }
+        notas: { type: string, description: Notas pessoais; só o próprio usuário vê }
+        tags: { type: array, items: { type: string } }
+        status: { $ref: "#/components/schemas/StatusItem" }
+        link_afiliado:
+          type: [string, "null"]
+          description: Link principal (o manual, ou o automático do canal `outro`)
+        link_origem: { type: string, enum: [auto, manual] }
+        link_status:
+          type: string
+          enum: [pendente, gerando, pronto, falhou]
+          description: >
+            `pendente`: sem credencial da Shopee conectada. `gerando`: o job
+            `gerar_link` vai rodar. `falhou`: a Shopee não gerou o link
+            depois das tentativas.
+        links:
+          type: array
+          description: Links automáticos por canal (subId)
+          items: { $ref: "#/components/schemas/LinkCanal" }
+        colecao_ids: { type: array, items: { type: string, format: uuid } }
+        criado_em: { type: string, format: date-time }
+        atualizado_em: { type: string, format: date-time }
+    ItensPagina:
+      type: object
+      required: [itens, total, pagina, por_pagina]
+      properties:
+        itens: { type: array, items: { $ref: "#/components/schemas/Item" } }
+        total: { type: integer }
+        pagina: { type: integer }
+        por_pagina: { type: integer }
+    Colecao:
+      type: object
+      required: [id, nome, itens, criado_em]
+      properties:
+        id: { type: string, format: uuid }
+        nome: { type: string }
+        itens: { type: integer, description: Quantidade de itens }
+        criado_em: { type: string, format: date-time }
     Prontidao:
       type: object
       additionalProperties:

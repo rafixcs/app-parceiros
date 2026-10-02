@@ -314,12 +314,194 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{workspaceId}/itens": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Produtos salvos pelo usuário no workspace
+         * @description A coleção é do usuário dentro do workspace. Ninguém mais a vê, nem o mentor. Os mais recentes primeiro.
+         */
+        get: operations["listarItens"];
+        put?: never;
+        /**
+         * Salvar produto
+         * @description Salva um produto do radar (`produto_id`) ou colado como link da Shopee (`url`); informe só um dos dois. Um produto que não está no catálogo é buscado na Shopee com a credencial do app. O link de afiliado é gerado em segundo plano (job `gerar_link`) com a credencial do usuário, um por canal. Sem credencial conectada, o item fica com `link_status` = `pendente`. Salvar de novo o mesmo produto devolve o item existente (200).
+         */
+        post: operations["salvarItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{workspaceId}/itens/produtos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        /** IDs dos produtos já salvos (para marcar o radar) */
+        get: operations["produtosSalvos"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{workspaceId}/itens/links-pendentes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Gerar os links que ficaram pendentes ou falharam
+         * @description Use depois de conectar a conta da Shopee. Itens com link manual não mudam.
+         */
+        post: operations["gerarLinksPendentes"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{workspaceId}/itens/{itemId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                itemId: components["parameters"]["ItemId"];
+            };
+            cookie?: never;
+        };
+        /** Detalhe do item */
+        get: operations["verItem"];
+        put?: never;
+        post?: never;
+        /** Remover o item (e os seus links) */
+        delete: operations["removerItem"];
+        options?: never;
+        head?: never;
+        /**
+         * Editar título, descrição, notas, tags, status e link
+         * @description Campos ausentes não mudam. Texto vazio apaga o campo. `link_afiliado` com uma URL grava um link manual, que tem prioridade sobre o automático; `null` volta ao link automático e gera de novo.
+         */
+        patch: operations["atualizarItem"];
+        trace?: never;
+    };
+    "/v1/workspaces/{workspaceId}/itens/{itemId}/link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                itemId: components["parameters"]["ItemId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Gerar o link automático de novo
+         * @description Descarta o link manual, se houver, e enfileira o job `gerar_link`.
+         */
+        post: operations["gerarLinkItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{workspaceId}/itens/{itemId}/colecoes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                itemId: components["parameters"]["ItemId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Definir as coleções do item
+         * @description Substitui a lista. Um item pode estar em várias coleções.
+         */
+        put: operations["definirColecoesItem"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{workspaceId}/colecoes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        /** Coleções (pastas) do usuário no workspace */
+        get: operations["listarColecoes"];
+        put?: never;
+        /** Criar coleção */
+        post: operations["criarColecao"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{workspaceId}/colecoes/{colecaoId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                colecaoId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Apagar coleção
+         * @description Os itens continuam salvos; só saem da coleção.
+         */
+        delete: operations["apagarColecao"];
+        options?: never;
+        head?: never;
+        /** Renomear coleção */
+        patch: operations["renomearColecao"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         Erro: {
-            /** @description Código estável para o front. Em contas: nao_autenticado, dados_invalidos, json_invalido, sem_permissao, workspace_nao_encontrado, membro_nao_encontrado, convite_nao_encontrado, so_mentoria, dono_nao_sai, sem_assentos, ja_membro, convite_expirado, convite_usado, convite_revogado, convite_outro_email, erro_interno. Em shopee: credencial_invalida, shopee_limite, shopee_indisponivel. Em radar: produto_nao_encontrado. */
+            /** @description Código estável para o front. Em contas: nao_autenticado, dados_invalidos, json_invalido, sem_permissao, workspace_nao_encontrado, membro_nao_encontrado, convite_nao_encontrado, so_mentoria, dono_nao_sai, sem_assentos, ja_membro, convite_expirado, convite_usado, convite_revogado, convite_outro_email, erro_interno. Em shopee: credencial_invalida, shopee_limite, shopee_indisponivel. Em radar: produto_nao_encontrado. Em coleções: item_nao_encontrado, colecao_nao_encontrada, colecao_existente, link_invalido, link_curto, sem_credencial, importacao_indisponivel. */
             codigo: string;
             /** @description Texto pronto para mostrar ao usuário */
             mensagem: string;
@@ -469,6 +651,80 @@ export interface components {
             produto: components["schemas"]["RadarItem"];
             historico: components["schemas"]["Snapshot"][];
         };
+        /** @enum {string} */
+        StatusItem: "testando" | "campeao" | "descartado";
+        /** @enum {string} */
+        Canal: "instagram" | "tiktok" | "whatsapp" | "outro";
+        ProdutoResumo: {
+            /** Format: uuid */
+            id: string;
+            nome: string;
+            imagem_url: string | null;
+            loja_nome: string;
+            /** @description Página do produto na Shopee (sem link de afiliado) */
+            url: string;
+            /** Format: int64 */
+            preco_min_centavos: number;
+            /** Format: int64 */
+            preco_max_centavos: number;
+            comissao_bp: number;
+            /** Format: int64 */
+            ganho_por_venda_centavos: number;
+            /** Format: int64 */
+            vendas: number;
+            nota: number | null;
+            /** Format: date-time */
+            atualizado_em: string;
+        };
+        LinkCanal: {
+            canal: components["schemas"]["Canal"];
+            /** @description subIds enviados à Shopee, separados por vírgula */
+            sub_id: string;
+            url: string;
+        };
+        Item: {
+            /** Format: uuid */
+            id: string;
+            produto: components["schemas"]["ProdutoResumo"];
+            /** @description Título próprio; vazio usa o nome do produto */
+            titulo: string;
+            descricao: string;
+            /** @description Notas pessoais; só o próprio usuário vê */
+            notas: string;
+            tags: string[];
+            status: components["schemas"]["StatusItem"];
+            /** @description Link principal (o manual, ou o automático do canal `outro`) */
+            link_afiliado: string | null;
+            /** @enum {string} */
+            link_origem: "auto" | "manual";
+            /**
+             * @description `pendente`: sem credencial da Shopee conectada. `gerando`: o job `gerar_link` vai rodar. `falhou`: a Shopee não gerou o link depois das tentativas.
+             * @enum {string}
+             */
+            link_status: "pendente" | "gerando" | "pronto" | "falhou";
+            /** @description Links automáticos por canal (subId) */
+            links: components["schemas"]["LinkCanal"][];
+            colecao_ids: string[];
+            /** Format: date-time */
+            criado_em: string;
+            /** Format: date-time */
+            atualizado_em: string;
+        };
+        ItensPagina: {
+            itens: components["schemas"]["Item"][];
+            total: number;
+            pagina: number;
+            por_pagina: number;
+        };
+        Colecao: {
+            /** Format: uuid */
+            id: string;
+            nome: string;
+            /** @description Quantidade de itens */
+            itens: number;
+            /** Format: date-time */
+            criado_em: string;
+        };
         Prontidao: {
             [key: string]: "ok" | "falhou";
         };
@@ -495,6 +751,7 @@ export interface components {
     };
     parameters: {
         WorkspaceId: string;
+        ItemId: string;
         TokenConvite: string;
     };
     requestBodies: never;
@@ -1089,6 +1346,463 @@ export interface operations {
             };
             401: components["responses"]["NaoAutenticado"];
             404: components["responses"]["Erro"];
+        };
+    };
+    listarItens: {
+        parameters: {
+            query?: {
+                /** @description Busca no título próprio e no nome do produto */
+                q?: string;
+                status?: components["schemas"]["StatusItem"];
+                /** @description Só os itens desta coleção */
+                colecao?: string;
+                tag?: string;
+                pagina?: number;
+                por_pagina?: number;
+            };
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Página de itens */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItensPagina"];
+                };
+            };
+            401: components["responses"]["NaoAutenticado"];
+            404: components["responses"]["Erro"];
+            422: components["responses"]["Erro"];
+        };
+    };
+    salvarItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    produto_id?: string;
+                    /** @description Link do produto na Shopee, ex.: https://shopee.com.br/Nome-i.123.456 */
+                    url?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description O produto já estava salvo */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Item"];
+                };
+            };
+            /** @description Salvo */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Item"];
+                };
+            };
+            401: components["responses"]["NaoAutenticado"];
+            /** @description `produto_nao_encontrado` (nem no catálogo nem na Shopee) ou `workspace_nao_encontrado` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+            /** @description `dados_invalidos`, `link_invalido` ou `link_curto` */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+            /** @description `shopee_limite` */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+            /** @description `shopee_indisponivel` */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+            /** @description `importacao_indisponivel` (o servidor não tem a credencial do app para buscar produtos fora do catálogo) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+        };
+    };
+    produtosSalvos: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description produto_id de cada item salvo */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string[];
+                };
+            };
+            401: components["responses"]["NaoAutenticado"];
+            404: components["responses"]["Erro"];
+        };
+    };
+    gerarLinksPendentes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Itens enfileirados */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        enfileirados: number;
+                    };
+                };
+            };
+            401: components["responses"]["NaoAutenticado"];
+            404: components["responses"]["Erro"];
+            /** @description `sem_credencial` (conecte a conta da Shopee antes) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+        };
+    };
+    verItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                itemId: components["parameters"]["ItemId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Item */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Item"];
+                };
+            };
+            401: components["responses"]["NaoAutenticado"];
+            404: components["responses"]["Erro"];
+        };
+    };
+    removerItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                itemId: components["parameters"]["ItemId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removido */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["NaoAutenticado"];
+            404: components["responses"]["Erro"];
+        };
+    };
+    atualizarItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                itemId: components["parameters"]["ItemId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    titulo?: string;
+                    descricao?: string;
+                    notas?: string;
+                    tags?: string[];
+                    status?: components["schemas"]["StatusItem"];
+                    /** @description URL https */
+                    link_afiliado?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description Item atualizado */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Item"];
+                };
+            };
+            401: components["responses"]["NaoAutenticado"];
+            404: components["responses"]["Erro"];
+            422: components["responses"]["Erro"];
+        };
+    };
+    gerarLinkItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                itemId: components["parameters"]["ItemId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Item com `link_status` = `gerando`, ou `pendente` sem credencial */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Item"];
+                };
+            };
+            401: components["responses"]["NaoAutenticado"];
+            404: components["responses"]["Erro"];
+        };
+    };
+    definirColecoesItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                itemId: components["parameters"]["ItemId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    colecao_ids: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description Item atualizado */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Item"];
+                };
+            };
+            401: components["responses"]["NaoAutenticado"];
+            /** @description `item_nao_encontrado` ou `colecao_nao_encontrada` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+        };
+    };
+    listarColecoes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Coleções em ordem alfabética */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Colecao"][];
+                };
+            };
+            401: components["responses"]["NaoAutenticado"];
+            404: components["responses"]["Erro"];
+        };
+    };
+    criarColecao: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    nome: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Criada */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Colecao"];
+                };
+            };
+            401: components["responses"]["NaoAutenticado"];
+            404: components["responses"]["Erro"];
+            /** @description `colecao_existente` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+            422: components["responses"]["Erro"];
+        };
+    };
+    apagarColecao: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                colecaoId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Apagada */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["NaoAutenticado"];
+            404: components["responses"]["Erro"];
+        };
+    };
+    renomearColecao: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+                colecaoId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    nome: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Renomeada */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Colecao"];
+                };
+            };
+            401: components["responses"]["NaoAutenticado"];
+            404: components["responses"]["Erro"];
+            /** @description `colecao_existente` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+            422: components["responses"]["Erro"];
         };
     };
 }

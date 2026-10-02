@@ -5,6 +5,8 @@ import type { components, paths } from "./schema";
 export type Schemas = components["schemas"];
 export type RadarItem = Schemas["RadarItem"];
 export type Workspace = Schemas["Workspace"];
+export type Item = Schemas["Item"];
+export type Colecao = Schemas["Colecao"];
 
 /** Erro da API com o código estável e a mensagem pronta para o usuário. */
 export class ErroAPI extends Error {

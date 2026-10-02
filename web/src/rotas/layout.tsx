@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, Outlet, useNavigate, useParams } from "@tanstack/react-router";
-import { LogOut, Plug } from "lucide-react";
+import { Bookmark, Flame, LogOut, Plug } from "lucide-react";
 import { useEffect } from "react";
 import { api, exigir } from "@/api/cliente";
 import { Button } from "@/components/ui/button";
@@ -68,6 +68,30 @@ export function Layout() {
                 </option>
               ))}
             </Select>
+          )}
+          {atual && (
+            <nav className="flex items-center gap-1" aria-label="Seções">
+              <Link
+                to="/w/$workspaceId/radar"
+                params={{ workspaceId: atual }}
+                search={{}}
+                className="flex h-9 items-center gap-2 rounded-lg px-3 text-sm hover:bg-zinc-100"
+                activeProps={{ className: "bg-zinc-100 font-medium" }}
+              >
+                <Flame className="size-4" />
+                <span className="hidden sm:inline">Radar</span>
+              </Link>
+              <Link
+                to="/w/$workspaceId/colecao"
+                params={{ workspaceId: atual }}
+                search={{}}
+                className="flex h-9 items-center gap-2 rounded-lg px-3 text-sm hover:bg-zinc-100"
+                activeProps={{ className: "bg-zinc-100 font-medium" }}
+              >
+                <Bookmark className="size-4" />
+                <span className="hidden sm:inline">Coleção</span>
+              </Link>
+            </nav>
           )}
           <nav className="ml-auto flex items-center gap-1">
             <Link

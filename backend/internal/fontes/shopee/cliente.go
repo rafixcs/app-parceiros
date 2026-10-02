@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -148,6 +149,85 @@ func (c *Cliente) Ofertas(ctx context.Context, cred Credencial, f FiltroOfertas)
 		out.Ofertas = append(out.Ofertas, o)
 	}
 	return out, nil
+}
+
+// OfertaPorItem busca um produto pelo itemId no productOfferV2. Devolve
+// fontes.ErrNaoEncontrado se a Shopee não o oferecer no programa de afiliados.
+func (c *Cliente) OfertaPorItem(ctx context.Context, cred Credencial, itemID int64) (fontes.Oferta, error) {
+	if itemID <= 0 {
+		return fontes.Oferta{}, fontes.ErrNaoEncontrado
+	}
+	query := "{productOfferV2(itemId:" + strconv.FormatInt(itemID, 10) + ",page:1,limit:1){nodes{" + camposOferta + "} pageInfo{page limit hasNextPage}}}"
+	bruto, err := c.chamar(ctx, cred, query)
+	if err != nil {
+		return fontes.Oferta{}, err
+	}
+	var resp struct {
+		Data struct {
+			ProductOfferV2 struct {
+				Nodes []oferta `json:"nodes"`
+			} `json:"productOfferV2"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(bruto, &resp); err != nil {
+		return fontes.Oferta{}, fmt.Errorf("%w: resposta do productOfferV2 inválida: %v", fontes.ErrIndisponivel, err)
+	}
+	for _, n := range resp.Data.ProductOfferV2.Nodes {
+		o, err := n.normalizar()
+		if err != nil {
+			return fontes.Oferta{}, fmt.Errorf("%w: item %s: %v", fontes.ErrIndisponivel, n.ItemID, err)
+		}
+		if o.ItemID == itemID {
+			return o, nil
+		}
+	}
+	return fontes.Oferta{}, fontes.ErrNaoEncontrado
+}
+
+// MaxSubIDs é quantos subIds o generateShortLink aceita.
+const MaxSubIDs = 5
+
+var reSubID = regexp.MustCompile(`^[A-Za-z0-9]{1,50}$`)
+
+// GerarLink chama o generateShortLink: devolve o link curto de afiliado da
+// credencial para a página `origem`, marcado com os subIds (alfanuméricos).
+func (c *Cliente) GerarLink(ctx context.Context, cred Credencial, origem string, subIDs []string) (string, error) {
+	if len(subIDs) > MaxSubIDs {
+		return "", fmt.Errorf("no máximo %d subIds", MaxSubIDs)
+	}
+	for _, s := range subIDs {
+		if !reSubID.MatchString(s) {
+			return "", fmt.Errorf("subId inválido %q", s)
+		}
+	}
+	// Strings em GraphQL usam o mesmo escape do JSON.
+	url, err := json.Marshal(origem)
+	if err != nil {
+		return "", err
+	}
+	subs, err := json.Marshal(subIDs)
+	if err != nil {
+		return "", err
+	}
+	if subIDs == nil {
+		subs = []byte("[]")
+	}
+	query := "mutation{generateShortLink(input:{originUrl:" + string(url) + ",subIds:" + string(subs) + "}){shortLink}}"
+	bruto, err := c.chamar(ctx, cred, query)
+	if err != nil {
+		return "", err
+	}
+	var resp struct {
+		Data struct {
+			GenerateShortLink struct {
+				ShortLink string `json:"shortLink"`
+			} `json:"generateShortLink"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(bruto, &resp); err != nil || resp.Data.GenerateShortLink.ShortLink == "" {
+		return "", fmt.Errorf("%w: resposta do generateShortLink sem shortLink", fontes.ErrIndisponivel)
+	}
+	return resp.Data.GenerateShortLink.ShortLink, nil
 }
 
 // Validar faz uma chamada de teste com a credencial. Devolve nil se a Shopee

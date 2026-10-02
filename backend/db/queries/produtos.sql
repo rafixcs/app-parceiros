@@ -77,3 +77,9 @@ SELECT coletado_em, preco_min_centavos, preco_max_centavos, comissao_bp, vendas,
 FROM produto_snapshots
 WHERE produto_id = @produto_id AND coletado_em >= @desde
 ORDER BY coletado_em;
+
+-- name: Produtos :many
+SELECT * FROM produtos WHERE id = ANY (@ids::uuid[]);
+
+-- name: ProdutoPorItemCompleto :one
+SELECT * FROM produtos WHERE fonte = @fonte AND item_id = @item_id;

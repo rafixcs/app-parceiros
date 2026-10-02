@@ -8,6 +8,7 @@ import { Aviso, Badge, Card } from "@/components/ui/card";
 import { Input, Rotulo, Select } from "@/components/ui/input";
 import { faixaPreco, haQuanto, paraCentavos, porcentagem, quantidade, reais } from "@/lib/formato";
 import { rotaRadar } from "./router";
+import { BotaoSalvar } from "./salvar";
 
 const ordens = {
   tendencia: "Em alta",
@@ -108,8 +109,9 @@ export function Radar() {
 
       <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {radar.data?.itens.map((p) => (
-          <li key={p.produto_id}>
+          <li key={p.produto_id} className="relative">
             <CartaoProduto produto={p} workspaceId={workspaceId} />
+            <BotaoSalvar workspaceId={workspaceId} produtoId={p.produto_id} className="absolute right-3 bottom-3" />
           </li>
         ))}
       </ul>
@@ -260,7 +262,8 @@ function CartaoProduto({ produto: p, workspaceId }: { produto: RadarItem; worksp
             <Badge className="bg-zinc-100 text-zinc-700">{porcentagem(p.comissao_bp)}</Badge>
             <Tendencia produto={p} />
           </div>
-          <p className="flex items-center gap-2 text-xs text-suave">
+          {/* Espaço para o botão Salvar, que fica fora do link do cartão. */}
+          <p className="flex min-h-8 items-center gap-2 pr-24 text-xs text-suave">
             {quantidade(p.vendas)} vendidos
             {p.nota != null && (
               <span className="flex items-center gap-0.5">

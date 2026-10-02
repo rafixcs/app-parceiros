@@ -10,6 +10,7 @@ import { faixaPreco, haQuanto, porcentagem, quantidade, reais } from "@/lib/form
 import { cn } from "@/lib/utils";
 import { Imagem, Tendencia } from "./radar";
 import { rotaProduto } from "./router";
+import { BotaoSalvar } from "./salvar";
 
 const series = {
   preco: { rotulo: "Preço", valor: (s: Schemas["Snapshot"]) => s.preco_min_centavos / 100, formato: (v: number) => reais(v * 100) },
@@ -85,6 +86,7 @@ export function Produto() {
             <a href={p.url} target="_blank" rel="noreferrer" className="ml-auto inline-flex items-center gap-1 text-marca hover:underline">
               Ver na Shopee <ExternalLink className="size-3.5" />
             </a>
+            <BotaoSalvar workspaceId={workspaceId} produtoId={p.produto_id} />
           </div>
         </div>
       </Card>
