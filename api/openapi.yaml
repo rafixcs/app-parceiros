@@ -304,6 +304,145 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Erro" }
+  /v1/eu/shopee:
+    get:
+      summary: Situação da conexão com a Shopee
+      description: >
+        A credencial (AppID e Secret da Open API de afiliados) pertence ao
+        usuário, não ao workspace. O Secret nunca aparece em resposta.
+      operationId: verConexaoShopee
+      tags: [shopee]
+      security: [{ bearer: [] }]
+      responses:
+        "200":
+          description: Situação
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConexaoShopee" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+    put:
+      summary: Conectar a conta de afiliado
+      description: >
+        Valida o AppID e o Secret com uma chamada de teste à Shopee e guarda a
+        credencial cifrada (envelope encryption). Substitui a credencial
+        anterior, se houver.
+      operationId: conectarShopee
+      tags: [shopee]
+      security: [{ bearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [app_id, secret]
+              additionalProperties: false
+              properties:
+                app_id: { type: string, pattern: "^[0-9]{1,20}$" }
+                secret: { type: string, minLength: 1, maxLength: 256, writeOnly: true }
+      responses:
+        "200":
+          description: Conectado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConexaoShopee" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "422":
+          description: "`dados_invalidos` ou `credencial_invalida` (a Shopee recusou o AppID ou o Secret)"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "429":
+          description: "`shopee_limite` (a Shopee limitou as chamadas; tente de novo em instantes)"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "502":
+          description: "`shopee_indisponivel`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+    delete:
+      summary: Desconectar (apaga a credencial)
+      operationId: desconectarShopee
+      tags: [shopee]
+      security: [{ bearer: [] }]
+      responses:
+        "204": { description: Desconectado }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+  /v1/workspaces/{workspaceId}/radar:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceId"
+    get:
+      summary: Radar de produtos em alta
+      description: >
+        Lista ranqueada do catálogo coletado pelo job `snapshot_catalogo`
+        (credencial do app) com o score do job `calcular_tendencias`.
+        Valores em centavos e comissão em basis points (1% = 100).
+      operationId: radar
+      tags: [radar]
+      security: [{ bearer: [] }]
+      parameters:
+        - { name: categoria, in: query, schema: { type: integer, format: int64 } }
+        - { name: preco_min, in: query, description: Centavos, schema: { type: integer, format: int64, minimum: 0 } }
+        - { name: preco_max, in: query, description: Centavos, schema: { type: integer, format: int64, minimum: 0 } }
+        - { name: comissao_min, in: query, description: Basis points, schema: { type: integer, minimum: 0, maximum: 10000 } }
+        - { name: nota_min, in: query, schema: { type: number, minimum: 0, maximum: 5 } }
+        - { name: q, in: query, description: Busca no nome do produto e da loja, schema: { type: string, maxLength: 100 } }
+        - name: ordem
+          in: query
+          schema: { type: string, enum: [tendencia, comissao, ganho, vendas], default: tendencia }
+        - { name: pagina, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: por_pagina, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 24 } }
+      responses:
+        "200":
+          description: Página do radar
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RadarPagina" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "404": { $ref: "#/components/responses/Erro" }
+        "422": { $ref: "#/components/responses/Erro" }
+  /v1/workspaces/{workspaceId}/radar/categorias:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceId"
+    get:
+      summary: Categorias presentes no radar (para o filtro)
+      operationId: radarCategorias
+      tags: [radar]
+      security: [{ bearer: [] }]
+      responses:
+        "200":
+          description: Categorias, as com mais produtos primeiro
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Categoria" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "404": { $ref: "#/components/responses/Erro" }
+  /v1/workspaces/{workspaceId}/radar/produtos/{produtoId}:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceId"
+      - name: produtoId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      summary: Detalhe do produto com histórico
+      operationId: radarProduto
+      tags: [radar]
+      security: [{ bearer: [] }]
+      parameters:
+        - { name: dias, in: query, description: Janela do histórico, schema: { type: integer, minimum: 1, maximum: 90, default: 30 } }
+      responses:
+        "200":
+          description: Produto e snapshots da janela, do mais antigo ao mais novo
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RadarDetalhe" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "404": { $ref: "#/components/responses/Erro" }
 components:
   securitySchemes:
     bearer:
@@ -346,7 +485,8 @@ components:
             workspace_nao_encontrado, membro_nao_encontrado,
             convite_nao_encontrado, so_mentoria, dono_nao_sai, sem_assentos,
             ja_membro, convite_expirado, convite_usado, convite_revogado,
-            convite_outro_email, erro_interno.
+            convite_outro_email, erro_interno. Em shopee: credencial_invalida,
+            shopee_limite, shopee_indisponivel. Em radar: produto_nao_encontrado.
         mensagem: { type: string, description: Texto pronto para mostrar ao usuário }
     Usuario:
       type: object
@@ -404,6 +544,75 @@ components:
         workspace_foto_url: { type: [string, "null"] }
         status: { type: string, enum: [valido, expirado, usado, revogado] }
         expira_em: { type: string, format: date-time }
+    ConexaoShopee:
+      type: object
+      required: [status, app_id, verificado_em]
+      properties:
+        status:
+          type: string
+          enum: [desconectado, conectado, invalido, expirado]
+          description: >
+            `invalido`: a Shopee recusou a assinatura (Secret trocado).
+            `expirado`: a Shopee negou acesso à conta (bloqueada, sem permissão).
+        app_id: { type: [string, "null"], description: "AppID mascarado, ex.: ••••5678" }
+        verificado_em: { type: [string, "null"], format: date-time }
+    Categoria:
+      type: object
+      required: [id, nome, produtos]
+      properties:
+        id: { type: integer, format: int64 }
+        nome: { type: string }
+        produtos: { type: integer }
+    RadarItem:
+      type: object
+      required: [produto_id, nome, imagem_url, loja_nome, url, categorias, preco_min_centavos, preco_max_centavos, comissao_bp, ganho_por_venda_centavos, vendas, nota, score, vendas_7d, atualizado_em]
+      properties:
+        produto_id: { type: string, format: uuid }
+        nome: { type: string }
+        imagem_url: { type: [string, "null"] }
+        loja_nome: { type: string }
+        url: { type: string, description: Página do produto na Shopee (sem link de afiliado) }
+        categorias: { type: array, items: { type: integer, format: int64 } }
+        preco_min_centavos: { type: integer, format: int64 }
+        preco_max_centavos: { type: integer, format: int64 }
+        comissao_bp: { type: integer, description: "Comissão em basis points (1% = 100)" }
+        ganho_por_venda_centavos: { type: integer, format: int64, description: preço mínimo × comissão }
+        vendas: { type: integer, format: int64, description: Vendas acumuladas informadas pela Shopee }
+        nota: { type: [number, "null"] }
+        score: { type: number, description: "Score de tendência de 0 a 100, relativo ao catálogo" }
+        vendas_7d:
+          type: [integer, "null"]
+          format: int64
+          description: Crescimento de vendas estimado para 7 dias. Nulo quando ainda não há um dia de histórico.
+        atualizado_em: { type: string, format: date-time, description: Coleta mais recente do produto }
+    RadarPagina:
+      type: object
+      required: [itens, total, pagina, por_pagina, atualizado_em]
+      properties:
+        itens: { type: array, items: { $ref: "#/components/schemas/RadarItem" } }
+        total: { type: integer }
+        pagina: { type: integer }
+        por_pagina: { type: integer }
+        atualizado_em:
+          type: [string, "null"]
+          format: date-time
+          description: Coleta mais recente do catálogo, para o "atualizado há X"
+    Snapshot:
+      type: object
+      required: [coletado_em, preco_min_centavos, preco_max_centavos, comissao_bp, vendas, nota]
+      properties:
+        coletado_em: { type: string, format: date-time }
+        preco_min_centavos: { type: integer, format: int64 }
+        preco_max_centavos: { type: integer, format: int64 }
+        comissao_bp: { type: integer }
+        vendas: { type: integer, format: int64 }
+        nota: { type: [number, "null"] }
+    RadarDetalhe:
+      type: object
+      required: [produto, historico]
+      properties:
+        produto: { $ref: "#/components/schemas/RadarItem" }
+        historico: { type: array, items: { $ref: "#/components/schemas/Snapshot" } }
     Prontidao:
       type: object
       additionalProperties:

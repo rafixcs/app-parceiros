@@ -1,0 +1,1453 @@
+{
+ "data": {
+  "productOfferV2": {
+   "nodes": [
+    {
+     "itemId": 22000084811,
+     "productName": "Organizador de gaveta modular",
+     "shopId": 300000000,
+     "shopName": "Casa Prática",
+     "imageUrl": "https://placehold.co/400x400/png?text=22000084811",
+     "productLink": "https://shopee.com.br/product/300000000/22000084811",
+     "offerLink": "https://s.shopee.com.br/mock22000084811",
+     "priceMin": "34.90",
+     "priceMax": "34.90",
+     "commissionRate": "0.1",
+     "sales": 1500,
+     "ratingStar": "4.7",
+     "productCatIds": [
+      100001,
+      10000101
+     ]
+    },
+    {
+     "itemId": 22000104100,
+     "productName": "Luminária LED de mesa recarregável",
+     "shopId": 300007919,
+     "shopName": "Lumi Store",
+     "imageUrl": "https://placehold.co/400x400/png?text=22000104100",
+     "productLink": "https://shopee.com.br/product/300007919/22000104100",
+     "offerLink": "https://s.shopee.com.br/mock22000104100",
+     "priceMin": "34.90",
+     "priceMax": "39.90",
+     "commissionRate": "0.15",
+     "sales": 120,
+     "ratingStar": "4.2",
+     "productCatIds": [
+      100001,
+      10000102
+     ]
+    },
+    {
+     "itemId": 22000117380,
+     "productName": "Jogo de lençol 400 fios casal",
+     "shopId": 300015838,
+     "shopName": "Sono Bom",
+     "imageUrl": "https://placehold.co/400x400/png?text=22000117380",
+     "productLink": "https://shopee.com.br/product/300015838/22000117380",
+     "offerLink": "https://s.shopee.com.br/mock22000117380",
+     "priceMin": "59.90",
+     "priceMax": "59.90",
+     "commissionRate": "0.03",
+     "sales": 27000,
+     "ratingStar": "4.7",
+     "productCatIds": [
+      100001,
+      10000103
+     ]
+    },
+    {
+     "itemId": 22000203561,
+     "productName": "Kit 6 potes herméticos de vidro",
+     "shopId": 300023757,
+     "shopName": "Cozinha Viva",
+     "imageUrl": "https://placehold.co/400x400/png?text=22000203561",
+     "productLink": "https://shopee.com.br/product/300023757/22000203561",
+     "offerLink": "https://s.shopee.com.br/mock22000203561",
+     "priceMin": "199.90",
+     "priceMax": "199.90",
+     "commissionRate": "0.1",
+     "sales": 120,
+     "ratingStar": "4.6",
+     "productCatIds": [
+      100001,
+      10000101
+     ]
+    },
+    {
+     "itemId": 22000259953,
+     "productName": "Tapete antiderrapante para banheiro",
+     "shopId": 300000000,
+     "shopName": "Casa Prática",
+     "imageUrl": "https://placehold.co/400x400/png?text=22000259953",
+     "productLink": "https://shopee.com.br/product/300000000/22000259953",
+     "offerLink": "https://s.shopee.com.br/mock22000259953",
+     "priceMin": "99.90",
+     "priceMax": "99.90",
+     "commissionRate": "0.08",
+     "sales": 5600,
+     "ratingStar": "4.5",
+     "productCatIds": [
+      100001,
+      10000102
+     ]
+    },
+    {
+     "itemId": 22000273109,
+     "productName": "Cortina blackout 2,80 m",
+     "shopId": 300031676,
+     "shopName": "Decora Já",
+     "imageUrl": "https://placehold.co/400x400/png?text=22000273109",
+     "productLink": "https://shopee.com.br/product/300031676/22000273109",
+     "offerLink": "https://s.shopee.com.br/mock22000273109",
+     "priceMin": "149.90",
+     "priceMax": "149.90",
+     "commissionRate": "0.12",
+     "sales": 48000,
+     "ratingStar": "4.8",
+     "productCatIds": [
+      100001,
+      10000103
+     ]
+    },
+    {
+     "itemId": 22000279804,
+     "productName": "Mop giratório com balde",
+     "shopId": 300039595,
+     "shopName": "Limpa Fácil",
+     "imageUrl": "https://placehold.co/400x400/png?text=22000279804",
+     "productLink": "https://shopee.com.br/product/300039595/22000279804",
+     "offerLink": "https://s.shopee.com.br/mock22000279804",
+     "priceMin": "249.90",
+     "priceMax": "249.90",
+     "commissionRate": "0.15",
+     "sales": 450,
+     "ratingStar": "4.8",
+     "productCatIds": [
+      100001,
+      10000101
+     ]
+    },
+    {
+     "itemId": 22000363201,
+     "productName": "Suporte de parede para TV 14 a 55 pol.",
+     "shopId": 300047514,
+     "shopName": "Fixa Tudo",
+     "imageUrl": "https://placehold.co/400x400/png?text=22000363201",
+     "productLink": "https://shopee.com.br/product/300047514/22000363201",
+     "offerLink": "https://s.shopee.com.br/mock22000363201",
+     "priceMin": "129.90",
+     "priceMax": "129.90",
+     "commissionRate": "0.05",
+     "sales": 120,
+     "ratingStar": "4.7",
+     "productCatIds": [
+      100001,
+      10000102
+     ]
+    },
+    {
+     "itemId": 22000402131,
+     "productName": "Difusor de aromas ultrassônico",
+     "shopId": 300055433,
+     "shopName": "Aroma & Cia",
+     "imageUrl": "https://placehold.co/400x400/png?text=22000402131",
+     "productLink": "https://shopee.com.br/product/300055433/22000402131",
+     "offerLink": "https://s.shopee.com.br/mock22000402131",
+     "priceMin": "29.90",
+     "priceMax": "34.90",
+     "commissionRate": "0.15",
+     "sales": 3200,
+     "ratingStar": "0",
+     "productCatIds": [
+      100001,
+      10000103
+     ]
+    },
+    {
+     "itemId": 22000486451,
+     "productName": "Panela de pressão elétrica 5 L",
+     "shopId": 300023757,
+     "shopName": "Cozinha Viva",
+     "imageUrl": "https://placehold.co/400x400/png?text=22000486451",
+     "productLink": "https://shopee.com.br/product/300023757/22000486451",
+     "offerLink": "https://s.shopee.com.br/mock22000486451",
+     "priceMin": "129.90",
+     "priceMax": "129.90",
+     "commissionRate": "0.12",
+     "sales": 1500,
+     "ratingStar": "4.8",
+     "productCatIds": [
+      100001,
+      10000101
+     ]
+    },
+    {
+     "itemId": 22000572390,
+     "productName": "Escorredor de louça inox",
+     "shopId": 300023757,
+     "shopName": "Cozinha Viva",
+     "imageUrl": "https://placehold.co/400x400/png?text=22000572390",
+     "productLink": "https://shopee.com.br/product/300023757/22000572390",
+     "offerLink": "https://s.shopee.com.br/mock22000572390",
+     "priceMin": "29.90",
+     "priceMax": "39.90",
+     "commissionRate": "0.25",
+     "sales": 1500,
+     "ratingStar": "4.6",
+     "productCatIds": [
+      100001,
+      10000102
+     ]
+    },
+    {
+     "itemId": 22000633979,
+     "productName": "Fita LED RGB 5 m com controle",
+     "shopId": 300007919,
+     "shopName": "Lumi Store",
+     "imageUrl": "https://placehold.co/400x400/png?text=22000633979",
+     "productLink": "https://shopee.com.br/product/300007919/22000633979",
+     "offerLink": "https://s.shopee.com.br/mock22000633979",
+     "priceMin": "149.90",
+     "priceMax": "149.90",
+     "commissionRate": "0.25",
+     "sales": 1500,
+     "ratingStar": "4.9",
+     "productCatIds": [
+      100001,
+      10000103
+     ]
+    },
+    {
+     "itemId": 22000642310,
+     "productName": "Cabide de veludo kit 20",
+     "shopId": 300063352,
+     "shopName": "Organiza Mais",
+     "imageUrl": "https://placehold.co/400x400/png?text=22000642310",
+     "productLink": "https://shopee.com.br/product/300063352/22000642310",
+     "offerLink": "https://s.shopee.com.br/mock22000642310",
+     "priceMin": "69.90",
+     "priceMax": "89.90",
+     "commissionRate": "0.15",
+     "sales": 3200,
+     "ratingStar": "4.5",
+     "productCatIds": [
+      100001,
+      10000101
+     ]
+    },
+    {
+     "itemId": 22000670963,
+     "productName": "Air fryer 4 L digital",
+     "shopId": 300071271,
+     "shopName": "Eletro Lar",
+     "imageUrl": "https://placehold.co/400x400/png?text=22000670963",
+     "productLink": "https://shopee.com.br/product/300071271/22000670963",
+     "offerLink": "https://s.shopee.com.br/mock22000670963",
+     "priceMin": "99.90",
+     "priceMax": "99.90",
+     "commissionRate": "0.2",
+     "sales": 9800,
+     "ratingStar": "0",
+     "productCatIds": [
+      100001,
+      10000102
+     ]
+    },
+    {
+     "itemId": 22000690689,
+     "productName": "Garrafa térmica 1 L inox",
+     "shopId": 300023757,
+     "shopName": "Cozinha Viva",
+     "imageUrl": "https://placehold.co/400x400/png?text=22000690689",
+     "productLink": "https://shopee.com.br/product/300023757/22000690689",
+     "offerLink": "https://s.shopee.com.br/mock22000690689",
+     "priceMin": "79.90",
+     "priceMax": "79.90",
+     "commissionRate": "0.25",
+     "sales": 27000,
+     "ratingStar": "4.8",
+     "productCatIds": [
+      100001,
+      10000103
+     ]
+    },
+    {
+     "itemId": 22000768311,
+     "productName": "Relógio de parede minimalista",
+     "shopId": 300031676,
+     "shopName": "Decora Já",
+     "imageUrl": "https://placehold.co/400x400/png?text=22000768311",
+     "productLink": "https://shopee.com.br/product/300031676/22000768311",
+     "offerLink": "https://s.shopee.com.br/mock22000768311",
+     "priceMin": "199.90",
+     "priceMax": "229.90",
+     "commissionRate": "0.12",
+     "sales": 1500,
+     "ratingStar": "4.6",
+     "productCatIds": [
+      100001,
+      10000101
+     ]
+    },
+    {
+     "itemId": 22000836095,
+     "productName": "Sérum facial vitamina C 30 ml",
+     "shopId": 300079190,
+     "shopName": "Pele Linda",
+     "imageUrl": "https://placehold.co/400x400/png?text=22000836095",
+     "productLink": "https://shopee.com.br/product/300079190/22000836095",
+     "offerLink": "https://s.shopee.com.br/mock22000836095",
+     "priceMin": "349.90",
+     "priceMax": "349.90",
+     "commissionRate": "0.03",
+     "sales": 450,
+     "ratingStar": "4.6",
+     "productCatIds": [
+      100002,
+      10000201
+     ]
+    },
+    {
+     "itemId": 22000919335,
+     "productName": "Escova secadora 3 em 1",
+     "shopId": 300087109,
+     "shopName": "Cabelo Top",
+     "imageUrl": "https://placehold.co/400x400/png?text=22000919335",
+     "productLink": "https://shopee.com.br/product/300087109/22000919335",
+     "offerLink": "https://s.shopee.com.br/mock22000919335",
+     "priceMin": "49.90",
+     "priceMax": "79.90",
+     "commissionRate": "0.05",
+     "sales": 9800,
+     "ratingStar": "5",
+     "productCatIds": [
+      100002,
+      10000202
+     ]
+    },
+    {
+     "itemId": 22000998439,
+     "productName": "Kit pincéis de maquiagem 12 peças",
+     "shopId": 300095028,
+     "shopName": "Make Fácil",
+     "imageUrl": "https://placehold.co/400x400/png?text=22000998439",
+     "productLink": "https://shopee.com.br/product/300095028/22000998439",
+     "offerLink": "https://s.shopee.com.br/mock22000998439",
+     "priceMin": "249.90",
+     "priceMax": "249.90",
+     "commissionRate": "0.25",
+     "sales": 120,
+     "ratingStar": "4.5",
+     "productCatIds": [
+      100002,
+      10000203
+     ]
+    },
+    {
+     "itemId": 22001069820,
+     "productName": "Protetor solar facial FPS 50",
+     "shopId": 300079190,
+     "shopName": "Pele Linda",
+     "imageUrl": "https://placehold.co/400x400/png?text=22001069820",
+     "productLink": "https://shopee.com.br/product/300079190/22001069820",
+     "offerLink": "https://s.shopee.com.br/mock22001069820",
+     "priceMin": "79.90",
+     "priceMax": "99.90",
+     "commissionRate": "0.05",
+     "sales": 3200,
+     "ratingStar": "5",
+     "productCatIds": [
+      100002,
+      10000201
+     ]
+    },
+    {
+     "itemId": 22001091550,
+     "productName": "Máscara capilar hidratação 500 g",
+     "shopId": 300087109,
+     "shopName": "Cabelo Top",
+     "imageUrl": "https://placehold.co/400x400/png?text=22001091550",
+     "productLink": "https://shopee.com.br/product/300087109/22001091550",
+     "offerLink": "https://s.shopee.com.br/mock22001091550",
+     "priceMin": "249.90",
+     "priceMax": "249.90",
+     "commissionRate": "0.1",
+     "sales": 27000,
+     "ratingStar": "4.6",
+     "productCatIds": [
+      100002,
+      10000202
+     ]
+    },
+    {
+     "itemId": 22001159092,
+     "productName": "Prancha alisadora titânio",
+     "shopId": 300087109,
+     "shopName": "Cabelo Top",
+     "imageUrl": "https://placehold.co/400x400/png?text=22001159092",
+     "productLink": "https://shopee.com.br/product/300087109/22001159092",
+     "offerLink": "https://s.shopee.com.br/mock22001159092",
+     "priceMin": "34.90",
+     "priceMax": "54.90",
+     "commissionRate": "0.25",
+     "sales": 48000,
+     "ratingStar": "4.7",
+     "productCatIds": [
+      100002,
+      10000203
+     ]
+    },
+    {
+     "itemId": 22001180124,
+     "productName": "Paleta de sombras 18 cores",
+     "shopId": 300095028,
+     "shopName": "Make Fácil",
+     "imageUrl": "https://placehold.co/400x400/png?text=22001180124",
+     "productLink": "https://shopee.com.br/product/300095028/22001180124",
+     "offerLink": "https://s.shopee.com.br/mock22001180124",
+     "priceMin": "129.90",
+     "priceMax": "134.90",
+     "commissionRate": "0.12",
+     "sales": 15000,
+     "ratingStar": "4.2",
+     "productCatIds": [
+      100002,
+      10000201
+     ]
+    },
+    {
+     "itemId": 22001195786,
+     "productName": "Esponja de maquiagem kit 4",
+     "shopId": 300095028,
+     "shopName": "Make Fácil",
+     "imageUrl": "https://placehold.co/400x400/png?text=22001195786",
+     "productLink": "https://shopee.com.br/product/300095028/22001195786",
+     "offerLink": "https://s.shopee.com.br/mock22001195786",
+     "priceMin": "129.90",
+     "priceMax": "149.90",
+     "commissionRate": "0.08",
+     "sales": 120,
+     "ratingStar": "4.7",
+     "productCatIds": [
+      100002,
+      10000202
+     ]
+    },
+    {
+     "itemId": 22001271150,
+     "productName": "Óleo de rosa mosqueta 20 ml",
+     "shopId": 300102947,
+     "shopName": "Natural Beauty",
+     "imageUrl": "https://placehold.co/400x400/png?text=22001271150",
+     "productLink": "https://shopee.com.br/product/300102947/22001271150",
+     "offerLink": "https://s.shopee.com.br/mock22001271150",
+     "priceMin": "29.90",
+     "priceMax": "29.90",
+     "commissionRate": "0.2",
+     "sales": 450,
+     "ratingStar": "4.6",
+     "productCatIds": [
+      100002,
+      10000203
+     ]
+    },
+    {
+     "itemId": 22001288978,
+     "productName": "Kit skincare noturno",
+     "shopId": 300079190,
+     "shopName": "Pele Linda",
+     "imageUrl": "https://placehold.co/400x400/png?text=22001288978",
+     "productLink": "https://shopee.com.br/product/300079190/22001288978",
+     "offerLink": "https://s.shopee.com.br/mock22001288978",
+     "priceMin": "349.90",
+     "priceMax": "359.90",
+     "commissionRate": "0.1",
+     "sales": 27000,
+     "ratingStar": "5",
+     "productCatIds": [
+      100002,
+      10000201
+     ]
+    },
+    {
+     "itemId": 22001317738,
+     "productName": "Lixa elétrica para pés",
+     "shopId": 300110866,
+     "shopName": "Cuidado & Bem",
+     "imageUrl": "https://placehold.co/400x400/png?text=22001317738",
+     "productLink": "https://shopee.com.br/product/300110866/22001317738",
+     "offerLink": "https://s.shopee.com.br/mock22001317738",
+     "priceMin": "59.90",
+     "priceMax": "89.90",
+     "commissionRate": "0.12",
+     "sales": 15000,
+     "ratingStar": "0",
+     "productCatIds": [
+      100002,
+      10000202
+     ]
+    },
+    {
+     "itemId": 22001334598,
+     "productName": "Perfume body splash 200 ml",
+     "shopId": 300055433,
+     "shopName": "Aroma & Cia",
+     "imageUrl": "https://placehold.co/400x400/png?text=22001334598",
+     "productLink": "https://shopee.com.br/product/300055433/22001334598",
+     "offerLink": "https://s.shopee.com.br/mock22001334598",
+     "priceMin": "69.90",
+     "priceMax": "69.90",
+     "commissionRate": "0.12",
+     "sales": 120,
+     "ratingStar": "4.7",
+     "productCatIds": [
+      100002,
+      10000203
+     ]
+    },
+    {
+     "itemId": 22001412726,
+     "productName": "Batom matte longa duração",
+     "shopId": 300095028,
+     "shopName": "Make Fácil",
+     "imageUrl": "https://placehold.co/400x400/png?text=22001412726",
+     "productLink": "https://shopee.com.br/product/300095028/22001412726",
+     "offerLink": "https://s.shopee.com.br/mock22001412726",
+     "priceMin": "69.90",
+     "priceMax": "69.90",
+     "commissionRate": "0.03",
+     "sales": 1500,
+     "ratingStar": "4.5",
+     "productCatIds": [
+      100002,
+      10000201
+     ]
+    },
+    {
+     "itemId": 22001417843,
+     "productName": "Removedor de cravos a vácuo",
+     "shopId": 300110866,
+     "shopName": "Cuidado & Bem",
+     "imageUrl": "https://placehold.co/400x400/png?text=22001417843",
+     "productLink": "https://shopee.com.br/product/300110866/22001417843",
+     "offerLink": "https://s.shopee.com.br/mock22001417843",
+     "priceMin": "99.90",
+     "priceMax": "99.90",
+     "commissionRate": "0.08",
+     "sales": 3200,
+     "ratingStar": "0",
+     "productCatIds": [
+      100002,
+      10000202
+     ]
+    },
+    {
+     "itemId": 22001446923,
+     "productName": "Shampoo antiqueda 300 ml",
+     "shopId": 300102947,
+     "shopName": "Natural Beauty",
+     "imageUrl": "https://placehold.co/400x400/png?text=22001446923",
+     "productLink": "https://shopee.com.br/product/300102947/22001446923",
+     "offerLink": "https://s.shopee.com.br/mock22001446923",
+     "priceMin": "39.90",
+     "priceMax": "69.90",
+     "commissionRate": "0.08",
+     "sales": 15000,
+     "ratingStar": "5",
+     "productCatIds": [
+      100002,
+      10000203
+     ]
+    },
+    {
+     "itemId": 22001472880,
+     "productName": "Cílios postiços kit 10 pares",
+     "shopId": 300095028,
+     "shopName": "Make Fácil",
+     "imageUrl": "https://placehold.co/400x400/png?text=22001472880",
+     "productLink": "https://shopee.com.br/product/300095028/22001472880",
+     "offerLink": "https://s.shopee.com.br/mock22001472880",
+     "priceMin": "34.90",
+     "priceMax": "34.90",
+     "commissionRate": "0.15",
+     "sales": 5600,
+     "ratingStar": "5",
+     "productCatIds": [
+      100002,
+      10000201
+     ]
+    },
+    {
+     "itemId": 22001527763,
+     "productName": "Vestido midi canelado",
+     "shopId": 300118785,
+     "shopName": "Loja Dela",
+     "imageUrl": "https://placehold.co/400x400/png?text=22001527763",
+     "productLink": "https://shopee.com.br/product/300118785/22001527763",
+     "offerLink": "https://s.shopee.com.br/mock22001527763",
+     "priceMin": "249.90",
+     "priceMax": "254.90",
+     "commissionRate": "0.05",
+     "sales": 120,
+     "ratingStar": "5",
+     "productCatIds": [
+      100003,
+      10000301
+     ]
+    },
+    {
+     "itemId": 22001573236,
+     "productName": "Calça pantalona alfaiataria",
+     "shopId": 300118785,
+     "shopName": "Loja Dela",
+     "imageUrl": "https://placehold.co/400x400/png?text=22001573236",
+     "productLink": "https://shopee.com.br/product/300118785/22001573236",
+     "offerLink": "https://s.shopee.com.br/mock22001573236",
+     "priceMin": "34.90",
+     "priceMax": "34.90",
+     "commissionRate": "0.08",
+     "sales": 27000,
+     "ratingStar": "0",
+     "productCatIds": [
+      100003,
+      10000302
+     ]
+    },
+    {
+     "itemId": 22001592609,
+     "productName": "Body manga longa básico",
+     "shopId": 300126704,
+     "shopName": "Moda Leve",
+     "imageUrl": "https://placehold.co/400x400/png?text=22001592609",
+     "productLink": "https://shopee.com.br/product/300126704/22001592609",
+     "offerLink": "https://s.shopee.com.br/mock22001592609",
+     "priceMin": "199.90",
+     "priceMax": "199.90",
+     "commissionRate": "0.2",
+     "sales": 1500,
+     "ratingStar": "4.5",
+     "productCatIds": [
+      100003,
+      10000303
+     ]
+    },
+    {
+     "itemId": 22001651691,
+     "productName": "Bolsa transversal pequena",
+     "shopId": 300134623,
+     "shopName": "Acessórios Bia",
+     "imageUrl": "https://placehold.co/400x400/png?text=22001651691",
+     "productLink": "https://shopee.com.br/product/300134623/22001651691",
+     "offerLink": "https://s.shopee.com.br/mock22001651691",
+     "priceMin": "34.90",
+     "priceMax": "34.90",
+     "commissionRate": "0.25",
+     "sales": 120,
+     "ratingStar": "4.5",
+     "productCatIds": [
+      100003,
+      10000301
+     ]
+    },
+    {
+     "itemId": 22001683673,
+     "productName": "Conjunto cropped e saia",
+     "shopId": 300126704,
+     "shopName": "Moda Leve",
+     "imageUrl": "https://placehold.co/400x400/png?text=22001683673",
+     "productLink": "https://shopee.com.br/product/300126704/22001683673",
+     "offerLink": "https://s.shopee.com.br/mock22001683673",
+     "priceMin": "49.90",
+     "priceMax": "49.90",
+     "commissionRate": "0.2",
+     "sales": 1500,
+     "ratingStar": "5",
+     "productCatIds": [
+      100003,
+      10000302
+     ]
+    },
+    {
+     "itemId": 22001692358,
+     "productName": "Tênis casual plataforma",
+     "shopId": 300142542,
+     "shopName": "Passo Certo",
+     "imageUrl": "https://placehold.co/400x400/png?text=22001692358",
+     "productLink": "https://shopee.com.br/product/300142542/22001692358",
+     "offerLink": "https://s.shopee.com.br/mock22001692358",
+     "priceMin": "49.90",
+     "priceMax": "49.90",
+     "commissionRate": "0.15",
+     "sales": 3200,
+     "ratingStar": "0",
+     "productCatIds": [
+      100003,
+      10000303
+     ]
+    },
+    {
+     "itemId": 22001730746,
+     "productName": "Blusa de tricô gola alta",
+     "shopId": 300118785,
+     "shopName": "Loja Dela",
+     "imageUrl": "https://placehold.co/400x400/png?text=22001730746",
+     "productLink": "https://shopee.com.br/product/300118785/22001730746",
+     "offerLink": "https://s.shopee.com.br/mock22001730746",
+     "priceMin": "199.90",
+     "priceMax": "229.90",
+     "commissionRate": "0.07",
+     "sales": 1500,
+     "ratingStar": "4.8",
+     "productCatIds": [
+      100003,
+      10000301
+     ]
+    },
+    {
+     "itemId": 22001760280,
+     "productName": "Short jeans cintura alta",
+     "shopId": 300150461,
+     "shopName": "Jeans & Co",
+     "imageUrl": "https://placehold.co/400x400/png?text=22001760280",
+     "productLink": "https://shopee.com.br/product/300150461/22001760280",
+     "offerLink": "https://s.shopee.com.br/mock22001760280",
+     "priceMin": "24.90",
+     "priceMax": "24.90",
+     "commissionRate": "0.25",
+     "sales": 120,
+     "ratingStar": "4.9",
+     "productCatIds": [
+      100003,
+      10000302
+     ]
+    },
+    {
+     "itemId": 22001768772,
+     "productName": "Sandália rasteira trançada",
+     "shopId": 300142542,
+     "shopName": "Passo Certo",
+     "imageUrl": "https://placehold.co/400x400/png?text=22001768772",
+     "productLink": "https://shopee.com.br/product/300142542/22001768772",
+     "offerLink": "https://s.shopee.com.br/mock22001768772",
+     "priceMin": "24.90",
+     "priceMax": "24.90",
+     "commissionRate": "0.25",
+     "sales": 27000,
+     "ratingStar": "4.6",
+     "productCatIds": [
+      100003,
+      10000303
+     ]
+    },
+    {
+     "itemId": 22001777227,
+     "productName": "Kit 3 calcinhas sem costura",
+     "shopId": 300158380,
+     "shopName": "Íntima",
+     "imageUrl": "https://placehold.co/400x400/png?text=22001777227",
+     "productLink": "https://shopee.com.br/product/300158380/22001777227",
+     "offerLink": "https://s.shopee.com.br/mock22001777227",
+     "priceMin": "29.90",
+     "priceMax": "34.90",
+     "commissionRate": "0.05",
+     "sales": 1500,
+     "ratingStar": "5",
+     "productCatIds": [
+      100003,
+      10000301
+     ]
+    },
+    {
+     "itemId": 22001793940,
+     "productName": "Jaqueta jeans oversized",
+     "shopId": 300150461,
+     "shopName": "Jeans & Co",
+     "imageUrl": "https://placehold.co/400x400/png?text=22001793940",
+     "productLink": "https://shopee.com.br/product/300150461/22001793940",
+     "offerLink": "https://s.shopee.com.br/mock22001793940",
+     "priceMin": "69.90",
+     "priceMax": "69.90",
+     "commissionRate": "0.03",
+     "sales": 48000,
+     "ratingStar": "4.5",
+     "productCatIds": [
+      100003,
+      10000302
+     ]
+    },
+    {
+     "itemId": 22001849888,
+     "productName": "Biquíni cortininha",
+     "shopId": 300166299,
+     "shopName": "Verão Sempre",
+     "imageUrl": "https://placehold.co/400x400/png?text=22001849888",
+     "productLink": "https://shopee.com.br/product/300166299/22001849888",
+     "offerLink": "https://s.shopee.com.br/mock22001849888",
+     "priceMin": "99.90",
+     "priceMax": "109.90",
+     "commissionRate": "0.12",
+     "sales": 1500,
+     "ratingStar": "4.8",
+     "productCatIds": [
+      100003,
+      10000303
+     ]
+    },
+    {
+     "itemId": 22001902764,
+     "productName": "Óculos de sol retrô",
+     "shopId": 300134623,
+     "shopName": "Acessórios Bia",
+     "imageUrl": "https://placehold.co/400x400/png?text=22001902764",
+     "productLink": "https://shopee.com.br/product/300134623/22001902764",
+     "offerLink": "https://s.shopee.com.br/mock22001902764",
+     "priceMin": "39.90",
+     "priceMax": "59.90",
+     "commissionRate": "0.2",
+     "sales": 5600,
+     "ratingStar": "4.5",
+     "productCatIds": [
+      100003,
+      10000301
+     ]
+    },
+    {
+     "itemId": 22001904984,
+     "productName": "Saia midi plissada",
+     "shopId": 300126704,
+     "shopName": "Moda Leve",
+     "imageUrl": "https://placehold.co/400x400/png?text=22001904984",
+     "productLink": "https://shopee.com.br/product/300126704/22001904984",
+     "offerLink": "https://s.shopee.com.br/mock22001904984",
+     "priceMin": "249.90",
+     "priceMax": "254.90",
+     "commissionRate": "0.05",
+     "sales": 27000,
+     "ratingStar": "4.7",
+     "productCatIds": [
+      100003,
+      10000302
+     ]
+    },
+    {
+     "itemId": 22001972291,
+     "productName": "Pijama americano de cetim",
+     "shopId": 300158380,
+     "shopName": "Íntima",
+     "imageUrl": "https://placehold.co/400x400/png?text=22001972291",
+     "productLink": "https://shopee.com.br/product/300158380/22001972291",
+     "offerLink": "https://s.shopee.com.br/mock22001972291",
+     "priceMin": "79.90",
+     "priceMax": "79.90",
+     "commissionRate": "0.12",
+     "sales": 450,
+     "ratingStar": "4.7",
+     "productCatIds": [
+      100003,
+      10000303
+     ]
+    },
+    {
+     "itemId": 22002021725,
+     "productName": "Brinco argola dourada",
+     "shopId": 300134623,
+     "shopName": "Acessórios Bia",
+     "imageUrl": "https://placehold.co/400x400/png?text=22002021725",
+     "productLink": "https://shopee.com.br/product/300134623/22002021725",
+     "offerLink": "https://s.shopee.com.br/mock22002021725",
+     "priceMin": "89.90",
+     "priceMax": "89.90",
+     "commissionRate": "0.25",
+     "sales": 3200,
+     "ratingStar": "4.2",
+     "productCatIds": [
+      100003,
+      10000301
+     ]
+    },
+    {
+     "itemId": 22002110263,
+     "productName": "Fone bluetooth TWS com case",
+     "shopId": 300174218,
+     "shopName": "Tech Mais",
+     "imageUrl": "https://placehold.co/400x400/png?text=22002110263",
+     "productLink": "https://shopee.com.br/product/300174218/22002110263",
+     "offerLink": "https://s.shopee.com.br/mock22002110263",
+     "priceMin": "89.90",
+     "priceMax": "94.90",
+     "commissionRate": "0.07",
+     "sales": 3200,
+     "ratingStar": "4.5",
+     "productCatIds": [
+      100004,
+      10000401
+     ]
+    },
+    {
+     "itemId": 22002125292,
+     "productName": "Carregador turbo USB-C 20 W",
+     "shopId": 300174218,
+     "shopName": "Tech Mais",
+     "imageUrl": "https://placehold.co/400x400/png?text=22002125292",
+     "productLink": "https://shopee.com.br/product/300174218/22002125292",
+     "offerLink": "https://s.shopee.com.br/mock22002125292",
+     "priceMin": "39.90",
+     "priceMax": "39.90",
+     "commissionRate": "0.08",
+     "sales": 5600,
+     "ratingStar": "4.7",
+     "productCatIds": [
+      100004,
+      10000402
+     ]
+    },
+    {
+     "itemId": 22002209422,
+     "productName": "Smartwatch tela 1,9 pol.",
+     "shopId": 300182137,
+     "shopName": "Gadgets BR",
+     "imageUrl": "https://placehold.co/400x400/png?text=22002209422",
+     "productLink": "https://shopee.com.br/product/300182137/22002209422",
+     "offerLink": "https://s.shopee.com.br/mock22002209422",
+     "priceMin": "79.90",
+     "priceMax": "79.90",
+     "commissionRate": "0.1",
+     "sales": 120,
+     "ratingStar": "4.5",
+     "productCatIds": [
+      100004,
+      10000403
+     ]
+    },
+    {
+     "itemId": 22002293558,
+     "productName": "Caixa de som bluetooth à prova d'água",
+     "shopId": 300190056,
+     "shopName": "Som Total",
+     "imageUrl": "https://placehold.co/400x400/png?text=22002293558",
+     "productLink": "https://shopee.com.br/product/300190056/22002293558",
+     "offerLink": "https://s.shopee.com.br/mock22002293558",
+     "priceMin": "199.90",
+     "priceMax": "204.90",
+     "commissionRate": "0.03",
+     "sales": 5600,
+     "ratingStar": "4.6",
+     "productCatIds": [
+      100004,
+      10000401
+     ]
+    },
+    {
+     "itemId": 22002378065,
+     "productName": "Ring light 26 cm com tripé",
+     "shopId": 300197975,
+     "shopName": "Criador Pro",
+     "imageUrl": "https://placehold.co/400x400/png?text=22002378065",
+     "productLink": "https://shopee.com.br/product/300197975/22002378065",
+     "offerLink": "https://s.shopee.com.br/mock22002378065",
+     "priceMin": "79.90",
+     "priceMax": "79.90",
+     "commissionRate": "0.2",
+     "sales": 27000,
+     "ratingStar": "5",
+     "productCatIds": [
+      100004,
+      10000402
+     ]
+    },
+    {
+     "itemId": 22002452584,
+     "productName": "Microfone de lapela sem fio",
+     "shopId": 300197975,
+     "shopName": "Criador Pro",
+     "imageUrl": "https://placehold.co/400x400/png?text=22002452584",
+     "productLink": "https://shopee.com.br/product/300197975/22002452584",
+     "offerLink": "https://s.shopee.com.br/mock22002452584",
+     "priceMin": "19.90",
+     "priceMax": "19.90",
+     "commissionRate": "0.07",
+     "sales": 27000,
+     "ratingStar": "4.2",
+     "productCatIds": [
+      100004,
+      10000403
+     ]
+    },
+    {
+     "itemId": 22002501977,
+     "productName": "Power bank 10.000 mAh",
+     "shopId": 300174218,
+     "shopName": "Tech Mais",
+     "imageUrl": "https://placehold.co/400x400/png?text=22002501977",
+     "productLink": "https://shopee.com.br/product/300174218/22002501977",
+     "offerLink": "https://s.shopee.com.br/mock22002501977",
+     "priceMin": "39.90",
+     "priceMax": "39.90",
+     "commissionRate": "0.03",
+     "sales": 3200,
+     "ratingStar": "4.9",
+     "productCatIds": [
+      100004,
+      10000401
+     ]
+    },
+    {
+     "itemId": 22002508206,
+     "productName": "Suporte de celular para carro",
+     "shopId": 300182137,
+     "shopName": "Gadgets BR",
+     "imageUrl": "https://placehold.co/400x400/png?text=22002508206",
+     "productLink": "https://shopee.com.br/product/300182137/22002508206",
+     "offerLink": "https://s.shopee.com.br/mock22002508206",
+     "priceMin": "129.90",
+     "priceMax": "129.90",
+     "commissionRate": "0.08",
+     "sales": 450,
+     "ratingStar": "4.9",
+     "productCatIds": [
+      100004,
+      10000402
+     ]
+    },
+    {
+     "itemId": 22002582591,
+     "productName": "Cabo USB-C trançado 2 m",
+     "shopId": 300174218,
+     "shopName": "Tech Mais",
+     "imageUrl": "https://placehold.co/400x400/png?text=22002582591",
+     "productLink": "https://shopee.com.br/product/300174218/22002582591",
+     "offerLink": "https://s.shopee.com.br/mock22002582591",
+     "priceMin": "199.90",
+     "priceMax": "209.90",
+     "commissionRate": "0.08",
+     "sales": 800,
+     "ratingStar": "4.6",
+     "productCatIds": [
+      100004,
+      10000403
+     ]
+    },
+    {
+     "itemId": 22002637631,
+     "productName": "Mouse sem fio silencioso",
+     "shopId": 300205894,
+     "shopName": "Info Shop",
+     "imageUrl": "https://placehold.co/400x400/png?text=22002637631",
+     "productLink": "https://shopee.com.br/product/300205894/22002637631",
+     "offerLink": "https://s.shopee.com.br/mock22002637631",
+     "priceMin": "19.90",
+     "priceMax": "19.90",
+     "commissionRate": "0.12",
+     "sales": 9800,
+     "ratingStar": "4.7",
+     "productCatIds": [
+      100004,
+      10000401
+     ]
+    },
+    {
+     "itemId": 22002673601,
+     "productName": "Teclado mecânico compacto",
+     "shopId": 300205894,
+     "shopName": "Info Shop",
+     "imageUrl": "https://placehold.co/400x400/png?text=22002673601",
+     "productLink": "https://shopee.com.br/product/300205894/22002673601",
+     "offerLink": "https://s.shopee.com.br/mock22002673601",
+     "priceMin": "49.90",
+     "priceMax": "54.90",
+     "commissionRate": "0.15",
+     "sales": 120,
+     "ratingStar": "0",
+     "productCatIds": [
+      100004,
+      10000402
+     ]
+    },
+    {
+     "itemId": 22002703755,
+     "productName": "Câmera Wi-Fi interna 1080p",
+     "shopId": 300213813,
+     "shopName": "Casa Segura",
+     "imageUrl": "https://placehold.co/400x400/png?text=22002703755",
+     "productLink": "https://shopee.com.br/product/300213813/22002703755",
+     "offerLink": "https://s.shopee.com.br/mock22002703755",
+     "priceMin": "59.90",
+     "priceMax": "89.90",
+     "commissionRate": "0.12",
+     "sales": 3200,
+     "ratingStar": "4.7",
+     "productCatIds": [
+      100004,
+      10000403
+     ]
+    },
+    {
+     "itemId": 22002733974,
+     "productName": "Hub USB-C 6 em 1",
+     "shopId": 300205894,
+     "shopName": "Info Shop",
+     "imageUrl": "https://placehold.co/400x400/png?text=22002733974",
+     "productLink": "https://shopee.com.br/product/300205894/22002733974",
+     "offerLink": "https://s.shopee.com.br/mock22002733974",
+     "priceMin": "19.90",
+     "priceMax": "49.90",
+     "commissionRate": "0.12",
+     "sales": 3200,
+     "ratingStar": "4.5",
+     "productCatIds": [
+      100004,
+      10000401
+     ]
+    },
+    {
+     "itemId": 22002771559,
+     "productName": "Película de vidro 3D",
+     "shopId": 300182137,
+     "shopName": "Gadgets BR",
+     "imageUrl": "https://placehold.co/400x400/png?text=22002771559",
+     "productLink": "https://shopee.com.br/product/300182137/22002771559",
+     "offerLink": "https://s.shopee.com.br/mock22002771559",
+     "priceMin": "129.90",
+     "priceMax": "159.90",
+     "commissionRate": "0.25",
+     "sales": 5600,
+     "ratingStar": "4.2",
+     "productCatIds": [
+      100004,
+      10000402
+     ]
+    },
+    {
+     "itemId": 22002787677,
+     "productName": "Projetor portátil HD",
+     "shopId": 300190056,
+     "shopName": "Som Total",
+     "imageUrl": "https://placehold.co/400x400/png?text=22002787677",
+     "productLink": "https://shopee.com.br/product/300190056/22002787677",
+     "offerLink": "https://s.shopee.com.br/mock22002787677",
+     "priceMin": "79.90",
+     "priceMax": "79.90",
+     "commissionRate": "0.1",
+     "sales": 120,
+     "ratingStar": "4.5",
+     "productCatIds": [
+      100004,
+      10000403
+     ]
+    },
+    {
+     "itemId": 22002866870,
+     "productName": "Lâmpada inteligente Wi-Fi",
+     "shopId": 300213813,
+     "shopName": "Casa Segura",
+     "imageUrl": "https://placehold.co/400x400/png?text=22002866870",
+     "productLink": "https://shopee.com.br/product/300213813/22002866870",
+     "offerLink": "https://s.shopee.com.br/mock22002866870",
+     "priceMin": "199.90",
+     "priceMax": "199.90",
+     "commissionRate": "0.12",
+     "sales": 9800,
+     "ratingStar": "4.5",
+     "productCatIds": [
+      100004,
+      10000401
+     ]
+    },
+    {
+     "itemId": 22002918358,
+     "productName": "Garrafa de academia 2 L com marcação",
+     "shopId": 300221732,
+     "shopName": "Fit Store",
+     "imageUrl": "https://placehold.co/400x400/png?text=22002918358",
+     "productLink": "https://shopee.com.br/product/300221732/22002918358",
+     "offerLink": "https://s.shopee.com.br/mock22002918358",
+     "priceMin": "59.90",
+     "priceMax": "59.90",
+     "commissionRate": "0.15",
+     "sales": 120,
+     "ratingStar": "4.7",
+     "productCatIds": [
+      100005,
+      10000501
+     ]
+    },
+    {
+     "itemId": 22002967097,
+     "productName": "Corda de pular com contador",
+     "shopId": 300221732,
+     "shopName": "Fit Store",
+     "imageUrl": "https://placehold.co/400x400/png?text=22002967097",
+     "productLink": "https://shopee.com.br/product/300221732/22002967097",
+     "offerLink": "https://s.shopee.com.br/mock22002967097",
+     "priceMin": "199.90",
+     "priceMax": "199.90",
+     "commissionRate": "0.12",
+     "sales": 48000,
+     "ratingStar": "4.9",
+     "productCatIds": [
+      100005,
+      10000502
+     ]
+    },
+    {
+     "itemId": 22003055048,
+     "productName": "Kit elásticos de resistência 5 níveis",
+     "shopId": 300221732,
+     "shopName": "Fit Store",
+     "imageUrl": "https://placehold.co/400x400/png?text=22003055048",
+     "productLink": "https://shopee.com.br/product/300221732/22003055048",
+     "offerLink": "https://s.shopee.com.br/mock22003055048",
+     "priceMin": "34.90",
+     "priceMax": "54.90",
+     "commissionRate": "0.25",
+     "sales": 3200,
+     "ratingStar": "5",
+     "productCatIds": [
+      100005,
+      10000503
+     ]
+    },
+    {
+     "itemId": 22003098801,
+     "productName": "Tapete de yoga 6 mm",
+     "shopId": 300229651,
+     "shopName": "Zen Fit",
+     "imageUrl": "https://placehold.co/400x400/png?text=22003098801",
+     "productLink": "https://shopee.com.br/product/300229651/22003098801",
+     "offerLink": "https://s.shopee.com.br/mock22003098801",
+     "priceMin": "149.90",
+     "priceMax": "159.90",
+     "commissionRate": "0.08",
+     "sales": 9800,
+     "ratingStar": "5",
+     "productCatIds": [
+      100005,
+      10000501
+     ]
+    },
+    {
+     "itemId": 22003188578,
+     "productName": "Legging fitness cintura alta",
+     "shopId": 300237570,
+     "shopName": "Moda Fit",
+     "imageUrl": "https://placehold.co/400x400/png?text=22003188578",
+     "productLink": "https://shopee.com.br/product/300237570/22003188578",
+     "offerLink": "https://s.shopee.com.br/mock22003188578",
+     "priceMin": "49.90",
+     "priceMax": "69.90",
+     "commissionRate": "0.15",
+     "sales": 27000,
+     "ratingStar": "4.2",
+     "productCatIds": [
+      100005,
+      10000502
+     ]
+    },
+    {
+     "itemId": 22003229407,
+     "productName": "Bolsa térmica para marmita",
+     "shopId": 300221732,
+     "shopName": "Fit Store",
+     "imageUrl": "https://placehold.co/400x400/png?text=22003229407",
+     "productLink": "https://shopee.com.br/product/300221732/22003229407",
+     "offerLink": "https://s.shopee.com.br/mock22003229407",
+     "priceMin": "89.90",
+     "priceMax": "89.90",
+     "commissionRate": "0.12",
+     "sales": 15000,
+     "ratingStar": "0",
+     "productCatIds": [
+      100005,
+      10000503
+     ]
+    },
+    {
+     "itemId": 22003288361,
+     "productName": "Rolo de massagem liberação miofascial",
+     "shopId": 300229651,
+     "shopName": "Zen Fit",
+     "imageUrl": "https://placehold.co/400x400/png?text=22003288361",
+     "productLink": "https://shopee.com.br/product/300229651/22003288361",
+     "offerLink": "https://s.shopee.com.br/mock22003288361",
+     "priceMin": "59.90",
+     "priceMax": "59.90",
+     "commissionRate": "0.07",
+     "sales": 450,
+     "ratingStar": "4.8",
+     "productCatIds": [
+      100005,
+      10000501
+     ]
+    },
+    {
+     "itemId": 22003356922,
+     "productName": "Bicicleta ergométrica dobrável",
+     "shopId": 300245489,
+     "shopName": "Treino em Casa",
+     "imageUrl": "https://placehold.co/400x400/png?text=22003356922",
+     "productLink": "https://shopee.com.br/product/300245489/22003356922",
+     "offerLink": "https://s.shopee.com.br/mock22003356922",
+     "priceMin": "99.90",
+     "priceMax": "99.90",
+     "commissionRate": "0.08",
+     "sales": 3200,
+     "ratingStar": "4.7",
+     "productCatIds": [
+      100005,
+      10000502
+     ]
+    },
+    {
+     "itemId": 22003384022,
+     "productName": "Halteres emborrachados par 2 kg",
+     "shopId": 300245489,
+     "shopName": "Treino em Casa",
+     "imageUrl": "https://placehold.co/400x400/png?text=22003384022",
+     "productLink": "https://shopee.com.br/product/300245489/22003384022",
+     "offerLink": "https://s.shopee.com.br/mock22003384022",
+     "priceMin": "39.90",
+     "priceMax": "39.90",
+     "commissionRate": "0.08",
+     "sales": 15000,
+     "ratingStar": "4.5",
+     "productCatIds": [
+      100005,
+      10000503
+     ]
+    },
+    {
+     "itemId": 22003444714,
+     "productName": "Mochila de hidratação 2 L",
+     "shopId": 300253408,
+     "shopName": "Trilha Viva",
+     "imageUrl": "https://placehold.co/400x400/png?text=22003444714",
+     "productLink": "https://shopee.com.br/product/300253408/22003444714",
+     "offerLink": "https://s.shopee.com.br/mock22003444714",
+     "priceMin": "199.90",
+     "priceMax": "209.90",
+     "commissionRate": "0.15",
+     "sales": 15000,
+     "ratingStar": "5",
+     "productCatIds": [
+      100005,
+      10000501
+     ]
+    },
+    {
+     "itemId": 22003477693,
+     "productName": "Barraca para 4 pessoas",
+     "shopId": 300253408,
+     "shopName": "Trilha Viva",
+     "imageUrl": "https://placehold.co/400x400/png?text=22003477693",
+     "productLink": "https://shopee.com.br/product/300253408/22003477693",
+     "offerLink": "https://s.shopee.com.br/mock22003477693",
+     "priceMin": "39.90",
+     "priceMax": "44.90",
+     "commissionRate": "0.05",
+     "sales": 9800,
+     "ratingStar": "4.7",
+     "productCatIds": [
+      100005,
+      10000502
+     ]
+    },
+    {
+     "itemId": 22003501746,
+     "productName": "Bola de pilates 65 cm",
+     "shopId": 300229651,
+     "shopName": "Zen Fit",
+     "imageUrl": "https://placehold.co/400x400/png?text=22003501746",
+     "productLink": "https://shopee.com.br/product/300229651/22003501746",
+     "offerLink": "https://s.shopee.com.br/mock22003501746",
+     "priceMin": "249.90",
+     "priceMax": "249.90",
+     "commissionRate": "0.08",
+     "sales": 450,
+     "ratingStar": "0",
+     "productCatIds": [
+      100005,
+      10000503
+     ]
+    },
+    {
+     "itemId": 22003520223,
+     "productName": "Top esportivo com bojo",
+     "shopId": 300237570,
+     "shopName": "Moda Fit",
+     "imageUrl": "https://placehold.co/400x400/png?text=22003520223",
+     "productLink": "https://shopee.com.br/product/300237570/22003520223",
+     "offerLink": "https://s.shopee.com.br/mock22003520223",
+     "priceMin": "249.90",
+     "priceMax": "269.90",
+     "commissionRate": "0.2",
+     "sales": 48000,
+     "ratingStar": "5",
+     "productCatIds": [
+      100005,
+      10000501
+     ]
+    },
+    {
+     "itemId": 22003593033,
+     "productName": "Luva de academia",
+     "shopId": 300221732,
+     "shopName": "Fit Store",
+     "imageUrl": "https://placehold.co/400x400/png?text=22003593033",
+     "productLink": "https://shopee.com.br/product/300221732/22003593033",
+     "offerLink": "https://s.shopee.com.br/mock22003593033",
+     "priceMin": "249.90",
+     "priceMax": "279.90",
+     "commissionRate": "0.2",
+     "sales": 3200,
+     "ratingStar": "4.7",
+     "productCatIds": [
+      100005,
+      10000502
+     ]
+    },
+    {
+     "itemId": 22003677612,
+     "productName": "Cadeira de praia reclinável",
+     "shopId": 300166299,
+     "shopName": "Verão Sempre",
+     "imageUrl": "https://placehold.co/400x400/png?text=22003677612",
+     "productLink": "https://shopee.com.br/product/300166299/22003677612",
+     "offerLink": "https://s.shopee.com.br/mock22003677612",
+     "priceMin": "79.90",
+     "priceMax": "109.90",
+     "commissionRate": "0.08",
+     "sales": 3200,
+     "ratingStar": "0",
+     "productCatIds": [
+      100005,
+      10000503
+     ]
+    },
+    {
+     "itemId": 22003688767,
+     "productName": "Lanterna tática recarregável",
+     "shopId": 300253408,
+     "shopName": "Trilha Viva",
+     "imageUrl": "https://placehold.co/400x400/png?text=22003688767",
+     "productLink": "https://shopee.com.br/product/300253408/22003688767",
+     "offerLink": "https://s.shopee.com.br/mock22003688767",
+     "priceMin": "89.90",
+     "priceMax": "89.90",
+     "commissionRate": "0.12",
+     "sales": 5600,
+     "ratingStar": "4.5",
+     "productCatIds": [
+      100005,
+      10000501
+     ]
+    }
+   ],
+   "pageInfo": {
+    "page": 1,
+    "limit": 80,
+    "hasNextPage": false
+   }
+  }
+ }
+}

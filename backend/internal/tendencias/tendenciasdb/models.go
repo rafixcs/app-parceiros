@@ -2,7 +2,7 @@
 // versions:
 //   sqlc v1.31.1
 
-package contasdb
+package tendenciasdb
 
 import (
 	"database/sql/driver"

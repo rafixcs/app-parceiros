@@ -2,7 +2,7 @@
 // versions:
 //   sqlc v1.31.1
 
-package contasdb
+package produtosdb
 
 import (
 	"database/sql/driver"

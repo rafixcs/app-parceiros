@@ -1,0 +1,12 @@
+{
+ "errors": [
+  {
+   "message": "error [10031]: Access deny",
+   "extensions": {
+    "code": 10031,
+    "message": "Access deny"
+   }
+  }
+ ],
+ "data": null
+}

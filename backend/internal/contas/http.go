@@ -80,8 +80,17 @@ func (h *Handler) ExigirMembro(next http.Handler) http.Handler {
 	})
 }
 
-// Rotas registra as rotas de contas em r. As rotas autenticadas usam v.
-func (h *Handler) Rotas(r chi.Router, v auth.Verificador) {
+// Modulo são as rotas de outro módulo que dependem de contas. Autenticadas
+// ficam atrás do login; DoWorkspace ficam sob /v1/workspaces/{workspaceId},
+// atrás de ExigirMembro.
+type Modulo struct {
+	Autenticadas func(r chi.Router)
+	DoWorkspace  func(r chi.Router)
+}
+
+// Rotas registra as rotas de contas, e as dos módulos, em r. As rotas
+// autenticadas usam v.
+func (h *Handler) Rotas(r chi.Router, v auth.Verificador, modulos ...Modulo) {
 	r.Get("/v1/convites/{token}", h.verConvite)
 
 	r.Group(func(r chi.Router) {
@@ -91,6 +100,11 @@ func (h *Handler) Rotas(r chi.Router, v auth.Verificador) {
 		r.Get("/v1/workspaces", h.listarWorkspaces)
 		r.Post("/v1/workspaces", h.criarMentoria)
 		r.Post("/v1/convites/{token}/aceitar", h.aceitarConvite)
+		for _, m := range modulos {
+			if m.Autenticadas != nil {
+				m.Autenticadas(r)
+			}
+		}
 
 		r.Route("/v1/workspaces/{workspaceId}", func(r chi.Router) {
 			r.Use(h.ExigirMembro)
@@ -101,6 +115,11 @@ func (h *Handler) Rotas(r chi.Router, v auth.Verificador) {
 			r.Get("/convites", h.listarConvites)
 			r.Post("/convites", h.criarConvite)
 			r.Delete("/convites/{conviteId}", h.revogarConvite)
+			for _, m := range modulos {
+				if m.DoWorkspace != nil {
+					m.DoWorkspace(r)
+				}
+			}
 		})
 	})
 }

@@ -21,3 +21,8 @@ secretGenerator:
       - S3_BUCKET=parceiros
       - S3_ACCESS_KEY=parceiros
       - S3_SECRET_KEY=parceiros-dev
+      # Chave mestra só do ambiente local; staging e prod usam o secret manager.
+      - CRYPTO_KEK=FqpezR/uQXmGJwq4y1/m3ULeVkNyjxAF5OpNgmPmqVE=
+      - CRYPTO_KEK_ID=dev-1
+      # Sem credencial aprovada, a Shopee roda com as respostas gravadas.
+      - SHOPEE_MODO=mock
