@@ -8,10 +8,21 @@ App para afiliados da Shopee descobrirem produtos em alta, organizarem o que vã
 
 ## Rodando localmente
 
-Pré-requisitos: Docker, [kind](https://kind.sigs.k8s.io/), [Tilt](https://tilt.dev/) e Go 1.26.
+### Dependências
+
+| Ferramenta | Versão | Para quê |
+|---|---|---|
+| [Docker](https://docs.docker.com/engine/install/) | recente, rodando sem `sudo` | imagens e o cluster kind |
+| [Go](https://go.dev/dl/) | 1.26 ou mais nova | backend, testes e `make lint`/`make sqlc` |
+| [Node.js](https://nodejs.org/) | 22 | front (`web/`) |
+| [kind](https://kind.sigs.k8s.io/) | recente | cluster Kubernetes local |
+| [kubectl](https://kubernetes.io/docs/tasks/tools/) | recente | usado pelo Tilt |
+| [Tilt](https://tilt.dev/) | recente | sobe e recarrega tudo no cluster |
+
+O `make setup` instala o que faltar (Ubuntu/Debian e macOS com Homebrew; no Windows, use o WSL2), baixa as dependências do backend e do front e cria o cluster. No Linux, ele pede `sudo` para instalar em `/usr/local`. Se instalar o Docker, abra um terminal novo e rode de novo.
 
 ```sh
-make cluster   # uma vez
+make setup     # uma vez: dependências e cluster kind
 tilt up        # sobe tudo; front em http://localhost:5173, API em http://localhost:8080/readyz
 ```
 
