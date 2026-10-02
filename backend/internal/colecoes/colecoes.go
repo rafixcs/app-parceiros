@@ -96,6 +96,15 @@ type ProdutoResumo struct {
 	AtualizadoEm          time.Time `json:"atualizado_em"`
 }
 
+// ResumoDe monta o resumo do produto que acompanha itens e listas.
+func ResumoDe(p produtos.Produto) ProdutoResumo {
+	return ProdutoResumo{
+		ID: p.ID, Nome: p.Nome, ImagemURL: p.ImagemURL, LojaNome: p.LojaNome, URL: p.URL,
+		PrecoMinCentavos: p.PrecoMinCentavos, PrecoMaxCentavos: p.PrecoMaxCentavos, ComissaoBP: p.ComissaoBP,
+		GanhoPorVendaCentavos: p.GanhoPorVendaCentavos(), Vendas: p.Vendas, Nota: p.Nota, AtualizadoEm: p.ColetadoEm,
+	}
+}
+
 type LinkCanal struct {
 	Canal Canal  `json:"canal"`
 	SubID string `json:"sub_id"`
@@ -223,20 +232,7 @@ func (s *Service) tx(ctx context.Context, d Dono, fn func(*colecoesdb.Queries) e
 // Salvar guarda um produto na coleção: pelo id do catálogo ou pelo link da
 // Shopee. Se ele já estava salvo, devolve o item existente e criado=false.
 func (s *Service) Salvar(ctx context.Context, d Dono, produtoID *uuid.UUID, link string) (Item, bool, error) {
-	link = strings.TrimSpace(link)
-	if (produtoID == nil) == (link == "") {
-		return Item{}, false, erroValidacao("Informe o produto do radar ou cole o link da Shopee.")
-	}
-	var p produtos.Produto
-	var err error
-	if produtoID != nil {
-		p, err = s.produtos.Produto(ctx, d.escopo(), *produtoID)
-		if errors.Is(err, produtos.ErrProdutoNaoEncontrado) {
-			err = ErrProdutoNaoEncontrado
-		}
-	} else {
-		p, err = s.produtoDoLink(ctx, d, link)
-	}
+	p, err := s.ResolverProduto(ctx, d, produtoID, link)
 	if err != nil {
 		return Item{}, false, err
 	}
@@ -269,6 +265,158 @@ func (s *Service) Salvar(ctx context.Context, d Dono, produtoID *uuid.UUID, link
 	}
 	it, err := s.montarUm(ctx, d, row)
 	return it, criado, err
+}
+
+// ResolverProduto acha o produto pelo id do catálogo ou pelo link da Shopee
+// (exatamente um dos dois). A curadoria usa o mesmo caminho para montar listas.
+func (s *Service) ResolverProduto(ctx context.Context, d Dono, produtoID *uuid.UUID, link string) (produtos.Produto, error) {
+	link = strings.TrimSpace(link)
+	if (produtoID == nil) == (link == "") {
+		return produtos.Produto{}, erroValidacao("Informe o produto do radar ou cole o link da Shopee.")
+	}
+	if produtoID == nil {
+		return s.produtoDoLink(ctx, d, link)
+	}
+	p, err := s.produtos.Produto(ctx, d.escopo(), *produtoID)
+	if errors.Is(err, produtos.ErrProdutoNaoEncontrado) {
+		err = ErrProdutoNaoEncontrado
+	}
+	return p, err
+}
+
+// Importado é um produto que entra na coleção vindo de uma lista da
+// curadoria, com o comentário do mentor.
+type Importado struct {
+	ProdutoID  uuid.UUID
+	Comentario string
+}
+
+// ResultadoImportacao diz quantos itens entraram e quantos já estavam salvos.
+type ResultadoImportacao struct {
+	Criados   int        `json:"criados"`
+	JaSalvos  int        `json:"ja_salvos"`
+	ColecaoID *uuid.UUID `json:"colecao_id"`
+	// LinkStatus dos itens novos: gerando com a Shopee conectada, pendente sem.
+	LinkStatus LinkStatus `json:"link_status"`
+}
+
+// Importar salva vários produtos de uma vez. Os novos levam o comentário do
+// mentor nas notas e entram na fila do gerar_link com a credencial do próprio
+// usuário. Com colecao, todos (novos e já salvos) vão para a coleção com esse
+// nome, criada se ainda não existir.
+func (s *Service) Importar(ctx context.Context, d Dono, itens []Importado, colecao string) (ResultadoImportacao, error) {
+	var nome string
+	if colecao != "" {
+		var err error
+		if nome, err = nomeColecao(cortar(colecao, maxNomeColecao)); err != nil {
+			return ResultadoImportacao{}, err
+		}
+	}
+	ids := make([]uuid.UUID, len(itens))
+	for i, it := range itens {
+		ids[i] = it.ProdutoID
+	}
+	prods, err := s.produtos.Varios(ctx, d.escopo(), ids)
+	if err != nil {
+		return ResultadoImportacao{}, err
+	}
+	status, err := s.statusInicial(ctx, d)
+	if err != nil {
+		return ResultadoImportacao{}, err
+	}
+
+	out := ResultadoImportacao{LinkStatus: status}
+	var novos []uuid.UUID
+	err = s.tx(ctx, d, func(q *colecoesdb.Queries) error {
+		out.Criados, out.JaSalvos, novos = 0, 0, nil
+		var colecaoID uuid.UUID
+		if nome != "" {
+			id, err := q.ColecaoPorNome(ctx, colecoesdb.ColecaoPorNomeParams{WorkspaceID: d.WorkspaceID, UsuarioID: d.UsuarioID, Nome: nome})
+			if errors.Is(err, pgx.ErrNoRows) {
+				id, err = q.CriarColecao(ctx, colecoesdb.CriarColecaoParams{WorkspaceID: d.WorkspaceID, UsuarioID: d.UsuarioID, Nome: nome})
+			}
+			if err != nil {
+				return err
+			}
+			colecaoID = id
+			out.ColecaoID = &id
+		}
+		for _, it := range itens {
+			p, ok := prods[it.ProdutoID]
+			if !ok {
+				return ErrProdutoNaoEncontrado
+			}
+			notas := strings.TrimSpace(it.Comentario)
+			if notas != "" {
+				notas = cortar("Dica do mentor: "+notas, maxNotas)
+			}
+			row, err := q.CriarItemImportado(ctx, colecoesdb.CriarItemImportadoParams{
+				WorkspaceID: d.WorkspaceID, UsuarioID: d.UsuarioID, ProdutoID: p.ID,
+				Titulo: cortar(p.Nome, maxTitulo), Notas: notas, LinkStatus: colecoesdb.LinkStatus(status),
+			})
+			if errors.Is(err, pgx.ErrNoRows) {
+				out.JaSalvos++
+				row, err = q.ItemPorProduto(ctx, colecoesdb.ItemPorProdutoParams{
+					WorkspaceID: d.WorkspaceID, UsuarioID: d.UsuarioID, ProdutoID: p.ID,
+				})
+			} else if err == nil {
+				out.Criados++
+				novos = append(novos, row.ID)
+			}
+			if err != nil {
+				return err
+			}
+			if nome != "" {
+				if err := q.AdicionarColecaoItem(ctx, colecoesdb.AdicionarColecaoItemParams{
+					ColecaoID: colecaoID, ItemID: row.ID, WorkspaceID: d.WorkspaceID, UsuarioID: d.UsuarioID,
+				}); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return ResultadoImportacao{}, err
+	}
+	if status == LinkGerando && len(novos) > 0 {
+		args := make([]GerarLinkArgs, len(novos))
+		for i, id := range novos {
+			args[i] = GerarLinkArgs{ItemID: id, WorkspaceID: d.WorkspaceID, UsuarioID: d.UsuarioID}
+		}
+		if err := s.fila.Enfileirar(ctx, args...); err != nil {
+			s.log.ErrorContext(ctx, "não foi possível enfileirar gerar_link da importação", "itens", len(novos), "err", err)
+			for _, id := range novos {
+				if errMarcar := s.marcar(ctx, d, id, LinkFalhou); errMarcar != nil {
+					return out, errors.Join(err, errMarcar)
+				}
+			}
+			out.LinkStatus = LinkFalhou
+		}
+	}
+	return out, nil
+}
+
+// ItensDosProdutos devolve os itens que o usuário já salvou desses produtos,
+// por produto_id. A curadoria usa para mostrar o link do afiliado na lista.
+func (s *Service) ItensDosProdutos(ctx context.Context, d Dono, produtoIDs []uuid.UUID) (map[uuid.UUID]Item, error) {
+	var rows []colecoesdb.ItensColecao
+	if err := s.tx(ctx, d, func(q *colecoesdb.Queries) error {
+		var err error
+		rows, err = q.ItensDosProdutos(ctx, colecoesdb.ItensDosProdutosParams{WorkspaceID: d.WorkspaceID, UsuarioID: d.UsuarioID, ProdutoIds: produtoIDs})
+		return err
+	}); err != nil {
+		return nil, err
+	}
+	itens, err := s.montar(ctx, d, rows)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[uuid.UUID]Item, len(itens))
+	for _, it := range itens {
+		out[it.Produto.ID] = it
+	}
+	return out, nil
 }
 
 // produtoDoLink acha o produto do link no catálogo ou, se ainda não foi
@@ -738,11 +886,7 @@ func (s *Service) montar(ctx context.Context, d Dono, rows []colecoesdb.ItensCol
 			Status: Status(r.Status), LinkAfiliado: r.LinkAfiliado, LinkOrigem: string(r.LinkOrigem),
 			LinkStatus: LinkStatus(r.LinkStatus), Links: links[r.ID], ColecaoIDs: colecoes[r.ID],
 			CriadoEm: r.CriadoEm, AtualizadoEm: r.AtualizadoEm,
-			Produto: ProdutoResumo{
-				ID: p.ID, Nome: p.Nome, ImagemURL: p.ImagemURL, LojaNome: p.LojaNome, URL: p.URL,
-				PrecoMinCentavos: p.PrecoMinCentavos, PrecoMaxCentavos: p.PrecoMaxCentavos, ComissaoBP: p.ComissaoBP,
-				GanhoPorVendaCentavos: p.GanhoPorVendaCentavos(), Vendas: p.Vendas, Nota: p.Nota, AtualizadoEm: p.ColetadoEm,
-			},
+			Produto: ResumoDe(p),
 		}
 		if it.Tags == nil {
 			it.Tags = []string{}

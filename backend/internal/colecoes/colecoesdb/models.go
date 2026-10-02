@@ -402,6 +402,14 @@ type CredenciaisShopee struct {
 	AtualizadoEm  time.Time
 }
 
+type Importacao struct {
+	ListaID     uuid.UUID
+	WorkspaceID uuid.UUID
+	UsuarioID   uuid.UUID
+	ProdutoID   uuid.UUID
+	ImportadoEm time.Time
+}
+
 type ItensColecao struct {
 	ID           uuid.UUID
 	WorkspaceID  uuid.UUID
@@ -435,12 +443,52 @@ type LinksCanal struct {
 	GeradoEm    time.Time
 }
 
+type ListaCuradoria struct {
+	ID           uuid.UUID
+	WorkspaceID  uuid.UUID
+	AutorID      uuid.UUID
+	Titulo       string
+	Descricao    string
+	PublicadaEm  *time.Time
+	CriadoEm     time.Time
+	AtualizadoEm time.Time
+}
+
+type ListaItem struct {
+	ListaID     uuid.UUID
+	WorkspaceID uuid.UUID
+	ProdutoID   uuid.UUID
+	Comentario  string
+	Ordem       int32
+}
+
 type Membro struct {
 	WorkspaceID        uuid.UUID
 	UsuarioID          uuid.UUID
 	Papel              MembroPapel
 	ConsenteResultados bool
 	EntrouEm           time.Time
+}
+
+type Notificacao struct {
+	ID          uuid.UUID
+	WorkspaceID uuid.UUID
+	UsuarioID   uuid.UUID
+	Tipo        string
+	Chave       string
+	Titulo      string
+	Corpo       string
+	Url         string
+	CriadoEm    time.Time
+	LidaEm      *time.Time
+	EmailEm     *time.Time
+	PushEm      *time.Time
+}
+
+type PreferenciaNotificacao struct {
+	UsuarioID    uuid.UUID
+	Email        bool
+	AtualizadoEm time.Time
 }
 
 type Produto struct {
@@ -481,6 +529,15 @@ type ProdutoSnapshotsPadrao struct {
 	ComissaoBp       int32
 	Vendas           int64
 	Nota             *float64
+}
+
+type PushInscricao struct {
+	ID        uuid.UUID
+	UsuarioID uuid.UUID
+	Endpoint  string
+	P256dh    string
+	Auth      string
+	CriadoEm  time.Time
 }
 
 type Tendencia struct {

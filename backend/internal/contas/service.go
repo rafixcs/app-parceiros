@@ -39,12 +39,46 @@ type Service struct {
 	pool   *pgxpool.Pool
 	perfil func(context.Context, auth.Identidade) (auth.Perfil, error)
 	appURL string
+	// enviarConvite manda o e-mail do convite (módulo notificacoes). Nil não envia.
+	enviarConvite func(context.Context, EnvioConvite) error
+}
+
+// EnvioConvite é o que o e-mail de um convite precisa.
+type EnvioConvite struct {
+	Email         string
+	WorkspaceNome string
+	URL           string
+	ExpiraEm      time.Time
+}
+
+// EnviarConvitesCom liga o envio do e-mail de convite. Sem ele, a API só
+// devolve o link.
+func (s *Service) EnviarConvitesCom(fn func(context.Context, EnvioConvite) error) {
+	s.enviarConvite = fn
+}
+
+// Contato devolve nome e e-mail de um usuário, para as notificações.
+func (s *Service) Contato(ctx context.Context, usuarioID uuid.UUID) (Contato, error) {
+	var u contasdb.Usuario
+	err := s.tx(ctx, postgres.Escopo{UsuarioID: usuarioID.String()}, func(q *contasdb.Queries, _ pgx.Tx) error {
+		var err error
+		u, err = q.UsuarioPorID(ctx, usuarioID)
+		return err
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Contato{}, ErrMembroNaoEncontrado
+	}
+	return Contato{Nome: u.Nome, Email: u.Email, EmailVerificado: u.EmailVerificado}, err
 }
 
 // NewService cria o serviço. appURL é a base dos links de convite
-// (ex.: https://app.exemplo.com.br).
+// (ex.: https://app.exemplo.com.br). O worker, que só lê contatos, passa v nil.
 func NewService(pool *pgxpool.Pool, v auth.Verificador, appURL string) *Service {
-	return &Service{pool: pool, perfil: v.Perfil, appURL: strings.TrimRight(appURL, "/")}
+	s := &Service{pool: pool, appURL: strings.TrimRight(appURL, "/")}
+	if v != nil {
+		s.perfil = v.Perfil
+	}
+	return s
 }
 
 func (s *Service) tx(ctx context.Context, e postgres.Escopo, fn func(*contasdb.Queries, pgx.Tx) error) error {
@@ -295,8 +329,8 @@ func (s *Service) RemoverMembro(ctx context.Context, m Membro, alvo uuid.UUID) e
 }
 
 // CriarConvite gera um convite de uso único para um afiliado. Com e-mail, só
-// quem entrar com aquele e-mail (verificado) pode aceitar. O envio do e-mail
-// fica com o módulo de notificações; aqui devolvemos o link.
+// quem entrar com aquele e-mail (verificado) pode aceitar, e o link também vai
+// por e-mail quando o envio está ligado (EnviarConvitesCom).
 func (s *Service) CriarConvite(ctx context.Context, m Membro, email *string, validade time.Duration) (Convite, error) {
 	if !m.Papel.Gestor() {
 		return Convite{}, ErrSemPermissao
@@ -324,8 +358,10 @@ func (s *Service) CriarConvite(ctx context.Context, m Membro, email *string, val
 	}
 
 	var c contasdb.Convite
+	var w contasdb.Workspace
 	err = s.tx(ctx, escopoDe(m), func(q *contasdb.Queries, _ pgx.Tx) error {
-		w, err := q.TravarWorkspace(ctx, m.WorkspaceID)
+		var err error
+		w, err = q.TravarWorkspace(ctx, m.WorkspaceID)
 		if err != nil {
 			return err
 		}
@@ -359,7 +395,30 @@ func (s *Service) CriarConvite(ctx context.Context, m Membro, email *string, val
 	out := conviteDe(c)
 	out.Token = token
 	out.URL = s.appURL + "/convite/" + token
+	if email != nil && s.enviarConvite != nil {
+		// O convite já vale: se o e-mail falhar, o mentor ainda tem o link.
+		enviado := s.enviarConvite(ctx, EnvioConvite{Email: *email, WorkspaceNome: w.Nome, URL: out.URL, ExpiraEm: c.ExpiraEm}) == nil
+		out.EmailEnviado = &enviado
+	}
 	return out, nil
+}
+
+// Limite devolve um limite do plano do workspace (ex.: "listas"). Sem valor
+// na tabela, o limite é zero.
+func (s *Service) Limite(ctx context.Context, m Membro, chave string) (int64, error) {
+	var v int64
+	err := s.tx(ctx, escopoDe(m), func(q *contasdb.Queries, _ pgx.Tx) error {
+		w, err := q.Workspace(ctx, m.WorkspaceID)
+		if err != nil {
+			return err
+		}
+		v, err = q.Limite(ctx, contasdb.LimiteParams{Plano: w.Plano, Chave: chave})
+		if errors.Is(err, pgx.ErrNoRows) {
+			v, err = 0, nil
+		}
+		return err
+	})
+	return v, err
 }
 
 func (s *Service) limite(ctx context.Context, q *contasdb.Queries, plano string) (int64, error) {

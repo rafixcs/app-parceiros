@@ -48,6 +48,19 @@ type Config struct {
 	S3AccessKey string
 	S3SecretKey string
 	S3Region    string
+
+	// E-mail das notificações por SMTP (Mailpit no ambiente local). Sem
+	// SMTP_ADDR, nenhum e-mail é enviado.
+	SMTPAddr      string
+	SMTPUsuario   string
+	SMTPSenha     string
+	SMTPRemetente string
+
+	// Web Push: par de chaves VAPID (gere com `parceiros vapid`) e o e-mail de
+	// contato que vai no token. Sem as chaves, o push fica desligado.
+	VAPIDPublica string
+	VAPIDPrivada string
+	VAPIDContato string
 }
 
 func Load() (Config, error) {
@@ -74,6 +87,13 @@ func Load() (Config, error) {
 		S3AccessKey:     os.Getenv("S3_ACCESS_KEY"),
 		S3SecretKey:     os.Getenv("S3_SECRET_KEY"),
 		S3Region:        os.Getenv("S3_REGION"),
+		SMTPAddr:        os.Getenv("SMTP_ADDR"),
+		SMTPUsuario:     os.Getenv("SMTP_USUARIO"),
+		SMTPSenha:       os.Getenv("SMTP_SENHA"),
+		SMTPRemetente:   getenv("SMTP_REMETENTE", "App Parceiros <nao-responda@parceiros.local>"),
+		VAPIDPublica:    os.Getenv("VAPID_PUBLICA"),
+		VAPIDPrivada:    os.Getenv("VAPID_PRIVADA"),
+		VAPIDContato:    getenv("VAPID_CONTATO", "contato@parceiros.local"),
 	}
 	var err error
 	if c.ShopeeRatePorHora, err = getint("SHOPEE_RATE_POR_HORA", 1800); err != nil {
@@ -93,6 +113,9 @@ func Load() (Config, error) {
 		return c, fmt.Errorf("SHOPEE_MODO deve ser api ou mock")
 	case c.ShopeeModo == "mock" && c.Env != "dev":
 		return c, fmt.Errorf("SHOPEE_MODO=mock só é aceito com APP_ENV=dev")
+	}
+	if (c.VAPIDPublica == "") != (c.VAPIDPrivada == "") {
+		return c, fmt.Errorf("defina VAPID_PUBLICA e VAPID_PRIVADA juntas")
 	}
 	if c.DatabaseURL == "" {
 		return c, fmt.Errorf("DATABASE_URL é obrigatória")
