@@ -75,13 +75,25 @@ O radar usa a **credencial do app** (`SHOPEE_APP_ID` e `SHOPEE_APP_SECRET`) para
 | `SHOPEE_APP_ID`, `SHOPEE_APP_SECRET` | Credencial do app para o catálogo. Sem elas (e fora do mock), o worker não coleta |
 | `SHOPEE_RATE_POR_HORA` | Chamadas por hora por credencial (padrão 1800) |
 | `SHOPEE_PAGINAS` | Páginas de 50 produtos por categoria em cada coleta (padrão 10) |
-| `CRYPTO_KEK`, `CRYPTO_KEK_ID` | Chave mestra (32 bytes em base64) que cifra as credenciais. Gere com `head -c32 /dev/urandom \| base64` |
+| `CRYPTO_KEK`, `CRYPTO_KEK_ID` | Chave mestra (32 bytes em base64) que cifra as credenciais. A API e o worker (que gera os links) precisam dela. Gere com `head -c32 /dev/urandom \| base64` |
 | `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` | Bucket onde ficam as respostas brutas da Shopee (R2 em produção, SeaweedFS local) |
 
 Como funciona:
 - O job `agendar_snapshots` roda a cada 6 h (e quando o worker sobe) e enfileira um `snapshot_catalogo` geral e um por categoria com `monitorar = true` na tabela `categorias`.
 - Cada `snapshot_catalogo` pagina o `productOfferV2` em sequência, grava os produtos e um snapshot por hora, guarda a resposta bruta no bucket e agenda o `calcular_tendencias`.
 - O score vai de 0 a 100: crescimento de vendas em 7 dias (escala log) × comissão (0,5× a 1,5×) × nota (0,5× a 1×). Sem um dia de histórico, o produto aparece como "Sem histórico".
+
+## Coleção e links de afiliado
+
+Em "Coleção", o afiliado guarda os produtos que vai divulgar, salvos do radar ou colando o link da Shopee (`shopee.com.br/Nome-i.<loja>.<item>` ou `shopee.com.br/product/<loja>/<item>`; links curtos como `s.shopee.com.br` não são aceitos). Um produto colado que ainda não está no catálogo é buscado no `productOfferV2` com a credencial do app e entra no catálogo.
+
+- A coleção é do usuário dentro de cada workspace. Nem o mentor a vê.
+- Ao salvar, o job `gerar_link` (fila `shopee`) chama o `generateShortLink` com a credencial **do próprio usuário**, uma vez por canal (Instagram, TikTok, WhatsApp e outro), com os subIds `<canal>` e `w<12 primeiros caracteres do workspace>`. O link do canal "outro" é o principal.
+- Sem credencial conectada, o link fica "pendente". Depois de conectar, o botão "Gerar links pendentes" enfileira todos. Se a Shopee recusar a credencial, a conexão fica inválida e o link volta a "pendente".
+- O usuário pode gravar um link manual, que vale para todos os canais e o job não sobrescreve.
+- "Copiar" junta título, descrição e o link do canal escolhido.
+
+No mock, o `generateShortLink` devolve um link fixo para cada AppID, página e subIds.
 
 **Modo mock.** Sem credencial aprovada, a Shopee é simulada com as respostas gravadas em `backend/internal/fontes/shopee/testdata/`, e as vendas crescem um pouco a cada dia para o radar ter tendência. Qualquer AppID numérico conecta, exceto estes, que simulam erros da Open API: `10020` (credencial recusada), `10030` (limite de chamadas) e `10031` (acesso negado).
 

@@ -6,6 +6,8 @@ package fontes
 import (
 	"context"
 	"errors"
+
+	"github.com/google/uuid"
 )
 
 type Fonte string
@@ -46,6 +48,18 @@ type PaginaCatalogo struct {
 type Catalogo interface {
 	Fonte() Fonte
 	Ofertas(ctx context.Context, f FiltroCatalogo) (PaginaCatalogo, error)
+	// OfertaPorItem busca um produto pelo ID na fonte. Devolve
+	// ErrNaoEncontrado se a fonte não o tiver.
+	OfertaPorItem(ctx context.Context, itemID int64) (Oferta, error)
+}
+
+// Afiliador gera links de afiliado com a credencial de cada usuário.
+type Afiliador interface {
+	// Conectado diz se o usuário tem credencial válida conectada.
+	Conectado(ctx context.Context, usuarioID uuid.UUID) (bool, error)
+	// GerarLink devolve o link curto de afiliado para a página `origem`, com
+	// os subIds informados. Devolve ErrSemCredencial sem credencial.
+	GerarLink(ctx context.Context, usuarioID uuid.UUID, origem string, subIDs []string) (string, error)
 }
 
 var (
@@ -59,4 +73,8 @@ var (
 	ErrAcessoNegado = errors.New("acesso negado pela fonte")
 	// ErrIndisponivel: erro da fonte ou de rede.
 	ErrIndisponivel = errors.New("fonte indisponível")
+	// ErrNaoEncontrado: a fonte não tem o produto pedido.
+	ErrNaoEncontrado = errors.New("produto não encontrado na fonte")
+	// ErrSemCredencial: o usuário não tem credencial conectada na fonte.
+	ErrSemCredencial = errors.New("usuário sem credencial conectada na fonte")
 )

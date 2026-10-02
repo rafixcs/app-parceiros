@@ -3,6 +3,8 @@ package tendencias
 import (
 	"math"
 	"time"
+
+	"github.com/rafixcs/app-parceiros/backend/internal/produtos"
 )
 
 // Entrada é o que o score precisa de um produto.
@@ -64,5 +66,5 @@ func Normalizar(brutos []float64) []float64 {
 
 // GanhoPorVenda é o preço × a comissão, em centavos, arredondado.
 func GanhoPorVenda(precoCentavos int64, comissaoBP int32) int64 {
-	return (precoCentavos*int64(comissaoBP) + 5000) / 10000
+	return produtos.GanhoPorVenda(precoCentavos, comissaoBP)
 }

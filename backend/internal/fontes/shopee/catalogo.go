@@ -19,3 +19,7 @@ func (c CatalogoDoApp) Ofertas(ctx context.Context, f fontes.FiltroCatalogo) (fo
 		CategoriaID: f.CategoriaID, Ordem: OrdemMaisVendidos, Pagina: f.Pagina, Limite: f.Limite,
 	})
 }
+
+func (c CatalogoDoApp) OfertaPorItem(ctx context.Context, itemID int64) (fontes.Oferta, error) {
+	return c.Cliente.OfertaPorItem(ctx, c.Credencial, itemID)
+}

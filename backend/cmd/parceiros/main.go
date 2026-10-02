@@ -21,6 +21,7 @@ import (
 	"github.com/riverqueue/river"
 
 	"github.com/rafixcs/app-parceiros/backend/db"
+	"github.com/rafixcs/app-parceiros/backend/internal/colecoes"
 	"github.com/rafixcs/app-parceiros/backend/internal/contas"
 	"github.com/rafixcs/app-parceiros/backend/internal/fontes"
 	"github.com/rafixcs/app-parceiros/backend/internal/fontes/shopee"
@@ -108,6 +109,20 @@ func novoClienteShopee(log *slog.Logger, cfg config.Config, rdb *redis.Client) *
 	return shopee.NovoCliente(c)
 }
 
+// catalogoDoApp liga o cliente à credencial do app. Sem ela (fora do mock),
+// devolve nil: o catálogo não é coletado e produtos colados por link que não
+// estejam no catálogo não podem ser importados.
+func catalogoDoApp(cfg config.Config, cliente *shopee.Cliente) fontes.Catalogo {
+	switch {
+	case cfg.ShopeeModo == "mock":
+		return shopee.CatalogoDoApp{Cliente: cliente, Credencial: shopee.Credencial{AppID: "1", Secret: "mock"}}
+	case cfg.ShopeeAppID != "" && cfg.ShopeeAppSecret != "":
+		return shopee.CatalogoDoApp{Cliente: cliente, Credencial: shopee.Credencial{AppID: cfg.ShopeeAppID, Secret: cfg.ShopeeAppSecret}}
+	default:
+		return nil
+	}
+}
+
 func runAPI(ctx context.Context, log *slog.Logger, cfg config.Config, pool *pgxpool.Pool) error {
 	rdb, err := novoRedis(cfg)
 	if err != nil {
@@ -137,12 +152,21 @@ func runAPI(ctx context.Context, log *slog.Logger, cfg config.Config, pool *pgxp
 		"postgres": pool.Ping,
 		"redis":    func(ctx context.Context) error { return rdb.Ping(ctx).Err() },
 	})
+	fila, err := jobs.NewInsertClient(pool, log)
+	if err != nil {
+		return err
+	}
 	contasSvc := contas.NewService(pool, verificador, cfg.AppURL)
-	credenciais := shopee.NovasCredenciais(pool, crypto.NovoCofre(kek), novoClienteShopee(log, cfg, rdb))
-	radar := tendencias.NewService(pool, produtos.NewService(pool))
+	clienteShopee := novoClienteShopee(log, cfg, rdb)
+	credenciais := shopee.NovasCredenciais(pool, crypto.NovoCofre(kek), clienteShopee)
+	produtosSvc := produtos.NewService(pool)
+	radar := tendencias.NewService(pool, produtosSvc)
+	colecoesSvc := colecoes.NewService(pool, produtosSvc, catalogoDoApp(cfg, clienteShopee),
+		shopee.Afiliador{Credenciais: credenciais, Cliente: clienteShopee}, colecoes.FilaRiver{Client: fila}, log)
 	contas.NewHandler(contasSvc, log).Rotas(router, verificador,
 		shopee.NewHandler(credenciais, log).Modulo(),
 		tendencias.NewHandler(radar, log).Modulo(),
+		colecoes.NewHandler(colecoesSvc, log).Modulo(),
 	)
 
 	srv := &http.Server{Addr: cfg.HTTPAddr, Handler: router}
@@ -170,23 +194,29 @@ func runWorker(ctx context.Context, log *slog.Logger, cfg config.Config, pool *p
 	}
 	defer func() { _ = rdb.Close() }()
 
-	produtosSvc := produtos.NewService(pool)
-	catalogo := shopee.CatalogoDoApp{
-		Cliente:    novoClienteShopee(log, cfg, rdb),
-		Credencial: shopee.Credencial{AppID: cfg.ShopeeAppID, Secret: cfg.ShopeeAppSecret},
+	kek, err := crypto.NovaKEKLocal(cfg.CryptoKEKID, cfg.CryptoKEK)
+	if err != nil {
+		return err
 	}
+
+	produtosSvc := produtos.NewService(pool)
+	clienteShopee := novoClienteShopee(log, cfg, rdb)
+	catalogo := catalogoDoApp(cfg, clienteShopee)
 	var periodicos []*river.PeriodicJob
 	switch {
+	case catalogo == nil:
+		log.Warn("sem SHOPEE_APP_ID e SHOPEE_APP_SECRET: o catálogo não será coletado")
 	case cfg.ShopeeModo == "mock":
-		catalogo.Credencial = shopee.Credencial{AppID: "1", Secret: "mock"}
 		if err := cadastrarCategoriasMock(ctx, produtosSvc); err != nil {
 			return err
 		}
 		periodicos = append(periodicos, produtos.PeriodicoSnapshots())
-	case cfg.ShopeeAppID != "" && cfg.ShopeeAppSecret != "":
-		periodicos = append(periodicos, produtos.PeriodicoSnapshots())
 	default:
-		log.Warn("sem SHOPEE_APP_ID e SHOPEE_APP_SECRET: o catálogo não será coletado")
+		periodicos = append(periodicos, produtos.PeriodicoSnapshots())
+	}
+	afiliador := shopee.Afiliador{
+		Credenciais: shopee.NovasCredenciais(pool, crypto.NovoCofre(kek), clienteShopee),
+		Cliente:     clienteShopee,
 	}
 
 	workers := river.NewWorkers()
@@ -194,12 +224,17 @@ func runWorker(ctx context.Context, log *slog.Logger, cfg config.Config, pool *p
 	river.AddWorker(workers, &produtos.AgendarSnapshotsWorker{
 		Svc: produtosSvc, Fonte: fontes.Shopee, Paginas: cfg.ShopeePaginas,
 	})
-	river.AddWorker(workers, &produtos.SnapshotCatalogoWorker{
-		Svc: produtosSvc, Catalogo: catalogo, Storage: novoStorage(ctx, log, cfg), Log: log,
-		Depois: tendencias.Enfileirar,
-	})
+	if catalogo != nil {
+		river.AddWorker(workers, &produtos.SnapshotCatalogoWorker{
+			Svc: produtosSvc, Catalogo: catalogo, Storage: novoStorage(ctx, log, cfg), Log: log,
+			Depois: tendencias.Enfileirar,
+		})
+	}
 	river.AddWorker(workers, &tendencias.CalcularTendenciasWorker{
 		Svc: tendencias.NewService(pool, produtosSvc), Log: log,
+	})
+	river.AddWorker(workers, &colecoes.GerarLinkWorker{
+		Svc: colecoes.NewService(pool, produtosSvc, catalogo, afiliador, nil, log), Log: log,
 	})
 
 	client, err := jobs.NewWorkerClient(pool, workers, periodicos, log)

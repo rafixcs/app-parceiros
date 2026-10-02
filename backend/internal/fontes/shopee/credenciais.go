@@ -55,7 +55,7 @@ var (
 	ErrAcessoNegado       = &Erro{http.StatusUnprocessableEntity, "credencial_invalida", "A Shopee negou acesso a esta conta de afiliado. Confira se o acesso à Open API está aprovado."}
 	ErrLimiteShopee       = &Erro{http.StatusTooManyRequests, "shopee_limite", "A Shopee está limitando as chamadas agora. Tente de novo em alguns instantes."}
 	ErrShopeeIndisponivel = &Erro{http.StatusBadGateway, "shopee_indisponivel", "Não conseguimos falar com a Shopee agora. Tente de novo em instantes."}
-	ErrSemCredencial      = errors.New("usuário sem credencial da Shopee conectada")
+	ErrSemCredencial      = fontes.ErrSemCredencial
 )
 
 var reAppID = regexp.MustCompile(`^[0-9]{1,20}$`)

@@ -252,6 +252,82 @@ func (q *Queries) ProdutoPorItem(ctx context.Context, arg ProdutoPorItemParams) 
 	return id, err
 }
 
+const produtoPorItemCompleto = `-- name: ProdutoPorItemCompleto :one
+SELECT id, fonte, item_id, loja_id, loja_nome, nome, imagem_url, categoria_id, categorias, url, preco_min_centavos, preco_max_centavos, comissao_bp, vendas, nota, coletado_em, criado_em FROM produtos WHERE fonte = $1 AND item_id = $2
+`
+
+type ProdutoPorItemCompletoParams struct {
+	Fonte  Fonte
+	ItemID int64
+}
+
+func (q *Queries) ProdutoPorItemCompleto(ctx context.Context, arg ProdutoPorItemCompletoParams) (Produto, error) {
+	row := q.db.QueryRow(ctx, produtoPorItemCompleto, arg.Fonte, arg.ItemID)
+	var i Produto
+	err := row.Scan(
+		&i.ID,
+		&i.Fonte,
+		&i.ItemID,
+		&i.LojaID,
+		&i.LojaNome,
+		&i.Nome,
+		&i.ImagemUrl,
+		&i.CategoriaID,
+		&i.Categorias,
+		&i.Url,
+		&i.PrecoMinCentavos,
+		&i.PrecoMaxCentavos,
+		&i.ComissaoBp,
+		&i.Vendas,
+		&i.Nota,
+		&i.ColetadoEm,
+		&i.CriadoEm,
+	)
+	return i, err
+}
+
+const produtos = `-- name: Produtos :many
+SELECT id, fonte, item_id, loja_id, loja_nome, nome, imagem_url, categoria_id, categorias, url, preco_min_centavos, preco_max_centavos, comissao_bp, vendas, nota, coletado_em, criado_em FROM produtos WHERE id = ANY ($1::uuid[])
+`
+
+func (q *Queries) Produtos(ctx context.Context, ids []uuid.UUID) ([]Produto, error) {
+	rows, err := q.db.Query(ctx, produtos, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Produto
+	for rows.Next() {
+		var i Produto
+		if err := rows.Scan(
+			&i.ID,
+			&i.Fonte,
+			&i.ItemID,
+			&i.LojaID,
+			&i.LojaNome,
+			&i.Nome,
+			&i.ImagemUrl,
+			&i.CategoriaID,
+			&i.Categorias,
+			&i.Url,
+			&i.PrecoMinCentavos,
+			&i.PrecoMaxCentavos,
+			&i.ComissaoBp,
+			&i.Vendas,
+			&i.Nota,
+			&i.ColetadoEm,
+			&i.CriadoEm,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const upsertCategoria = `-- name: UpsertCategoria :exec
 INSERT INTO categorias (fonte, id, nome, monitorar) VALUES ($1, $2, $3, $4)
 ON CONFLICT (fonte, id) DO UPDATE SET nome = excluded.nome, monitorar = excluded.monitorar

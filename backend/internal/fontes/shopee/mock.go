@@ -79,7 +79,9 @@ func Categorias() ([]struct {
 
 var (
 	reAuth = regexp.MustCompile(`^SHA256 Credential=(\d+), Timestamp=(\d+), Signature=([0-9a-f]{64})$`)
-	reArg  = regexp.MustCompile(`(productCatId|sortType|page|limit):(\d+)`)
+	reArg  = regexp.MustCompile(`(productCatId|itemId|sortType|page|limit):(\d+)`)
+	// originUrl:"...",subIds:[...] do generateShortLink.
+	reLink = regexp.MustCompile(`originUrl:("(?:[^"\\]|\\.)*"),subIds:(\[[^\]]*\])`)
 )
 
 func (m *Mock) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -116,10 +118,43 @@ func (m *Mock) RoundTrip(req *http.Request) (*http.Response, error) {
 	var corpo struct {
 		Query string `json:"query"`
 	}
-	if err := json.Unmarshal(payload, &corpo); err != nil || !strings.Contains(corpo.Query, "productOfferV2") {
-		return resposta(http.StatusBadRequest, []byte(`{"errors":[{"message":"error [10010]: request parsing error","extensions":{"code":10010,"message":"request parsing error"}}]}`))
+	err = json.Unmarshal(payload, &corpo)
+	switch {
+	case err == nil && strings.Contains(corpo.Query, "generateShortLink"):
+		return m.link(appID, corpo.Query)
+	case err == nil && strings.Contains(corpo.Query, "productOfferV2"):
+		return m.ofertas(corpo.Query)
 	}
-	return m.ofertas(corpo.Query)
+	return erroParse()
+}
+
+func erroParse() (*http.Response, error) {
+	return resposta(http.StatusBadRequest, []byte(`{"errors":[{"message":"error [10010]: request parsing error","extensions":{"code":10010,"message":"request parsing error"}}]}`))
+}
+
+// link imita o generateShortLink: o mesmo AppID, página e subIds dão sempre
+// o mesmo link curto.
+func (m *Mock) link(appID, query string) (*http.Response, error) {
+	a := reLink.FindStringSubmatch(query)
+	if a == nil {
+		return erroParse()
+	}
+	var origem string
+	var subIDs []string
+	if json.Unmarshal([]byte(a[1]), &origem) != nil || json.Unmarshal([]byte(a[2]), &subIDs) != nil ||
+		!strings.Contains(origem, "shopee.com.br") {
+		return resposta(http.StatusOK, []byte(`{"errors":[{"message":"error [11001]: invalid originUrl","extensions":{"code":11001,"message":"invalid originUrl"}}]}`))
+	}
+	h := fnv.New64a()
+	_, _ = h.Write([]byte(appID + "|" + origem + "|" + strings.Join(subIDs, ",")))
+	codigo := strconv.FormatUint(h.Sum64(), 36)
+	out, err := json.Marshal(map[string]any{"data": map[string]any{"generateShortLink": map[string]any{
+		"shortLink": "https://s.shopee.com.br/" + codigo,
+	}}})
+	if err != nil {
+		return nil, err
+	}
+	return resposta(http.StatusOK, out)
 }
 
 func (m *Mock) ofertas(query string) (*http.Response, error) {
@@ -152,6 +187,9 @@ func (m *Mock) ofertas(query string) (*http.Response, error) {
 	var nodes []map[string]any
 	for _, n := range gravacao.Data.ProductOfferV2.Nodes {
 		if cat := args["productCatId"]; cat > 0 && !temCategoria(n, cat) {
+			continue
+		}
+		if item := args["itemId"]; item > 0 && stringDe(n["itemId"]) != strconv.FormatInt(item, 10) {
 			continue
 		}
 		vendas, _ := n["sales"].(json.Number).Int64()

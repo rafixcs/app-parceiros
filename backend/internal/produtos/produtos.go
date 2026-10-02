@@ -209,6 +209,79 @@ func (s *Service) ParaTendencias(ctx context.Context, desde time.Time) ([]Atual,
 	return out, err
 }
 
+// GanhoPorVenda é o preço × a comissão, em centavos, arredondado.
+func GanhoPorVenda(precoCentavos int64, comissaoBP int32) int64 {
+	return (precoCentavos*int64(comissaoBP) + 5000) / 10000
+}
+
+// GanhoPorVendaCentavos é quanto o afiliado ganha numa venda pelo preço mínimo.
+func (p Produto) GanhoPorVendaCentavos() int64 {
+	return GanhoPorVenda(p.PrecoMinCentavos, p.ComissaoBP)
+}
+
+func produtoDe(p produtosdb.Produto) Produto {
+	return Produto{
+		ID: p.ID, Fonte: fontes.Fonte(p.Fonte), ItemID: p.ItemID, LojaNome: p.LojaNome, Nome: p.Nome,
+		ImagemURL: p.ImagemUrl, CategoriaID: p.CategoriaID, Categorias: p.Categorias, URL: p.Url,
+		PrecoMinCentavos: p.PrecoMinCentavos, PrecoMaxCentavos: p.PrecoMaxCentavos,
+		ComissaoBP: p.ComissaoBp, Vendas: p.Vendas, Nota: p.Nota, ColetadoEm: p.ColetadoEm,
+	}
+}
+
+// Varios lê vários produtos do catálogo de uma vez (API). Ids desconhecidos
+// ficam de fora do mapa.
+func (s *Service) Varios(ctx context.Context, e postgres.Escopo, ids []uuid.UUID) (map[uuid.UUID]Produto, error) {
+	out := make(map[uuid.UUID]Produto, len(ids))
+	if len(ids) == 0 {
+		return out, nil
+	}
+	err := s.leitura(ctx, e, func(q *produtosdb.Queries) error {
+		rows, err := q.Produtos(ctx, ids)
+		for _, p := range rows {
+			out[p.ID] = produtoDe(p)
+		}
+		return err
+	})
+	return out, err
+}
+
+// PorItem acha um produto do catálogo pelo ID na fonte (API). Devolve
+// ErrProdutoNaoEncontrado se ele ainda não foi coletado.
+func (s *Service) PorItem(ctx context.Context, e postgres.Escopo, fonte fontes.Fonte, itemID int64) (Produto, error) {
+	var p produtosdb.Produto
+	err := s.leitura(ctx, e, func(q *produtosdb.Queries) error {
+		var err error
+		p, err = q.ProdutoPorItemCompleto(ctx, produtosdb.ProdutoPorItemCompletoParams{Fonte: produtosdb.Fonte(fonte), ItemID: itemID})
+		return err
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Produto{}, ErrProdutoNaoEncontrado
+	}
+	if err != nil {
+		return Produto{}, err
+	}
+	return produtoDe(p), nil
+}
+
+// Importar grava no catálogo um produto que o usuário trouxe colando o link,
+// buscado na fonte com a credencial do app. É a única escrita da API no
+// catálogo, com o papel dono das tabelas, como o worker.
+func (s *Service) Importar(ctx context.Context, fonte fontes.Fonte, o fontes.Oferta, agora time.Time) (Produto, error) {
+	if err := s.Registrar(ctx, fonte, agora, []fontes.Oferta{o}); err != nil {
+		return Produto{}, err
+	}
+	var p produtosdb.Produto
+	err := s.worker(ctx, func(q *produtosdb.Queries) error {
+		var err error
+		p, err = q.ProdutoPorItemCompleto(ctx, produtosdb.ProdutoPorItemCompletoParams{Fonte: produtosdb.Fonte(fonte), ItemID: o.ItemID})
+		return err
+	})
+	if err != nil {
+		return Produto{}, err
+	}
+	return produtoDe(p), nil
+}
+
 // Produto lê um produto do catálogo (API).
 func (s *Service) Produto(ctx context.Context, e postgres.Escopo, id uuid.UUID) (Produto, error) {
 	var p produtosdb.Produto
@@ -223,12 +296,7 @@ func (s *Service) Produto(ctx context.Context, e postgres.Escopo, id uuid.UUID) 
 	if err != nil {
 		return Produto{}, err
 	}
-	return Produto{
-		ID: p.ID, Fonte: fontes.Fonte(p.Fonte), ItemID: p.ItemID, LojaNome: p.LojaNome, Nome: p.Nome,
-		ImagemURL: p.ImagemUrl, CategoriaID: p.CategoriaID, Categorias: p.Categorias, URL: p.Url,
-		PrecoMinCentavos: p.PrecoMinCentavos, PrecoMaxCentavos: p.PrecoMaxCentavos,
-		ComissaoBP: p.ComissaoBp, Vendas: p.Vendas, Nota: p.Nota, ColetadoEm: p.ColetadoEm,
-	}, nil
+	return produtoDe(p), nil
 }
 
 // Historico devolve os snapshots do produto desde `desde`, do mais antigo ao

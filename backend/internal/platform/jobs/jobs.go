@@ -47,6 +47,11 @@ func NewWorkerClient(pool *pgxpool.Pool, workers *river.Workers, periodicos []*r
 	})
 }
 
+// NewInsertClient cria um cliente River que só enfileira (a API).
+func NewInsertClient(pool *pgxpool.Pool, log *slog.Logger) (*river.Client[pgx.Tx], error) {
+	return river.NewClient(riverpgxv5.New(pool), &river.Config{Logger: log})
+}
+
 // PingArgs é um job de verificação: confirma de ponta a ponta que a API
 // enfileira e o worker processa. O River exige ao menos um worker
 // registrado, e este cobre o período antes dos módulos de domínio.

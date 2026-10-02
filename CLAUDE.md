@@ -65,4 +65,6 @@ Os módulos não acessam as tabelas uns dos outros. Quando precisam, um módulo 
 - Testes de integração usam Postgres real (testcontainers, via `pgtest.New`), não mocks de banco. Com `TEST_DATABASE_URL`, usam um servidor já existente.
 - O cliente Shopee tem uma interface e um mock com respostas gravadas em `testdata/`, para desenvolver sem credencial (`SHOPEE_MODO=mock`, padrão em dev).
 - Outros módulos registram rotas pelo `contas.Modulo` (`Autenticadas` e `DoWorkspace`), passado para `contas.Handler.Rotas`.
-- Catálogo global (`produtos`, `produto_snapshots`, `tendencias`) não tem `workspace_id`: a API só lê, e o worker escreve com o papel dono das tabelas.
+- Catálogo global (`produtos`, `produto_snapshots`, `tendencias`) não tem `workspace_id`: a API só lê, e o worker escreve com o papel dono das tabelas. A exceção é `produtos.Service.Importar`, que grava o produto colado por link na coleção.
+- Coleções (`itens_colecao`, `colecoes`, `colecao_itens`, `links_canal`) são do usuário dentro do workspace: as políticas exigem `app_workspace_id()` e `app_usuario_id()`. Tabelas filhas repetem `workspace_id` e `usuario_id` com chave estrangeira composta para o pai.
+- Entre módulos: `colecoes` lê produtos por `produtos.Service` e gera links por `fontes.Afiliador` (implementado em `shopee.Afiliador`).
