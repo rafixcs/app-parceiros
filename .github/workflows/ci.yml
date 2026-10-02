@@ -21,6 +21,8 @@ jobs:
           go-version-file: backend/go.mod
           cache-dependency-path: backend/go.sum
       - run: go vet ./...
+      - name: código do sqlc em dia
+        run: go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1 diff
       - run: go test -race ./...
       - uses: golangci/golangci-lint-action@v8
         with:

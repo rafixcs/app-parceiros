@@ -12,6 +12,7 @@ paths:
     get:
       summary: Verificação de vida do processo
       operationId: healthz
+      security: []
       responses:
         "200":
           description: Processo ativo
@@ -27,6 +28,7 @@ paths:
     get:
       summary: Verificação de prontidão (Postgres e Redis)
       operationId: readyz
+      security: []
       responses:
         "200":
           description: Todas as dependências respondem
@@ -40,8 +42,368 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Prontidao"
+  /v1/eu:
+    get:
+      summary: Usuário autenticado
+      description: >
+        No primeiro acesso, cria o usuário a partir do perfil do Zitadel e o
+        seu workspace pessoal.
+      operationId: eu
+      tags: [contas]
+      security: [{ bearer: [] }]
+      responses:
+        "200":
+          description: Usuário
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Usuario" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+  /v1/workspaces:
+    get:
+      summary: Workspaces de que o usuário participa (seletor do topo)
+      operationId: listarWorkspaces
+      tags: [contas]
+      security: [{ bearer: [] }]
+      responses:
+        "200":
+          description: Workspaces, o pessoal primeiro
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Workspace" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+    post:
+      summary: Criar mentoria
+      description: Cria um workspace do tipo mentoria com o usuário como dono.
+      operationId: criarMentoria
+      tags: [contas]
+      security: [{ bearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nome]
+              additionalProperties: false
+              properties:
+                nome: { type: string, minLength: 1, maxLength: 80 }
+                foto_url: { type: [string, "null"], format: uri, description: "URL https" }
+      responses:
+        "201":
+          description: Mentoria criada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Workspace" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "422": { $ref: "#/components/responses/Erro" }
+  /v1/workspaces/{workspaceId}:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceId"
+    get:
+      summary: Detalhe do workspace
+      operationId: verWorkspace
+      tags: [contas]
+      security: [{ bearer: [] }]
+      responses:
+        "200":
+          description: Workspace
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Workspace" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "404": { $ref: "#/components/responses/Erro" }
+    patch:
+      summary: Alterar nome e foto (só o dono)
+      operationId: atualizarWorkspace
+      tags: [contas]
+      security: [{ bearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                nome: { type: string, minLength: 1, maxLength: 80 }
+                foto_url:
+                  type: string
+                  description: URL https. String vazia remove a foto.
+      responses:
+        "200":
+          description: Workspace atualizado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Workspace" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Erro" }
+        "404": { $ref: "#/components/responses/Erro" }
+        "422": { $ref: "#/components/responses/Erro" }
+  /v1/workspaces/{workspaceId}/membros:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceId"
+    get:
+      summary: Membros do workspace (dono e mentor)
+      operationId: listarMembros
+      tags: [contas]
+      security: [{ bearer: [] }]
+      responses:
+        "200":
+          description: Membros
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Membro" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Erro" }
+        "404": { $ref: "#/components/responses/Erro" }
+  /v1/workspaces/{workspaceId}/membros/{usuarioId}:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceId"
+      - name: usuarioId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      summary: Sair do workspace ou remover um membro
+      description: >
+        Com o próprio id, o usuário sai do workspace. Dono e mentor removem
+        afiliados; só o dono remove mentores; o dono não sai nem é removido.
+        Os dados pessoais do afiliado (coleção, credencial) continuam dele.
+      operationId: removerMembro
+      tags: [contas]
+      security: [{ bearer: [] }]
+      responses:
+        "204": { description: Removido }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Erro" }
+        "404": { $ref: "#/components/responses/Erro" }
+        "409": { $ref: "#/components/responses/Erro" }
+  /v1/workspaces/{workspaceId}/convites:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceId"
+    get:
+      summary: Convites pendentes (dono e mentor)
+      operationId: listarConvites
+      tags: [contas]
+      security: [{ bearer: [] }]
+      responses:
+        "200":
+          description: Convites ainda válidos, sem o token
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Convite" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Erro" }
+        "404": { $ref: "#/components/responses/Erro" }
+    post:
+      summary: Convidar afiliado
+      description: >
+        Gera um convite de uso único para um workspace de mentoria. Com
+        e-mail, só a conta com aquele e-mail verificado pode aceitar. Convites
+        pendentes ocupam assento do plano. O token só aparece nesta resposta.
+      operationId: criarConvite
+      tags: [contas]
+      security: [{ bearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                email: { type: [string, "null"], format: email }
+                validade_horas:
+                  type: integer
+                  minimum: 1
+                  maximum: 720
+                  default: 168
+      responses:
+        "201":
+          description: Convite criado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConviteCriado" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Erro" }
+        "404": { $ref: "#/components/responses/Erro" }
+        "409":
+          description: "`so_mentoria` ou `sem_assentos`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "422": { $ref: "#/components/responses/Erro" }
+  /v1/workspaces/{workspaceId}/convites/{conviteId}:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceId"
+      - name: conviteId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      summary: Cancelar convite pendente
+      operationId: revogarConvite
+      tags: [contas]
+      security: [{ bearer: [] }]
+      responses:
+        "204": { description: Cancelado }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Erro" }
+        "404": { $ref: "#/components/responses/Erro" }
+  /v1/convites/{token}:
+    parameters:
+      - $ref: "#/components/parameters/TokenConvite"
+    get:
+      summary: Ver convite (público)
+      description: Mostra o workspace e a situação do convite antes do login.
+      operationId: verConvite
+      security: []
+      tags: [contas]
+      responses:
+        "200":
+          description: Convite
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConvitePublico" }
+        "404": { $ref: "#/components/responses/Erro" }
+  /v1/convites/{token}/aceitar:
+    parameters:
+      - $ref: "#/components/parameters/TokenConvite"
+    post:
+      summary: Aceitar convite
+      description: Torna o usuário afiliado do workspace do convite.
+      operationId: aceitarConvite
+      tags: [contas]
+      security: [{ bearer: [] }]
+      responses:
+        "200":
+          description: Workspace em que o usuário entrou
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Workspace" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403":
+          description: "`convite_outro_email`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "404": { $ref: "#/components/responses/Erro" }
+        "409":
+          description: "`ja_membro` ou `sem_assentos`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "410":
+          description: "`convite_expirado`, `convite_usado` ou `convite_revogado`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
 components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token de acesso do Zitadel (OIDC).
+  parameters:
+    WorkspaceId:
+      name: workspaceId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    TokenConvite:
+      name: token
+      in: path
+      required: true
+      schema: { type: string }
+  responses:
+    NaoAutenticado:
+      description: Sem token ou token inválido (`nao_autenticado`)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Erro" }
+    Erro:
+      description: Erro com código e mensagem para o usuário
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Erro" }
   schemas:
+    Erro:
+      type: object
+      required: [codigo, mensagem]
+      properties:
+        codigo:
+          type: string
+          description: >
+            Código estável para o front. Em contas: nao_autenticado,
+            dados_invalidos, json_invalido, sem_permissao,
+            workspace_nao_encontrado, membro_nao_encontrado,
+            convite_nao_encontrado, so_mentoria, dono_nao_sai, sem_assentos,
+            ja_membro, convite_expirado, convite_usado, convite_revogado,
+            convite_outro_email, erro_interno.
+        mensagem: { type: string, description: Texto pronto para mostrar ao usuário }
+    Usuario:
+      type: object
+      required: [id, nome, email, criado_em]
+      properties:
+        id: { type: string, format: uuid }
+        nome: { type: string }
+        email: { type: string, format: email }
+        criado_em: { type: string, format: date-time }
+    Papel:
+      type: string
+      enum: [dono, mentor, afiliado]
+    Workspace:
+      type: object
+      required: [id, tipo, nome, foto_url, plano, status, papel, criado_em]
+      properties:
+        id: { type: string, format: uuid }
+        tipo: { type: string, enum: [pessoal, mentoria] }
+        nome: { type: string }
+        foto_url: { type: [string, "null"] }
+        plano: { type: string, enum: [avulso, mentoria] }
+        status: { type: string }
+        papel: { $ref: "#/components/schemas/Papel" }
+        criado_em: { type: string, format: date-time }
+    Membro:
+      type: object
+      required: [usuario_id, nome, email, papel, entrou_em]
+      properties:
+        usuario_id: { type: string, format: uuid }
+        nome: { type: string }
+        email: { type: string, format: email }
+        papel: { $ref: "#/components/schemas/Papel" }
+        entrou_em: { type: string, format: date-time }
+    Convite:
+      type: object
+      required: [id, email, expira_em, criado_em]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: [string, "null"], format: email }
+        expira_em: { type: string, format: date-time }
+        criado_em: { type: string, format: date-time }
+    ConviteCriado:
+      allOf:
+        - $ref: "#/components/schemas/Convite"
+        - type: object
+          required: [token, url]
+          properties:
+            token: { type: string, description: Só aparece na criação }
+            url: { type: string, format: uri, description: "Link para enviar ao afiliado ({APP_URL}/convite/{token})" }
+    ConvitePublico:
+      type: object
+      required: [workspace_nome, workspace_foto_url, status, expira_em]
+      properties:
+        workspace_nome: { type: string }
+        workspace_foto_url: { type: [string, "null"] }
+        status: { type: string, enum: [valido, expirado, usado, revogado] }
+        expira_em: { type: string, format: date-time }
     Prontidao:
       type: object
       additionalProperties:

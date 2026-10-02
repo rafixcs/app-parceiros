@@ -24,7 +24,7 @@ func NewRouter(log *slog.Logger, checks map[string]Checker) chi.Router {
 	r.Use(requestLogger(log))
 
 	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) {
-		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+		JSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
 	r.Get("/readyz", readyHandler(checks))
 	return r
@@ -45,7 +45,7 @@ func readyHandler(checks map[string]Checker) http.HandlerFunc {
 			}
 			result[name] = "ok"
 		}
-		writeJSON(w, status, result)
+		JSON(w, status, result)
 	}
 }
 
@@ -55,9 +55,18 @@ func requestLogger(log *slog.Logger) func(http.Handler) http.Handler {
 			ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
 			start := time.Now()
 			next.ServeHTTP(ww, r)
+			// Loga o padrão da rota, e não o caminho, para não gravar tokens
+			// que vão na URL (ex.: /v1/convites/{token}).
+			route := ""
+			if rctx := chi.RouteContext(r.Context()); rctx != nil {
+				route = rctx.RoutePattern()
+			}
+			if route == "" {
+				route = "desconhecida"
+			}
 			log.Info("http",
 				"method", r.Method,
-				"path", r.URL.Path,
+				"route", route,
 				"status", ww.Status(),
 				"dur_ms", time.Since(start).Milliseconds(),
 				"request_id", middleware.GetReqID(r.Context()),
@@ -66,8 +75,20 @@ func requestLogger(log *slog.Logger) func(http.Handler) http.Handler {
 	}
 }
 
-func writeJSON(w http.ResponseWriter, status int, v any) {
+// JSON escreve v como corpo JSON da resposta.
+func JSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(v)
+}
+
+// Erro é o corpo padrão das respostas de erro da API.
+type Erro struct {
+	Codigo   string `json:"codigo"`
+	Mensagem string `json:"mensagem"`
+}
+
+// JSONErro escreve uma resposta de erro no formato padrão.
+func JSONErro(w http.ResponseWriter, status int, codigo, mensagem string) {
+	JSON(w, status, Erro{Codigo: codigo, Mensagem: mensagem})
 }

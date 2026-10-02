@@ -20,6 +20,8 @@ import (
 	"github.com/riverqueue/river"
 
 	"github.com/rafixcs/app-parceiros/backend/db"
+	"github.com/rafixcs/app-parceiros/backend/internal/contas"
+	"github.com/rafixcs/app-parceiros/backend/internal/platform/auth"
 	"github.com/rafixcs/app-parceiros/backend/internal/platform/config"
 	"github.com/rafixcs/app-parceiros/backend/internal/platform/httpserver"
 	"github.com/rafixcs/app-parceiros/backend/internal/platform/jobs"
@@ -82,10 +84,25 @@ func runAPI(ctx context.Context, log *slog.Logger, cfg config.Config, pool *pgxp
 	rdb := redis.NewClient(redisOpts)
 	defer func() { _ = rdb.Close() }()
 
+	verificador, err := auth.Novo(ctx, cfg.AuthMode, cfg.Env, auth.ConfigOIDC{
+		Issuer:      cfg.OIDCIssuer,
+		Audience:    cfg.OIDCAudience,
+		JWKSURL:     cfg.OIDCJWKSURL,
+		UserinfoURL: cfg.OIDCUserinfoURL,
+	})
+	if err != nil {
+		return err
+	}
+	if cfg.AuthMode == "dev" {
+		log.Warn("autenticação em modo dev: tokens dev:<sub> são aceitos sem assinatura")
+	}
+
 	router := httpserver.NewRouter(log, map[string]httpserver.Checker{
 		"postgres": pool.Ping,
 		"redis":    func(ctx context.Context) error { return rdb.Ping(ctx).Err() },
 	})
+	contasSvc := contas.NewService(pool, verificador, cfg.AppURL)
+	contas.NewHandler(contasSvc, log).Rotas(router, verificador)
 
 	srv := &http.Server{Addr: cfg.HTTPAddr, Handler: router}
 	errCh := make(chan error, 1)
