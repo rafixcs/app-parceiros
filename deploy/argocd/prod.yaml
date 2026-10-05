@@ -1,0 +1,43 @@
+# Aplicações do Argo CD para produção. Instale o Argo CD no cluster e aplique
+# este arquivo uma vez (kubectl apply -n argocd -f deploy/argocd/prod.yaml).
+# O ambiente (configuração e segredos) sincroniza sozinho; o app só depois que
+# o Secret parceiros-env existir, e roda a migration como PreSync
+# (deploy/base/migrate-job.yaml) a cada deploy.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: parceiros-prod-ambiente
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/rafixcs/app-parceiros
+    targetRevision: main
+    path: deploy/overlays/prod/ambiente
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: parceiros-prod
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: parceiros-prod
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/rafixcs/app-parceiros
+    targetRevision: main
+    path: deploy/overlays/prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: parceiros-prod
+  # Sincronização manual: o deploy de produção é um clique (ou `argocd app
+  # sync parceiros-prod`) depois de conferir o diff.
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=false

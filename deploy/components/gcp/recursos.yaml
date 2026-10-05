@@ -1,0 +1,62 @@
+# Recursos de produção. No GKE Autopilot, o que se paga é o request de cada pod.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: parceiros-api
+spec:
+  replicas: null # quem decide é o HPA (api-hpa.yaml)
+  template:
+    spec:
+      containers:
+        - name: api
+          envFrom:
+            - configMapRef:
+                name: parceiros-config
+            - secretRef:
+                name: parceiros-env
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: parceiros-worker
+spec:
+  template:
+    spec:
+      containers:
+        - name: worker
+          envFrom:
+            - configMapRef:
+                name: parceiros-config
+            - secretRef:
+                name: parceiros-env
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              memory: 1Gi
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: parceiros-migrate
+spec:
+  template:
+    spec:
+      containers:
+        - name: migrate
+          envFrom:
+            - configMapRef:
+                name: parceiros-config
+            - secretRef:
+                name: parceiros-env
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi

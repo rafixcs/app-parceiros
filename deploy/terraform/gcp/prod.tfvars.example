@@ -1,0 +1,5 @@
+# Copie para prod.tfvars (fora do git) e ajuste.
+projeto       = "app-parceiros-prod"
+ambiente      = "prod"
+dominio       = "app.exemplo.com.br"
+email_alertas = "voce@exemplo.com.br"

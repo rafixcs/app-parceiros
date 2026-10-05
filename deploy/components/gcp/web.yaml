@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: parceiros-web
+  labels:
+    app.kubernetes.io/part-of: app-parceiros
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: parceiros-web
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: parceiros-web
+    spec:
+      containers:
+        - name: web
+          image: parceiros-web
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /nginx-saude
+              port: http
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: parceiros-web
+spec:
+  selector:
+    app.kubernetes.io/name: parceiros-web
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
