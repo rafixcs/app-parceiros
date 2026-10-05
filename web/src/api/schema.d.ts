@@ -1133,16 +1133,136 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/webhooks/cobranca": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Aviso de cobrança do gateway (webhook)
+         * @description Recebe os avisos do gateway de cobrança (Asaas em produção). Não usa o token do app: a autenticidade vem do segredo do provedor, no cabeçalho que ele manda. Um pagamento confirmado estende o acesso do workspace; um estorno o suspende na hora. Reenvios do mesmo aviso não fazem nada.
+         */
+        post: operations["webhookCobranca"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{workspaceId}/assinatura": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * A assinatura do workspace (dono e mentor)
+         * @description Plano, preço, assentos e situação do acesso. Continua acessível com o workspace suspenso: é por aqui que ele volta.
+         */
+        get: operations["verAssinatura"];
+        put?: never;
+        /**
+         * Contratar o plano (só o dono)
+         * @description Abre a assinatura mensal no gateway e devolve a fatura em aberto, que quem paga quita por PIX, boleto ou cartão. O acesso só é liberado quando o pagamento é confirmado.
+         */
+        post: operations["assinar"];
+        /**
+         * Cancelar a assinatura (só o dono)
+         * @description Encerra a cobrança no gateway. O acesso continua até o fim do período já pago.
+         */
+        delete: operations["cancelarAssinatura"];
+        options?: never;
+        head?: never;
+        /**
+         * Mudar os assentos da mentoria (só o dono)
+         * @description Diminuir vale na hora, e nunca abaixo dos assentos em uso (afiliados mais convites pendentes). Aumentar vale quando o próximo pagamento for confirmado; a cobrança em aberto já sai com o novo valor.
+         */
+        patch: operations["mudarAssentos"];
+        trace?: never;
+    };
+    "/v1/workspaces/{workspaceId}/assinatura/simular-pagamento": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Simular o pagamento (só no ambiente local)
+         * @description Confirma a cobrança em aberto sem gateway de verdade. Existe apenas quando a cobrança está em modo mock (`simulavel` na assinatura); fora dele devolve 404.
+         */
+        post: operations["simularPagamento"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         Erro: {
-            /** @description Código estável para o front. Em contas: nao_autenticado, dados_invalidos, json_invalido, sem_permissao, workspace_nao_encontrado, membro_nao_encontrado, convite_nao_encontrado, so_mentoria, dono_nao_sai, sem_assentos, ja_membro, convite_expirado, convite_usado, convite_revogado, convite_outro_email, erro_interno. Em shopee: credencial_invalida, shopee_limite, shopee_indisponivel. Em radar: produto_nao_encontrado. Em coleções: item_nao_encontrado, colecao_nao_encontrada, colecao_existente, link_invalido, link_curto, sem_credencial, importacao_indisponivel. Em curadoria: lista_nao_encontrada, item_lista_nao_encontrado, limite_listas, lista_vazia, ja_na_lista, lista_cheia, lista_nao_publicada. Em notificações: notificacao_nao_encontrada, push_indisponivel, inscricao_invalida, inscricoes_demais. Em mídia: video_nao_encontrado, link_video_invalido, video_indisponivel, plataforma_indisponivel, direito_uso_obrigatorio, formato_invalido, arquivo_grande, cota_videos, uploads_indisponiveis, upload_encerrado, upload_incompleto, video_nao_pronto. */
+            /** @description Código estável para o front. Em contas: nao_autenticado, dados_invalidos, json_invalido, sem_permissao, workspace_nao_encontrado, membro_nao_encontrado, convite_nao_encontrado, so_mentoria, dono_nao_sai, sem_assentos, ja_membro, convite_expirado, convite_usado, convite_revogado, convite_outro_email, workspace_suspenso, assentos_em_uso, erro_interno. Em assinatura: ja_assinada, sem_assinatura, sem_preco, cobranca_indisponivel. Em shopee: credencial_invalida, shopee_limite, shopee_indisponivel. Em radar: produto_nao_encontrado. Em coleções: item_nao_encontrado, colecao_nao_encontrada, colecao_existente, link_invalido, link_curto, sem_credencial, importacao_indisponivel. Em curadoria: lista_nao_encontrada, item_lista_nao_encontrado, limite_listas, lista_vazia, ja_na_lista, lista_cheia, lista_nao_publicada. Em notificações: notificacao_nao_encontrada, push_indisponivel, inscricao_invalida, inscricoes_demais. Em mídia: video_nao_encontrado, link_video_invalido, video_indisponivel, plataforma_indisponivel, direito_uso_obrigatorio, formato_invalido, arquivo_grande, cota_videos, uploads_indisponiveis, upload_encerrado, upload_incompleto, video_nao_pronto. */
             codigo: string;
             /** @description Texto pronto para mostrar ao usuário */
             mensagem: string;
         };
+        Assinatura: {
+            /** @enum {string} */
+            plano: "avulso" | "mentoria";
+            situacao: components["schemas"]["SituacaoWorkspace"];
+            /**
+             * Format: date-time
+             * @description Até quando o workspace pode ser usado (fim do teste ou do ciclo pago, mais a tolerância).
+             */
+            acesso_ate: string;
+            /** @enum {string} */
+            status: "sem_assinatura" | "aguardando" | "ativa" | "atrasada" | "cancelada";
+            /** @description Gateway de cobrança (ex.: asaas); vazio sem assinatura. */
+            provedor: string;
+            /** @description Preço mensal do plano: do workspace no avulso, de cada assento na mentoria. */
+            preco_centavos: number;
+            /** @description Assentos contratados (0 sem assinatura). */
+            assentos: number;
+            /** @description Afiliados mais convites pendentes. */
+            assentos_em_uso: number;
+            /** @description Teto do plano. */
+            assentos_maximo: number;
+            /** @description Total mensal da assinatura. */
+            valor_centavos: number;
+            /**
+             * Format: date
+             * @description Vencimento da cobrança em aberto (ou da próxima).
+             */
+            proximo_ciclo: string | null;
+            /** @description Fatura em aberto no gateway (PIX, boleto ou cartão). */
+            url_pagamento: string | null;
+            /** @description Ambiente local com cobrança em modo mock: a tela pode oferecer simular o pagamento. */
+            simulavel: boolean;
+        };
+        NovaAssinatura: {
+            /** @description Assentos da mentoria. Ignorado no plano avulso. */
+            assentos?: number;
+            /** @description CPF ou CNPJ de quem paga */
+            cpf_cnpj: string;
+        };
+        /**
+         * @description `teste` no período de avaliação, `ativo` com a assinatura paga e `suspenso` quando o acesso venceu. Suspenso, o workspace só permite ver a si mesmo, sair dele, mexer no consentimento e cuidar da assinatura; o resto devolve 402 `workspace_suspenso`.
+         * @enum {string}
+         */
+        SituacaoWorkspace: "teste" | "ativo" | "suspenso";
         Usuario: {
             /** Format: uuid */
             id: string;
@@ -1163,7 +1283,11 @@ export interface components {
             foto_url: string | null;
             /** @enum {string} */
             plano: "avulso" | "mentoria";
-            status: string;
+            status: components["schemas"]["SituacaoWorkspace"];
+            /** Format: date-time */
+            acesso_ate: string;
+            /** @description Assentos contratados na mentoria; nulo enquanto não há pagamento. */
+            assentos: number | null;
             papel: components["schemas"]["Papel"];
             /** Format: date-time */
             criado_em: string;
@@ -4073,6 +4197,241 @@ export interface operations {
                     "application/json": components["schemas"]["Erro"];
                 };
             };
+        };
+    };
+    webhookCobranca: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Corpo no formato do provedor. */
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            /** @description Aviso processado (ou sem efeito) */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `nao_autenticado`: o aviso não veio do gateway */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+            500: components["responses"]["Erro"];
+        };
+    };
+    verAssinatura: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Assinatura */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Assinatura"];
+                };
+            };
+            401: components["responses"]["NaoAutenticado"];
+            403: components["responses"]["Erro"];
+            404: components["responses"]["Erro"];
+        };
+    };
+    assinar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NovaAssinatura"];
+            };
+        };
+        responses: {
+            /** @description Assinatura criada, aguardando pagamento */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Assinatura"];
+                };
+            };
+            400: components["responses"]["Erro"];
+            401: components["responses"]["NaoAutenticado"];
+            403: components["responses"]["Erro"];
+            404: components["responses"]["Erro"];
+            /** @description `ja_assinada`, `assentos_em_uso`, `sem_preco` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+            422: components["responses"]["Erro"];
+            /** @description `cobranca_indisponivel`: o gateway não respondeu */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+        };
+    };
+    cancelarAssinatura: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Assinatura cancelada */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Assinatura"];
+                };
+            };
+            401: components["responses"]["NaoAutenticado"];
+            403: components["responses"]["Erro"];
+            /** @description `sem_assinatura`, `workspace_nao_encontrado` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+            /** @description `cobranca_indisponivel` */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+        };
+    };
+    mudarAssentos: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    assentos: number;
+                };
+            };
+        };
+        responses: {
+            /** @description Assinatura atualizada */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Assinatura"];
+                };
+            };
+            400: components["responses"]["Erro"];
+            401: components["responses"]["NaoAutenticado"];
+            403: components["responses"]["Erro"];
+            /** @description `sem_assinatura`, `workspace_nao_encontrado` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+            /** @description `assentos_em_uso` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+            422: components["responses"]["Erro"];
+            /** @description `cobranca_indisponivel` */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+        };
+    };
+    simularPagamento: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pagamento aplicado */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Assinatura"];
+                };
+            };
+            401: components["responses"]["NaoAutenticado"];
+            403: components["responses"]["Erro"];
+            404: components["responses"]["Erro"];
         };
     };
 }

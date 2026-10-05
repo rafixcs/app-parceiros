@@ -95,7 +95,9 @@ A assinatura é **por workspace**:
 - plano **Mentoria**: cobrado do mentor por quantidade de afiliados (assentos);
 - plano **Avulso**: cobrado do próprio afiliado.
 
-Asaas e Mercado Pago cobrem PIX recorrente, boleto e cartão, com webhooks. Uma tabela de `limites` por plano (assentos, cota de vídeo em GB, listas) é consultada pela API, para que mudar um plano não exija deploy.
+Asaas e Mercado Pago cobrem PIX recorrente, boleto e cartão, com webhooks. Uma tabela de `limites` por plano (assentos, cota de vídeo em GB, listas, preços) é consultada pela API, para que mudar um plano não exija deploy.
+
+O M7 implementou a cobrança com o **Asaas** (escolha provisória), atrás da interface `assinaturas.Gateway`: trocar de provedor é escrever outra implementação dessa interface. O acesso de cada workspace é a data `workspaces.acesso_ate`: o cadastro dá 7 dias de teste, cada pagamento confirmado estende a data e, passada ela, o workspace se suspende sozinho, sem depender de job nem de um webhook que pode se perder.
 
 ### Frontend
 React + Vite em PWA, responsivo e pensado primeiro para o celular. Uppy cuida do upload com retomada, e Web Push avisa quando o mentor manda uma lista nova. Se o uso no celular exigir mais (salvar na galeria do iPhone, push mais confiável), a fase 2 é Expo, reaproveitando o cliente TypeScript gerado do OpenAPI.
@@ -144,7 +146,8 @@ app-parceiros/
 
 ## Decisões em aberto
 1. **Cloud:** GCP, AWS ou DigitalOcean. Sugiro GCP (GKE Autopilot + Cloud SQL), com R2 para vídeos.
-2. **Cobrança:** Asaas ou Mercado Pago.
-3. **Mentor paga pela turma ou cada aluno paga?** A stack suporta os dois, mas o plano Mentoria precisa de uma regra.
+2. **Cobrança:** o M7 saiu com Asaas, a confirmar. Mercado Pago entra como outra implementação de `assinaturas.Gateway`.
+3. **Mentor paga pela turma ou cada aluno paga?** O M7 saiu com o mentor pagando por assento, a confirmar.
+4. **Preços:** `limites` saiu com R$ 29,90 por mês no avulso e R$ 14,90 por assento na mentoria, valores provisórios.
 
 Ação que não depende de código: **pedir agora o acesso à Shopee Affiliate Open API**, porque precisa de aprovação.

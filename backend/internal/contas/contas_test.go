@@ -266,7 +266,8 @@ func TestConvitesInvalidos(t *testing.T) {
 
 func TestLimiteDeAssentos(t *testing.T) {
 	a := novoAmbiente(t)
-	a.admin("UPDATE limites SET valor = 2 WHERE plano = 'mentoria' AND chave = 'assentos'")
+	// No teste vale o limite de teste do plano.
+	a.admin("UPDATE limites SET valor = 2 WHERE plano = 'mentoria' AND chave = 'assentos_teste'")
 	ws := a.mentoria("mentor", "Turma")
 	base := "/v1/workspaces/" + ws.ID.String()
 
@@ -278,9 +279,93 @@ func TestLimiteDeAssentos(t *testing.T) {
 	a.exigir("bia", http.MethodPost, "/v1/convites/"+c1.Token+"/aceitar", nil, nil, http.StatusOK)
 	a.exigirErro("mentor", http.MethodPost, base+"/convites", map[string]any{}, http.StatusConflict, "sem_assentos")
 
-	// Se o limite cair depois de o convite ter sido criado, o aceite barra.
-	a.admin("UPDATE limites SET valor = 1 WHERE plano = 'mentoria' AND chave = 'assentos'")
+	// Com assentos contratados, valem eles. Se caírem depois de o convite ter
+	// sido criado, o aceite barra.
+	a.admin("UPDATE workspaces SET assentos = 1 WHERE id = $1", ws.ID)
 	a.exigirErro("caio", http.MethodPost, "/v1/convites/"+c2.Token+"/aceitar", nil, http.StatusConflict, "sem_assentos")
+	a.admin("UPDATE workspaces SET assentos = 3 WHERE id = $1", ws.ID)
+	a.exigir("caio", http.MethodPost, "/v1/convites/"+c2.Token+"/aceitar", nil, nil, http.StatusOK)
+}
+
+func TestSuspensao(t *testing.T) {
+	a := novoAmbiente(t)
+	ws := a.mentoria("mentor", "Turma")
+	base := "/v1/workspaces/" + ws.ID.String()
+	if ws.Status != contas.SituacaoTeste || time.Until(ws.AcessoAte) < 6*24*time.Hour || ws.Assentos != nil {
+		t.Fatalf("mentoria nova: %+v", ws)
+	}
+	c := a.convite("mentor", ws.ID, nil)
+	a.exigir("bia", http.MethodPost, "/v1/convites/"+c.Token+"/aceitar", nil, nil, http.StatusOK)
+	bia := a.usuario("bia")
+
+	// Fim do teste sem pagamento: suspenso.
+	a.admin("UPDATE workspaces SET acesso_ate = now() - interval '1 minute' WHERE id = $1", ws.ID)
+	var visto contas.Workspace
+	a.exigir("mentor", http.MethodGet, base+"/", nil, &visto, http.StatusOK)
+	if visto.Status != contas.SituacaoSuspenso {
+		t.Fatalf("status = %q", visto.Status)
+	}
+	a.exigirErro("mentor", http.MethodGet, base+"/membros", nil, http.StatusPaymentRequired, "workspace_suspenso")
+	a.exigirErro("mentor", http.MethodPost, base+"/convites", map[string]any{}, http.StatusPaymentRequired, "workspace_suspenso")
+	a.exigirErro("bia", http.MethodPatch, base+"/", map[string]any{"nome": "x"}, http.StatusPaymentRequired, "workspace_suspenso")
+	// O afiliado ainda pode sair.
+	a.exigir("bia", http.MethodDelete, base+"/membros/"+bia.ID.String(), nil, nil, http.StatusNoContent)
+
+	// Um pagamento reativa, sem nunca encurtar o acesso.
+	ctx := context.Background()
+	ate := time.Now().Add(30 * 24 * time.Hour)
+	assentos := int32(10)
+	if err := a.svc.LiberarAcesso(ctx, ws.ID, ate, &assentos); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.svc.LiberarAcesso(ctx, ws.ID, time.Now().Add(time.Hour), nil); err != nil {
+		t.Fatal(err)
+	}
+	a.exigir("mentor", http.MethodGet, base+"/", nil, &visto, http.StatusOK)
+	if visto.Status != contas.SituacaoAtivo || visto.AcessoAte.Sub(ate).Abs() > time.Second || visto.Assentos == nil || *visto.Assentos != 10 {
+		t.Fatalf("depois do pagamento: %+v", visto)
+	}
+	var membros []contas.MembroDetalhe
+	a.exigir("mentor", http.MethodGet, base+"/membros", nil, &membros, http.StatusOK)
+
+	// Estorno bloqueia na hora.
+	if err := a.svc.BloquearAcesso(ctx, ws.ID); err != nil {
+		t.Fatal(err)
+	}
+	a.exigirErro("mentor", http.MethodGet, base+"/membros", nil, http.StatusPaymentRequired, "workspace_suspenso")
+}
+
+func TestDefinirAssentos(t *testing.T) {
+	a := novoAmbiente(t)
+	a.admin("UPDATE limites SET valor = 4 WHERE plano = 'mentoria' AND chave = 'assentos'")
+	ws := a.mentoria("mentor", "Turma")
+	a.convite("mentor", ws.ID, nil)
+	a.convite("mentor", ws.ID, nil)
+	ctx := context.Background()
+	m, err := a.svc.Membro(ctx, a.usuario("mentor").ID, ws.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n, err := a.svc.AssentosEmUso(ctx, m); err != nil || n != 2 {
+		t.Fatalf("em uso = %d, %v", n, err)
+	}
+	if err := a.svc.DefinirAssentos(ctx, m, 1); !errors.Is(err, contas.ErrAssentosEmUso) {
+		t.Fatalf("abaixo do em uso: %v", err)
+	}
+	if err := a.svc.DefinirAssentos(ctx, m, 5); !errors.Is(err, contas.ErrAssentosAcimaDoPlano) {
+		t.Fatalf("acima do plano: %v", err)
+	}
+	if err := a.svc.DefinirAssentos(ctx, m, 3); err != nil {
+		t.Fatal(err)
+	}
+	ws2, err := a.svc.Workspace(ctx, m)
+	if err != nil || ws2.Assentos == nil || *ws2.Assentos != 3 {
+		t.Fatalf("assentos = %v, %v", ws2.Assentos, err)
+	}
+	m.Papel = contas.PapelMentor
+	if err := a.svc.DefinirAssentos(ctx, m, 3); !errors.Is(err, contas.ErrSemPermissao) {
+		t.Fatalf("mentor: %v", err)
+	}
 }
 
 func TestRemoverESair(t *testing.T) {

@@ -19,6 +19,9 @@ type Escopo struct {
 	WorkspaceID string // app.workspace_id
 	ZitadelSub  string // app.zitadel_sub
 	ConviteHash string // app.convite_hash (hex)
+	// AssinaturaExterna é o id da assinatura no gateway, com que o webhook
+	// acha o workspace dela (app.assinatura_externa).
+	AssinaturaExterna string
 }
 
 // InTx roda fn numa transação com o papel AppRole e as variáveis do escopo.
@@ -42,8 +45,9 @@ func SetEscopo(ctx context.Context, tx pgx.Tx, e Escopo) error {
 		set_config('app.usuario_id', $1, true),
 		set_config('app.workspace_id', $2, true),
 		set_config('app.zitadel_sub', $3, true),
-		set_config('app.convite_hash', $4, true)`,
-		e.UsuarioID, e.WorkspaceID, e.ZitadelSub, e.ConviteHash)
+		set_config('app.convite_hash', $4, true),
+		set_config('app.assinatura_externa', $5, true)`,
+		e.UsuarioID, e.WorkspaceID, e.ZitadelSub, e.ConviteHash, e.AssinaturaExterna)
 	if err != nil {
 		return fmt.Errorf("definindo escopo da transação: %w", err)
 	}

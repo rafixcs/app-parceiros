@@ -1,15 +1,54 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, Outlet, useNavigate, useParams } from "@tanstack/react-router";
-import { BarChart3, Bell, Bookmark, Clapperboard, Flame, ListChecks, LogOut, Plug, Users } from "lucide-react";
+import { BarChart3, Bell, Bookmark, Clapperboard, CreditCard, Flame, ListChecks, LogOut, Plug, Users } from "lucide-react";
 import { useEffect } from "react";
-import { api, exigir } from "@/api/cliente";
+import { api, exigir, type Workspace } from "@/api/cliente";
 import { Button } from "@/components/ui/button";
+import { Aviso } from "@/components/ui/card";
 import { Select } from "@/components/ui/input";
 import { sair } from "@/lib/auth";
 import { cn } from "@/lib/utils";
+import { diasAte } from "./assinatura-api";
 import { useNaoLidas } from "./listas-api";
 
 const chaveUltimo = "parceiros.workspace";
+
+/**
+ * Aviso de cobrança no topo do app: o teste terminando e o workspace suspenso.
+ * O afiliado não paga nada, então para ele o aviso só diz com quem falar.
+ */
+function AvisoCobranca({ ws }: { ws: Workspace }) {
+  const dias = diasAte(ws.acesso_ate);
+  const dono = ws.papel === "dono";
+  const suspenso = ws.status === "suspenso";
+  if (!suspenso && dias > 3) return null;
+  return (
+    <Aviso
+      className={cn(
+        "flex flex-wrap items-center gap-2",
+        suspenso ? "border-red-200 bg-red-50 text-red-800" : "border-amber-200 bg-amber-50 text-amber-900",
+      )}
+    >
+      <span>
+        {suspenso
+          ? "Este workspace está suspenso por falta de pagamento."
+          : dias <= 0
+            ? "O período de teste terminou."
+            : `O período de teste termina em ${dias === 1 ? "1 dia" : `${dias} dias`}.`}
+        {!dono && " Fale com o dono do workspace."}
+      </span>
+      {dono && (
+        <Link
+          to="/w/$workspaceId/assinatura"
+          params={{ workspaceId: ws.id }}
+          className="font-medium underline underline-offset-2"
+        >
+          Cuidar da assinatura
+        </Link>
+      )}
+    </Aviso>
+  );
+}
 
 /** Último workspace aberto, para voltar a ele fora das rotas de workspace. */
 export function ultimoWorkspace(): string | null {
@@ -47,6 +86,8 @@ export function Layout() {
   const ws = workspaces.data?.find((w) => w.id === atual);
   // Na mentoria, só dono e mentor gerem a turma; no pessoal, o link leva a criar uma mentoria.
   const verTurma = ws?.tipo === "pessoal" || ws?.papel === "dono" || ws?.papel === "mentor";
+  // A assinatura é do dono (o mentor acompanha); o afiliado não paga nada.
+  const verAssinatura = ws?.papel === "dono" || ws?.papel === "mentor";
   const naoLidas = useNaoLidas(atual || undefined).data?.nao_lidas ?? 0;
   const secao = "flex h-9 shrink-0 items-center gap-2 rounded-lg px-3 text-sm hover:bg-zinc-100";
 
@@ -132,6 +173,18 @@ export function Layout() {
                   <span className="hidden xl:inline">Listas</span>
                 </Link>
               )}
+              {verAssinatura && (
+                <Link
+                  to="/w/$workspaceId/assinatura"
+                  params={{ workspaceId: atual }}
+                  className={secao}
+                  title="Assinatura"
+                  activeProps={{ className: "bg-zinc-100 font-medium" }}
+                >
+                  <CreditCard className="size-4" />
+                  <span className="hidden xl:inline">Assinatura</span>
+                </Link>
+              )}
               {verTurma && (
                 <Link
                   to="/w/$workspaceId/turma"
@@ -190,7 +243,8 @@ export function Layout() {
           </nav>
         </div>
       </header>
-      <div className="mx-auto max-w-6xl px-4 py-6">
+      <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-6">
+        {ws && ws.status !== "ativo" && <AvisoCobranca ws={ws} />}
         <Outlet />
       </div>
     </div>

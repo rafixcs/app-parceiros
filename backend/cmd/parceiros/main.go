@@ -22,6 +22,7 @@ import (
 	"github.com/riverqueue/river"
 
 	"github.com/rafixcs/app-parceiros/backend/db"
+	"github.com/rafixcs/app-parceiros/backend/internal/assinaturas"
 	"github.com/rafixcs/app-parceiros/backend/internal/colecoes"
 	"github.com/rafixcs/app-parceiros/backend/internal/contas"
 	"github.com/rafixcs/app-parceiros/backend/internal/curadoria"
@@ -136,6 +137,19 @@ func catalogoDoApp(cfg config.Config, cliente *shopee.Cliente) fontes.Catalogo {
 	}
 }
 
+// gatewayCobranca escolhe o gateway de cobrança: o Asaas ou, em dev, o mock,
+// que não cobra nada e aceita a simulação de pagamento.
+func gatewayCobranca(log *slog.Logger, cfg config.Config) assinaturas.Gateway {
+	if cfg.CobrancaModo == "mock" {
+		log.Warn("cobrança em modo mock: nada é cobrado e o pagamento é simulado")
+		return assinaturas.NovoMock()
+	}
+	if cfg.AsaasWebhook == "" {
+		log.Warn("sem ASAAS_WEBHOOK_SEGREDO: os avisos de cobrança do Asaas serão recusados")
+	}
+	return assinaturas.Asaas{URL: cfg.AsaasURL, Chave: cfg.AsaasChave, SegredoWebhook: cfg.AsaasWebhook}
+}
+
 // canaisNotificacao monta o e-mail (SMTP) e o Web Push, se configurados.
 func canaisNotificacao(log *slog.Logger, cfg config.Config) (notificacoes.Remetente, notificacoes.Push) {
 	var remetente notificacoes.Remetente
@@ -202,6 +216,7 @@ func runAPI(ctx context.Context, log *slog.Logger, cfg config.Config, pool *pgxp
 	afiliador := shopee.Afiliador{Credenciais: credenciais, Cliente: clienteShopee}
 	resultadosSvc := resultados.NewService(pool, shopee.Relatorio{Credenciais: credenciais, Cliente: clienteShopee},
 		afiliador, produtosSvc, contasSvc, curadoriaSvc, resultados.FilaRiver{Client: fila}, log)
+	assinaturasSvc := assinaturas.NewService(pool, gatewayCobranca(log, cfg), contasSvc, notificacoesSvc, log)
 	contas.NewHandler(contasSvc, log).Rotas(router, verificador,
 		shopee.NewHandler(credenciais, log).Modulo(),
 		tendencias.NewHandler(radar, log).Modulo(),
@@ -210,6 +225,7 @@ func runAPI(ctx context.Context, log *slog.Logger, cfg config.Config, pool *pgxp
 		notificacoes.NewHandler(notificacoesSvc, log).Modulo(),
 		midia.NewHandler(midiaSvc, log).Modulo(),
 		resultados.NewHandler(resultadosSvc, log).Modulo(),
+		assinaturas.NewHandler(assinaturasSvc, log).Modulo(),
 	)
 
 	srv := &http.Server{Addr: cfg.HTTPAddr, Handler: router}

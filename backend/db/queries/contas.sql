@@ -106,3 +106,19 @@ WHERE id = $1
 -- name: DefinirConsentimento :execrows
 UPDATE membros SET consente_resultados = @consente
 WHERE workspace_id = @workspace_id AND usuario_id = @usuario_id;
+
+-- name: LiberarAcesso :one
+-- Estende o acesso até `ate` (nunca encurta) e marca o pagamento. Assentos
+-- nulos mantêm os contratados.
+UPDATE workspaces
+SET acesso_ate = greatest(acesso_ate, @ate::timestamptz),
+    pago_em = now(),
+    assentos = coalesce(sqlc.narg(assentos), assentos)
+WHERE id = @id
+RETURNING *;
+
+-- name: BloquearAcesso :execrows
+UPDATE workspaces SET acesso_ate = least(acesso_ate, now()) WHERE id = $1;
+
+-- name: DefinirAssentos :exec
+UPDATE workspaces SET assentos = $2 WHERE id = $1;

@@ -31,6 +31,9 @@ func (h *Handler) Modulo() contas.Modulo {
 		DoWorkspace: func(r chi.Router) {
 			r.Get("/resultados", h.meus)
 			r.Get("/resultados/turma", h.turma)
+		},
+		// Retirar (ou dar) o consentimento vale mesmo com o workspace suspenso.
+		Livres: func(r chi.Router) {
 			r.Put("/resultados/consentimento", h.consentimento)
 		},
 	}

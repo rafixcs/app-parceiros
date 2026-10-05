@@ -80,18 +80,43 @@ func (h *Handler) ExigirMembro(next http.Handler) http.Handler {
 	})
 }
 
-// Modulo são as rotas de outro módulo que dependem de contas. Autenticadas
-// ficam atrás do login; DoWorkspace ficam sob /v1/workspaces/{workspaceId},
-// atrás de ExigirMembro.
+// ExigirAtivo barra as rotas de um workspace suspenso por falta de
+// pagamento (402). Roda depois de ExigirMembro.
+func (h *Handler) ExigirAtivo(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if m, _ := MembroDoContexto(r.Context()); m.Suspenso {
+			if m.Papel == PapelDono {
+				h.erro(w, r, ErrSuspensoDono)
+			} else {
+				h.erro(w, r, ErrSuspenso)
+			}
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// Modulo são as rotas de outro módulo que dependem de contas. Publicas não
+// exigem login; Autenticadas ficam atrás do login; DoWorkspace ficam sob
+// /v1/workspaces/{workspaceId}, atrás de ExigirMembro e ExigirAtivo; Livres
+// também ficam sob o workspace, mas continuam valendo com ele suspenso (a
+// assinatura, por exemplo).
 type Modulo struct {
+	Publicas     func(r chi.Router)
 	Autenticadas func(r chi.Router)
 	DoWorkspace  func(r chi.Router)
+	Livres       func(r chi.Router)
 }
 
 // Rotas registra as rotas de contas, e as dos módulos, em r. As rotas
 // autenticadas usam v.
 func (h *Handler) Rotas(r chi.Router, v auth.Verificador, modulos ...Modulo) {
 	r.Get("/v1/convites/{token}", h.verConvite)
+	for _, m := range modulos {
+		if m.Publicas != nil {
+			m.Publicas(r)
+		}
+	}
 
 	r.Group(func(r chi.Router) {
 		r.Use(auth.Middleware(v), h.Autenticado)
@@ -108,18 +133,28 @@ func (h *Handler) Rotas(r chi.Router, v auth.Verificador, modulos ...Modulo) {
 
 		r.Route("/v1/workspaces/{workspaceId}", func(r chi.Router) {
 			r.Use(h.ExigirMembro)
+			// Com o workspace suspenso, ainda dá para vê-lo, sair dele ou
+			// tirar afiliados (para caber em menos assentos).
 			r.Get("/", h.verWorkspace)
-			r.Patch("/", h.atualizarWorkspace)
-			r.Get("/membros", h.listarMembros)
 			r.Delete("/membros/{usuarioId}", h.removerMembro)
-			r.Get("/convites", h.listarConvites)
-			r.Post("/convites", h.criarConvite)
-			r.Delete("/convites/{conviteId}", h.revogarConvite)
 			for _, m := range modulos {
-				if m.DoWorkspace != nil {
-					m.DoWorkspace(r)
+				if m.Livres != nil {
+					m.Livres(r)
 				}
 			}
+			r.Group(func(r chi.Router) {
+				r.Use(h.ExigirAtivo)
+				r.Patch("/", h.atualizarWorkspace)
+				r.Get("/membros", h.listarMembros)
+				r.Get("/convites", h.listarConvites)
+				r.Post("/convites", h.criarConvite)
+				r.Delete("/convites/{conviteId}", h.revogarConvite)
+				for _, m := range modulos {
+					if m.DoWorkspace != nil {
+						m.DoWorkspace(r)
+					}
+				}
+			})
 		})
 	})
 }

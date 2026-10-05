@@ -33,6 +33,28 @@ const (
 	TipoMentoria TipoWorkspace = "mentoria"
 )
 
+// Situacao do workspace na assinatura. Teste e ativo dão acesso; suspenso, não.
+type Situacao string
+
+const (
+	SituacaoTeste    Situacao = "teste"
+	SituacaoAtivo    Situacao = "ativo"
+	SituacaoSuspenso Situacao = "suspenso"
+)
+
+// situacaoDe calcula a situação: o acesso vale até acesso_ate (fim do teste ou
+// do ciclo pago, mais a tolerância); pago_em diz se já houve pagamento.
+func situacaoDe(w contasdb.Workspace, agora time.Time) Situacao {
+	switch {
+	case !agora.Before(w.AcessoAte):
+		return SituacaoSuspenso
+	case w.PagoEm != nil:
+		return SituacaoAtivo
+	default:
+		return SituacaoTeste
+	}
+}
+
 type Usuario struct {
 	ID       uuid.UUID `json:"id"`
 	Nome     string    `json:"nome"`
@@ -46,9 +68,14 @@ type Workspace struct {
 	Nome     string        `json:"nome"`
 	FotoURL  *string       `json:"foto_url"`
 	Plano    string        `json:"plano"`
-	Status   string        `json:"status"`
-	Papel    Papel         `json:"papel"`
-	CriadoEm time.Time     `json:"criado_em"`
+	Status   Situacao      `json:"status"`
+	// AcessoAte é até quando o workspace pode ser usado: o fim do teste ou do
+	// ciclo pago, mais a tolerância.
+	AcessoAte time.Time `json:"acesso_ate"`
+	// Assentos contratados (mentoria). Nulo enquanto não há pagamento.
+	Assentos *int32    `json:"assentos"`
+	Papel    Papel     `json:"papel"`
+	CriadoEm time.Time `json:"criado_em"`
 }
 
 // Membro é a participação do usuário autenticado no workspace da requisição.
@@ -60,6 +87,8 @@ type Membro struct {
 	// ConsenteResultados diz se o usuário autoriza dono e mentores a ver os
 	// seus resultados agregados neste workspace (LGPD).
 	ConsenteResultados bool
+	// Suspenso diz se o workspace está sem acesso por falta de pagamento.
+	Suspenso bool
 }
 
 type MembroDetalhe struct {
@@ -127,6 +156,10 @@ var (
 	ErrConsentimentoSoMentoria = &Erro{http.StatusConflict, "so_mentoria", "O consentimento vale só em workspaces de mentoria."}
 	ErrDonoNaoSai              = &Erro{http.StatusConflict, "dono_nao_sai", "O dono não pode sair nem ser removido do workspace."}
 	ErrSemAssentos             = &Erro{http.StatusConflict, "sem_assentos", "Todos os assentos do plano estão ocupados."}
+	ErrAssentosEmUso           = &Erro{http.StatusConflict, "assentos_em_uso", "A turma e os convites pendentes ocupam mais assentos do que isso. Remova afiliados ou cancele convites antes."}
+	ErrAssentosAcimaDoPlano    = &Erro{http.StatusUnprocessableEntity, "dados_invalidos", "Essa quantidade de assentos passa do máximo do plano."}
+	ErrSuspensoDono            = &Erro{http.StatusPaymentRequired, "workspace_suspenso", "Este workspace está suspenso por falta de pagamento. Regularize a assinatura para voltar a usá-lo."}
+	ErrSuspenso                = &Erro{http.StatusPaymentRequired, "workspace_suspenso", "Este workspace está suspenso por falta de pagamento. Fale com o dono do workspace."}
 	ErrJaMembro                = &Erro{http.StatusConflict, "ja_membro", "Você já participa deste workspace."}
 	ErrConviteExpirado         = &Erro{http.StatusGone, "convite_expirado", "Este convite expirou. Peça um novo ao seu mentor."}
 	ErrConviteUsado            = &Erro{http.StatusGone, "convite_usado", "Este convite já foi usado. Peça um novo ao seu mentor."}
@@ -140,14 +173,16 @@ func erroValidacao(msg string) *Erro {
 
 func workspaceDe(w contasdb.Workspace, p Papel) Workspace {
 	return Workspace{
-		ID:       w.ID,
-		Tipo:     TipoWorkspace(w.Tipo),
-		Nome:     w.Nome,
-		FotoURL:  w.FotoUrl,
-		Plano:    w.Plano,
-		Status:   w.Status,
-		Papel:    p,
-		CriadoEm: w.CriadoEm,
+		ID:        w.ID,
+		Tipo:      TipoWorkspace(w.Tipo),
+		Nome:      w.Nome,
+		FotoURL:   w.FotoUrl,
+		Plano:     w.Plano,
+		Status:    situacaoDe(w, time.Now()),
+		AcessoAte: w.AcessoAte,
+		Assentos:  w.Assentos,
+		Papel:     p,
+		CriadoEm:  w.CriadoEm,
 	}
 }
 
