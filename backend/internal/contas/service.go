@@ -219,7 +219,10 @@ func (s *Service) Membro(ctx context.Context, usuarioID, workspaceID uuid.UUID) 
 		if err != nil {
 			return err
 		}
-		m = Membro{WorkspaceID: workspaceID, UsuarioID: usuarioID, Papel: Papel(mb.Papel), TipoWorkspace: TipoWorkspace(w.Tipo)}
+		m = Membro{
+			WorkspaceID: workspaceID, UsuarioID: usuarioID, Papel: Papel(mb.Papel),
+			TipoWorkspace: TipoWorkspace(w.Tipo), ConsenteResultados: mb.ConsenteResultados,
+		}
 		return nil
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -294,11 +297,32 @@ func (s *Service) Membros(ctx context.Context, m Membro) ([]MembroDetalhe, error
 		}
 		out = make([]MembroDetalhe, 0, len(rows))
 		for _, r := range rows {
-			out = append(out, MembroDetalhe{UsuarioID: r.UsuarioID, Nome: r.Nome, Email: r.Email, Papel: Papel(r.Papel), EntrouEm: r.EntrouEm})
+			out = append(out, MembroDetalhe{
+				UsuarioID: r.UsuarioID, Nome: r.Nome, Email: r.Email, Papel: Papel(r.Papel), EntrouEm: r.EntrouEm,
+				ConsenteResultados: r.ConsenteResultados,
+			})
 		}
 		return nil
 	})
 	return out, err
+}
+
+// DefinirConsentimento grava se o usuário autoriza dono e mentores a ver os
+// seus resultados agregados no workspace. Só existe em mentorias; vale a
+// partir da próxima consulta do painel.
+func (s *Service) DefinirConsentimento(ctx context.Context, m Membro, consente bool) error {
+	if m.TipoWorkspace != TipoMentoria {
+		return ErrConsentimentoSoMentoria
+	}
+	return s.tx(ctx, escopoDe(m), func(q *contasdb.Queries, _ pgx.Tx) error {
+		n, err := q.DefinirConsentimento(ctx, contasdb.DefinirConsentimentoParams{
+			Consente: consente, WorkspaceID: m.WorkspaceID, UsuarioID: m.UsuarioID,
+		})
+		if err == nil && n == 0 {
+			return ErrMembroNaoEncontrado
+		}
+		return err
+	})
 }
 
 // RemoverMembro tira alguém do workspace. Qualquer membro pode sair (alvo =

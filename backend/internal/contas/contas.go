@@ -57,6 +57,9 @@ type Membro struct {
 	UsuarioID     uuid.UUID
 	Papel         Papel
 	TipoWorkspace TipoWorkspace
+	// ConsenteResultados diz se o usuário autoriza dono e mentores a ver os
+	// seus resultados agregados neste workspace (LGPD).
+	ConsenteResultados bool
 }
 
 type MembroDetalhe struct {
@@ -65,6 +68,9 @@ type MembroDetalhe struct {
 	Email     string    `json:"email"`
 	Papel     Papel     `json:"papel"`
 	EntrouEm  time.Time `json:"entrou_em"`
+	// ConsenteResultados diz se o membro autoriza ver os seus resultados
+	// agregados no painel da turma.
+	ConsenteResultados bool `json:"consente_resultados"`
 }
 
 type Convite struct {
@@ -113,18 +119,19 @@ type Erro struct {
 func (e *Erro) Error() string { return e.Codigo }
 
 var (
-	ErrWorkspaceNaoEncontrado = &Erro{http.StatusNotFound, "workspace_nao_encontrado", "Workspace não encontrado."}
-	ErrMembroNaoEncontrado    = &Erro{http.StatusNotFound, "membro_nao_encontrado", "Membro não encontrado."}
-	ErrConviteNaoEncontrado   = &Erro{http.StatusNotFound, "convite_nao_encontrado", "Convite não encontrado."}
-	ErrSemPermissao           = &Erro{http.StatusForbidden, "sem_permissao", "Você não tem permissão para esta ação."}
-	ErrSoMentoria             = &Erro{http.StatusConflict, "so_mentoria", "Só é possível convidar afiliados para um workspace de mentoria."}
-	ErrDonoNaoSai             = &Erro{http.StatusConflict, "dono_nao_sai", "O dono não pode sair nem ser removido do workspace."}
-	ErrSemAssentos            = &Erro{http.StatusConflict, "sem_assentos", "Todos os assentos do plano estão ocupados."}
-	ErrJaMembro               = &Erro{http.StatusConflict, "ja_membro", "Você já participa deste workspace."}
-	ErrConviteExpirado        = &Erro{http.StatusGone, "convite_expirado", "Este convite expirou. Peça um novo ao seu mentor."}
-	ErrConviteUsado           = &Erro{http.StatusGone, "convite_usado", "Este convite já foi usado. Peça um novo ao seu mentor."}
-	ErrConviteRevogado        = &Erro{http.StatusGone, "convite_revogado", "Este convite foi cancelado. Peça um novo ao seu mentor."}
-	ErrConviteOutroEmail      = &Erro{http.StatusForbidden, "convite_outro_email", "Este convite foi enviado para outro e-mail. Entre com a conta que recebeu o convite."}
+	ErrWorkspaceNaoEncontrado  = &Erro{http.StatusNotFound, "workspace_nao_encontrado", "Workspace não encontrado."}
+	ErrMembroNaoEncontrado     = &Erro{http.StatusNotFound, "membro_nao_encontrado", "Membro não encontrado."}
+	ErrConviteNaoEncontrado    = &Erro{http.StatusNotFound, "convite_nao_encontrado", "Convite não encontrado."}
+	ErrSemPermissao            = &Erro{http.StatusForbidden, "sem_permissao", "Você não tem permissão para esta ação."}
+	ErrSoMentoria              = &Erro{http.StatusConflict, "so_mentoria", "Só é possível convidar afiliados para um workspace de mentoria."}
+	ErrConsentimentoSoMentoria = &Erro{http.StatusConflict, "so_mentoria", "O consentimento vale só em workspaces de mentoria."}
+	ErrDonoNaoSai              = &Erro{http.StatusConflict, "dono_nao_sai", "O dono não pode sair nem ser removido do workspace."}
+	ErrSemAssentos             = &Erro{http.StatusConflict, "sem_assentos", "Todos os assentos do plano estão ocupados."}
+	ErrJaMembro                = &Erro{http.StatusConflict, "ja_membro", "Você já participa deste workspace."}
+	ErrConviteExpirado         = &Erro{http.StatusGone, "convite_expirado", "Este convite expirou. Peça um novo ao seu mentor."}
+	ErrConviteUsado            = &Erro{http.StatusGone, "convite_usado", "Este convite já foi usado. Peça um novo ao seu mentor."}
+	ErrConviteRevogado         = &Erro{http.StatusGone, "convite_revogado", "Este convite foi cancelado. Peça um novo ao seu mentor."}
+	ErrConviteOutroEmail       = &Erro{http.StatusForbidden, "convite_outro_email", "Este convite foi enviado para outro e-mail. Entre com a conta que recebeu o convite."}
 )
 
 func erroValidacao(msg string) *Erro {

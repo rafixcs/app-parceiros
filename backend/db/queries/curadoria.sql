@@ -102,3 +102,10 @@ SELECT usuario_id, count(*) AS produtos, max(importado_em)::timestamptz AS ultim
 WHERE lista_id = @lista_id AND workspace_id = @workspace_id
 GROUP BY usuario_id
 ORDER BY ultima_em DESC;
+
+-- name: ImportacoesPublicadas :many
+-- Todas as importações das listas publicadas, para os resultados por lista.
+SELECT i.lista_id, i.usuario_id, i.produto_id, i.importado_em
+FROM importacoes i
+JOIN listas_curadoria l ON l.id = i.lista_id AND l.workspace_id = i.workspace_id
+WHERE i.workspace_id = @workspace_id AND l.publicada_em IS NOT NULL;

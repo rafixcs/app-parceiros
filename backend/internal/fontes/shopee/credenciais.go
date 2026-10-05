@@ -212,3 +212,10 @@ func mascarar(appID string) string {
 	}
 	return "••••" + appID[len(appID)-4:]
 }
+
+// Conectados lista os usuários com credencial conectada, para agendar a
+// sincronização diária de conversões. Uso exclusivo do worker: lê com o papel
+// dono das tabelas e devolve só os IDs.
+func (s *Credenciais) Conectados(ctx context.Context) ([]uuid.UUID, error) {
+	return shopeedb.New(s.pool).UsuariosConectados(ctx)
+}

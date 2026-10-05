@@ -658,6 +658,51 @@ func (s *Service) Painel(ctx context.Context, m contas.Membro, id uuid.UUID) (Pa
 	return out, nil
 }
 
+// Importacao é um produto que um afiliado importou de uma lista, e quando.
+type Importacao struct {
+	UsuarioID   uuid.UUID
+	ProdutoID   uuid.UUID
+	ImportadoEm time.Time
+}
+
+// ListaImportada é uma lista publicada com as importações da turma.
+type ListaImportada struct {
+	Lista
+	Importacoes []Importacao
+}
+
+// Importacoes devolve as listas publicadas do workspace, da mais recente para
+// a mais antiga, com as importações de cada uma. Só dono e mentor veem; é o
+// que o painel de resultados da turma usa para somar por lista.
+func (s *Service) Importacoes(ctx context.Context, m contas.Membro) ([]ListaImportada, error) {
+	if err := exigirGestor(m); err != nil {
+		return nil, err
+	}
+	var listas []curadoriadb.ListasRow
+	var imps []curadoriadb.ImportacoesPublicadasRow
+	err := s.tx(ctx, m, func(q *curadoriadb.Queries) error {
+		var err error
+		listas, err = q.Listas(ctx, curadoriadb.ListasParams{WorkspaceID: m.WorkspaceID, UsuarioID: m.UsuarioID, Rascunhos: false})
+		if err != nil {
+			return err
+		}
+		imps, err = q.ImportacoesPublicadas(ctx, m.WorkspaceID)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	porLista := map[uuid.UUID][]Importacao{}
+	for _, i := range imps {
+		porLista[i.ListaID] = append(porLista[i.ListaID], Importacao{UsuarioID: i.UsuarioID, ProdutoID: i.ProdutoID, ImportadoEm: i.ImportadoEm})
+	}
+	out := make([]ListaImportada, 0, len(listas))
+	for _, l := range listas {
+		out = append(out, ListaImportada{Lista: listaDe(curadoriadb.ListaRow(l), true), Importacoes: porLista[l.ID]})
+	}
+	return out, nil
+}
+
 func listaDe(r curadoriadb.ListaRow, gestor bool) Lista {
 	l := Lista{
 		ID: r.ID, Titulo: r.Titulo, Descricao: r.Descricao, PublicadaEm: r.PublicadaEm,

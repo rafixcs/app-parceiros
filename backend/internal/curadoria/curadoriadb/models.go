@@ -312,6 +312,50 @@ func (ns NullMembroPapel) Value() (driver.Value, error) {
 	return string(ns.MembroPapel), nil
 }
 
+type PedidoStatus string
+
+const (
+	PedidoStatusNaoPago   PedidoStatus = "nao_pago"
+	PedidoStatusPendente  PedidoStatus = "pendente"
+	PedidoStatusConcluido PedidoStatus = "concluido"
+	PedidoStatusCancelado PedidoStatus = "cancelado"
+)
+
+func (e *PedidoStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = PedidoStatus(s)
+	case string:
+		*e = PedidoStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for PedidoStatus: %T", src)
+	}
+	return nil
+}
+
+type NullPedidoStatus struct {
+	PedidoStatus PedidoStatus
+	Valid        bool // Valid is true if PedidoStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullPedidoStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.PedidoStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.PedidoStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullPedidoStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.PedidoStatus), nil
+}
+
 type VideoAlvo string
 
 const (
@@ -506,6 +550,29 @@ type Coleco struct {
 	CriadoEm    time.Time
 }
 
+type Converso struct {
+	ID               uuid.UUID
+	UsuarioID        uuid.UUID
+	WorkspaceID      uuid.UUID
+	Fonte            string
+	ConversaoID      int64
+	PedidoID         string
+	ItemID           int64
+	ModeloID         int64
+	ProdutoID        *uuid.UUID
+	ItemNome         string
+	LojaNome         string
+	SubID            string
+	Canal            *Canal
+	Status           PedidoStatus
+	Quantidade       int32
+	ValorCentavos    int64
+	ComissaoCentavos int64
+	OcorridoEm       time.Time
+	ClicadoEm        *time.Time
+	SincronizadoEm   time.Time
+}
+
 type Convite struct {
 	ID          uuid.UUID
 	WorkspaceID uuid.UUID
@@ -667,6 +734,15 @@ type PushInscricao struct {
 	P256dh    string
 	Auth      string
 	CriadoEm  time.Time
+}
+
+type Sincronizacao struct {
+	UsuarioID   uuid.UUID
+	Status      string
+	PedidaEm    time.Time
+	ConcluidaEm *time.Time
+	Conversoes  int32
+	Erro        *string
 }
 
 type Tendencia struct {

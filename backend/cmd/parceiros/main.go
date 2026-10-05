@@ -38,6 +38,7 @@ import (
 	"github.com/rafixcs/app-parceiros/backend/internal/platform/ratelimit"
 	"github.com/rafixcs/app-parceiros/backend/internal/platform/storage"
 	"github.com/rafixcs/app-parceiros/backend/internal/produtos"
+	"github.com/rafixcs/app-parceiros/backend/internal/resultados"
 	"github.com/rafixcs/app-parceiros/backend/internal/tendencias"
 )
 
@@ -198,6 +199,9 @@ func runAPI(ctx context.Context, log *slog.Logger, cfg config.Config, pool *pgxp
 	midiaSvc := midia.NewService(pool, produtosSvc, &midia.OEmbed{Cache: midia.CacheRedis{R: rdb}},
 		objetosMidia(novoBucket(ctx, log, cfg)), nil, contasSvc, &midia.FilaRiver{Client: fila}, log)
 	curadoriaSvc := curadoria.NewService(pool, produtosSvc, colecoesSvc, contasSvc, notificacoesSvc, midiaSvc, log)
+	afiliador := shopee.Afiliador{Credenciais: credenciais, Cliente: clienteShopee}
+	resultadosSvc := resultados.NewService(pool, shopee.Relatorio{Credenciais: credenciais, Cliente: clienteShopee},
+		afiliador, produtosSvc, contasSvc, curadoriaSvc, resultados.FilaRiver{Client: fila}, log)
 	contas.NewHandler(contasSvc, log).Rotas(router, verificador,
 		shopee.NewHandler(credenciais, log).Modulo(),
 		tendencias.NewHandler(radar, log).Modulo(),
@@ -205,6 +209,7 @@ func runAPI(ctx context.Context, log *slog.Logger, cfg config.Config, pool *pgxp
 		curadoria.NewHandler(curadoriaSvc, log).Modulo(),
 		notificacoes.NewHandler(notificacoesSvc, log).Modulo(),
 		midia.NewHandler(midiaSvc, log).Modulo(),
+		resultados.NewHandler(resultadosSvc, log).Modulo(),
 	)
 
 	srv := &http.Server{Addr: cfg.HTTPAddr, Handler: router}
@@ -252,10 +257,9 @@ func runWorker(ctx context.Context, log *slog.Logger, cfg config.Config, pool *p
 	default:
 		periodicos = append(periodicos, produtos.PeriodicoSnapshots())
 	}
-	afiliador := shopee.Afiliador{
-		Credenciais: shopee.NovasCredenciais(pool, crypto.NovoCofre(kek), clienteShopee),
-		Cliente:     clienteShopee,
-	}
+	credenciais := shopee.NovasCredenciais(pool, crypto.NovoCofre(kek), clienteShopee)
+	afiliador := shopee.Afiliador{Credenciais: credenciais, Cliente: clienteShopee}
+	periodicos = append(periodicos, resultados.PeriodicoSync())
 
 	workers := river.NewWorkers()
 	river.AddWorker(workers, &jobs.PingWorker{Log: log})
@@ -291,6 +295,12 @@ func runWorker(ctx context.Context, log *slog.Logger, cfg config.Config, pool *p
 	river.AddWorker(workers, &midia.ProcessarVideoWorker{Svc: midiaSvc, Log: log})
 	river.AddWorker(workers, &midia.RevalidarEmbedWorker{Svc: midiaSvc})
 	river.AddWorker(workers, &midia.LimparUploadWorker{Svc: midiaSvc})
+	river.AddWorker(workers, &resultados.AgendarSyncWorker{Usuarios: credenciais})
+	river.AddWorker(workers, &resultados.SyncConversoesWorker{
+		Svc: resultados.NewService(pool, shopee.Relatorio{Credenciais: credenciais, Cliente: clienteShopee},
+			afiliador, produtosSvc, contasSvc, nil, nil, log),
+		Log: log,
+	})
 
 	client, err := jobs.NewWorkerClient(pool, workers, periodicos, log)
 	if err != nil {

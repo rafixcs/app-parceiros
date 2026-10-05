@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, Outlet, useNavigate, useParams } from "@tanstack/react-router";
-import { Bell, Bookmark, Clapperboard, Flame, ListChecks, LogOut, Plug, Users } from "lucide-react";
+import { BarChart3, Bell, Bookmark, Clapperboard, Flame, ListChecks, LogOut, Plug, Users } from "lucide-react";
 import { useEffect } from "react";
 import { api, exigir } from "@/api/cliente";
 import { Button } from "@/components/ui/button";
@@ -48,20 +48,20 @@ export function Layout() {
   // Na mentoria, só dono e mentor gerem a turma; no pessoal, o link leva a criar uma mentoria.
   const verTurma = ws?.tipo === "pessoal" || ws?.papel === "dono" || ws?.papel === "mentor";
   const naoLidas = useNaoLidas(atual || undefined).data?.nao_lidas ?? 0;
-  const secao = "flex h-9 items-center gap-2 rounded-lg px-3 text-sm hover:bg-zinc-100";
+  const secao = "flex h-9 shrink-0 items-center gap-2 rounded-lg px-3 text-sm hover:bg-zinc-100";
 
   return (
     <div className="min-h-dvh">
       <header className="sticky top-0 z-10 border-b border-borda bg-white/90 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-2">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2">
           <Link to="/" className="flex shrink-0 items-center gap-2 font-semibold">
             <img src="/icone.svg" alt="" className="size-7" />
-            <span className="hidden sm:inline">Parceiros</span>
+            <span className="hidden 2xl:inline">Parceiros</span>
           </Link>
           {workspaces.data && workspaces.data.length > 0 && (
             <Select
               aria-label="Workspace"
-              className="h-9 max-w-56"
+              className="h-9 w-28 shrink-0 sm:w-44"
               value={atual}
               onChange={(e) =>
                 navigate({ to: "/w/$workspaceId/radar", params: { workspaceId: e.target.value }, search: {} })
@@ -76,45 +76,60 @@ export function Layout() {
             </Select>
           )}
           {atual && (
-            <nav className="flex items-center gap-1" aria-label="Seções">
+            <nav className="order-last flex w-full min-w-0 items-center gap-1 overflow-x-auto [scrollbar-width:none] sm:order-none sm:w-auto" aria-label="Seções">
               <Link
                 to="/w/$workspaceId/radar"
                 params={{ workspaceId: atual }}
                 search={{}}
                 className={secao}
+                title="Radar"
                 activeProps={{ className: "bg-zinc-100 font-medium" }}
               >
                 <Flame className="size-4" />
-                <span className="hidden sm:inline">Radar</span>
+                <span className="hidden xl:inline">Radar</span>
               </Link>
               <Link
                 to="/w/$workspaceId/colecao"
                 params={{ workspaceId: atual }}
                 search={{}}
                 className={secao}
+                title="Coleção"
                 activeProps={{ className: "bg-zinc-100 font-medium" }}
               >
                 <Bookmark className="size-4" />
-                <span className="hidden sm:inline">Coleção</span>
+                <span className="hidden xl:inline">Coleção</span>
               </Link>
               <Link
                 to="/w/$workspaceId/videos"
                 params={{ workspaceId: atual }}
                 className={secao}
+                title="Vídeos"
                 activeProps={{ className: "bg-zinc-100 font-medium" }}
               >
                 <Clapperboard className="size-4" />
-                <span className="hidden sm:inline">Vídeos</span>
+                <span className="hidden xl:inline">Vídeos</span>
+              </Link>
+              <Link
+                to="/w/$workspaceId/resultados"
+                params={{ workspaceId: atual }}
+                search={{}}
+                className={secao}
+                title="Resultados"
+                activeProps={{ className: "bg-zinc-100 font-medium" }}
+              >
+                <BarChart3 className="size-4" />
+                <span className="hidden xl:inline">Resultados</span>
               </Link>
               {ws?.tipo === "mentoria" && (
                 <Link
                   to="/w/$workspaceId/listas"
                   params={{ workspaceId: atual }}
                   className={secao}
+                title="Listas"
                   activeProps={{ className: "bg-zinc-100 font-medium" }}
                 >
                   <ListChecks className="size-4" />
-                  <span className="hidden sm:inline">Listas</span>
+                  <span className="hidden xl:inline">Listas</span>
                 </Link>
               )}
               {verTurma && (
@@ -122,15 +137,16 @@ export function Layout() {
                   to="/w/$workspaceId/turma"
                   params={{ workspaceId: atual }}
                   className={secao}
+                  title={ws?.tipo === "pessoal" ? "Mentoria" : "Turma"}
                   activeProps={{ className: "bg-zinc-100 font-medium" }}
                 >
                   <Users className="size-4" />
-                  <span className="hidden lg:inline">{ws?.tipo === "pessoal" ? "Mentoria" : "Turma"}</span>
+                  <span className="hidden xl:inline">{ws?.tipo === "pessoal" ? "Mentoria" : "Turma"}</span>
                 </Link>
               )}
             </nav>
           )}
-          <nav className="ml-auto flex items-center gap-1">
+          <nav className="ml-auto flex shrink-0 items-center gap-1">
             {atual && (
               <Link
                 to="/w/$workspaceId/notificacoes"
@@ -159,7 +175,7 @@ export function Layout() {
                 title={conectado ? "Conectada" : "Não conectada"}
               />
             </Link>
-            <span className="hidden px-2 text-sm text-suave md:inline">{eu.data?.nome}</span>
+            <span className="hidden px-2 text-sm text-suave 2xl:inline">{eu.data?.nome}</span>
             <Button
               variante="fantasma"
               tamanho="sm"

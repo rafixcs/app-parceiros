@@ -1023,6 +1023,116 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/eu/resultados/sincronizacao": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Situação da sincronização de conversões do usuário */
+        get: operations["verSincronizacao"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/eu/resultados/sincronizar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sincronizar as conversões agora
+         * @description Enfileira a leitura do conversionReport da Shopee (últimos 89 dias) com a credencial do usuário. A sincronização também roda uma vez por dia. Se uma já está em andamento, devolve a situação dela.
+         */
+        post: operations["sincronizarResultados"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{workspaceId}/resultados": {
+        parameters: {
+            query?: {
+                /** @description Primeiro dia (AAAA-MM-DD, fuso de Brasília). Padrão, 29 dias antes de `ate`. */
+                de?: components["parameters"]["De"];
+                /** @description Último dia, inclusive (AAAA-MM-DD). Padrão, hoje. O período tem até 366 dias. */
+                ate?: components["parameters"]["Ate"];
+            };
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Os resultados do próprio usuário no workspace
+         * @description Pedidos e comissão das vendas pelos links do usuário marcados com este workspace (no workspace pessoal, também as vendas por links de fora do app). A Open API da Shopee não informa cliques.
+         */
+        get: operations["meusResultados"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{workspaceId}/resultados/turma": {
+        parameters: {
+            query?: {
+                /** @description Primeiro dia (AAAA-MM-DD, fuso de Brasília). Padrão, 29 dias antes de `ate`. */
+                de?: components["parameters"]["De"];
+                /** @description Último dia, inclusive (AAAA-MM-DD). Padrão, hoje. O período tem até 366 dias. */
+                ate?: components["parameters"]["Ate"];
+            };
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Resultados agregados da turma (dono e mentor)
+         * @description Somas dos membros que consentiram, no total, por dia, por lista da curadoria e por produto. Nunca há números por afiliado. Por lista, contam as vendas dos produtos importados da lista, por quem os importou, depois da importação.
+         */
+        get: operations["resultadosTurma"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{workspaceId}/resultados/consentimento": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** Autorizar ou não o mentor a ver os meus resultados agregados */
+        put: operations["definirConsentimento"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1067,6 +1177,8 @@ export interface components {
             papel: components["schemas"]["Papel"];
             /** Format: date-time */
             entrou_em: string;
+            /** @description Se o membro autoriza ver os seus resultados agregados no painel da turma. */
+            consente_resultados: boolean;
         };
         Convite: {
             /** Format: uuid */
@@ -1422,6 +1534,132 @@ export interface components {
             /** Format: int64 */
             limite_bytes: number;
         };
+        Sincronizacao: {
+            /** @enum {string} */
+            status: "nunca" | "sincronizando" | "ok" | "erro" | "sem_credencial";
+            /** Format: date-time */
+            pedida_em: string | null;
+            /**
+             * Format: date-time
+             * @description Fim da última sincronização que deu certo.
+             */
+            atualizado_em: string | null;
+            /** @description Itens de pedido lidos na última sincronização. */
+            conversoes: number;
+            erro: string | null;
+        };
+        Consentimento: {
+            consente: boolean;
+        };
+        Periodo: {
+            /** Format: date */
+            de: string;
+            /** Format: date */
+            ate: string;
+        };
+        /** @description Dinheiro em centavos. Pedidos e itens não contam os cancelados. Comissão estimada soma os pedidos não cancelados; validada, os concluídos. */
+        TotaisResultados: {
+            /** Format: int64 */
+            pedidos: number;
+            /** Format: int64 */
+            cancelados: number;
+            /** Format: int64 */
+            itens: number;
+            /** Format: int64 */
+            vendas_centavos: number;
+            /** Format: int64 */
+            comissao_estimada_centavos: number;
+            /** Format: int64 */
+            comissao_validada_centavos: number;
+        };
+        ResultadoDia: {
+            /** Format: date */
+            dia: string;
+            /** Format: int64 */
+            pedidos: number;
+            /** Format: int64 */
+            comissao_estimada_centavos: number;
+            /** Format: int64 */
+            comissao_validada_centavos: number;
+        };
+        ResultadoProduto: {
+            /** Format: int64 */
+            item_id: number;
+            /**
+             * Format: uuid
+             * @description Produto do catálogo, quando o item está nele.
+             */
+            produto_id: string | null;
+            nome: string;
+            loja_nome: string;
+            imagem_url: string | null;
+            /** Format: int64 */
+            pedidos: number;
+            /** Format: int64 */
+            itens: number;
+            /** Format: int64 */
+            vendas_centavos: number;
+            /** Format: int64 */
+            comissao_estimada_centavos: number;
+            /** Format: int64 */
+            comissao_validada_centavos: number;
+        };
+        ResultadoCanal: {
+            /**
+             * @description Vazio quando a venda veio de um link criado fora do app.
+             * @enum {string}
+             */
+            canal: "instagram" | "tiktok" | "whatsapp" | "outro" | "";
+            /** Format: int64 */
+            pedidos: number;
+            /** Format: int64 */
+            comissao_estimada_centavos: number;
+            /** Format: int64 */
+            comissao_validada_centavos: number;
+        };
+        ResultadoLista: {
+            /** Format: uuid */
+            id: string;
+            titulo: string;
+            /** Format: date-time */
+            publicada_em: string;
+            /** @description Quem da turma importou a lista (consentindo ou não). */
+            importadores: number;
+            /** Format: int64 */
+            pedidos: number;
+            /** Format: int64 */
+            vendas_centavos: number;
+            /** Format: int64 */
+            comissao_estimada_centavos: number;
+            /** Format: int64 */
+            comissao_validada_centavos: number;
+        };
+        MeusResultados: {
+            periodo: components["schemas"]["Periodo"];
+            sincronizacao: components["schemas"]["Sincronizacao"];
+            /** @description Só em mentorias. Se o usuário mostra os resultados ao mentor. */
+            consente: boolean | null;
+            totais: components["schemas"]["TotaisResultados"];
+            por_dia: components["schemas"]["ResultadoDia"][];
+            por_produto: components["schemas"]["ResultadoProduto"][];
+            por_canal: components["schemas"]["ResultadoCanal"][];
+        };
+        ResultadosTurma: {
+            periodo: components["schemas"]["Periodo"];
+            /** @description Afiliados do workspace. */
+            afiliados: number;
+            /** @description Membros que autorizam ver os resultados. */
+            consentem: number;
+            /**
+             * Format: int64
+             * @description Dos que autorizam
+             */
+            ativos: number;
+            totais: components["schemas"]["TotaisResultados"];
+            por_dia: components["schemas"]["ResultadoDia"][];
+            por_lista: components["schemas"]["ResultadoLista"][];
+            por_produto: components["schemas"]["ResultadoProduto"][];
+        };
         Prontidao: {
             [key: string]: "ok" | "falhou";
         };
@@ -1452,6 +1690,10 @@ export interface components {
         ListaId: string;
         VideoId: string;
         TokenConvite: string;
+        /** @description Primeiro dia (AAAA-MM-DD, fuso de Brasília). Padrão, 29 dias antes de `ate`. */
+        De: string;
+        /** @description Último dia, inclusive (AAAA-MM-DD). Padrão, hoje. O período tem até 366 dias. */
+        Ate: string;
     };
     requestBodies: never;
     headers: never;
@@ -3663,6 +3905,174 @@ export interface operations {
                 content?: never;
             };
             401: components["responses"]["NaoAutenticado"];
+        };
+    };
+    verSincronizacao: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Situação */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Sincronizacao"];
+                };
+            };
+            401: components["responses"]["NaoAutenticado"];
+        };
+    };
+    sincronizarResultados: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sincronização pedida */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Sincronizacao"];
+                };
+            };
+            401: components["responses"]["NaoAutenticado"];
+            /** @description `sem_credencial`: a Shopee não está conectada */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+            /** @description `sincronizado_agora`: a última terminou há menos de 10 minutos */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+        };
+    };
+    meusResultados: {
+        parameters: {
+            query?: {
+                /** @description Primeiro dia (AAAA-MM-DD, fuso de Brasília). Padrão, 29 dias antes de `ate`. */
+                de?: components["parameters"]["De"];
+                /** @description Último dia, inclusive (AAAA-MM-DD). Padrão, hoje. O período tem até 366 dias. */
+                ate?: components["parameters"]["Ate"];
+            };
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Resultados */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeusResultados"];
+                };
+            };
+            401: components["responses"]["NaoAutenticado"];
+            404: components["responses"]["Erro"];
+            422: components["responses"]["Erro"];
+        };
+    };
+    resultadosTurma: {
+        parameters: {
+            query?: {
+                /** @description Primeiro dia (AAAA-MM-DD, fuso de Brasília). Padrão, 29 dias antes de `ate`. */
+                de?: components["parameters"]["De"];
+                /** @description Último dia, inclusive (AAAA-MM-DD). Padrão, hoje. O período tem até 366 dias. */
+                ate?: components["parameters"]["Ate"];
+            };
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Resultados da turma */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResultadosTurma"];
+                };
+            };
+            401: components["responses"]["NaoAutenticado"];
+            403: components["responses"]["Erro"];
+            404: components["responses"]["Erro"];
+            /** @description `so_mentoria` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+            422: components["responses"]["Erro"];
+        };
+    };
+    definirConsentimento: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Consentimento"];
+            };
+        };
+        responses: {
+            /** @description Consentimento gravado */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Consentimento"];
+                };
+            };
+            400: components["responses"]["Erro"];
+            401: components["responses"]["NaoAutenticado"];
+            404: components["responses"]["Erro"];
+            /** @description `so_mentoria`: o consentimento vale só em mentorias */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
         };
     };
 }

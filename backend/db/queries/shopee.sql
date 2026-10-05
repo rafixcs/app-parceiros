@@ -21,3 +21,7 @@ DELETE FROM credenciais_shopee WHERE usuario_id = $1;
 UPDATE credenciais_shopee
 SET status = $2, verificado_em = now(), atualizado_em = now()
 WHERE usuario_id = $1;
+
+-- name: UsuariosConectados :many
+-- Só o worker (papel dono das tabelas) usa, para agendar a sincronização.
+SELECT usuario_id FROM credenciais_shopee WHERE status = 'conectado' ORDER BY usuario_id;
