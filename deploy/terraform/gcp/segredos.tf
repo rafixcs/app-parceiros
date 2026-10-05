@@ -16,9 +16,9 @@ locals {
     "S3_SECRET_KEY",
     "SMTP_USERNAME", # provedor de e-mail transacional
     "SMTP_PASSWORD",
-    "ASAAS_API_KEY",           # chave de API de produção do Asaas
+    "ASAAS_API_KEY",        # chave de API de produção do Asaas
     "ASAAS_WEBHOOK_SECRET", # token configurado no webhook do Asaas
-    "VAPID_PRIVATE_KEY",         # parceiros vapid
+    "VAPID_PRIVATE_KEY",    # parceiros vapid
   ]
 
   segredos_gerados = {
