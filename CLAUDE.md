@@ -61,6 +61,7 @@ Os módulos não acessam as tabelas uns dos outros. Quando precisam, um módulo 
 - `make migrate`: aplica as migrations no banco de `DATABASE_URL`
 - Binário: `parceiros api|worker|migrate` (`backend/cmd/parceiros`)
 - Front (`web/`): `npm run dev`, `npm test`, `npm run build`; `npm run api` regenera os tipos a partir do `api/openapi.yaml`
+- Testes das telas (`web/e2e/`, Playwright): `npm run e2e` com a API e o worker no ar em `localhost:8080` (`tilt up`, ou os binários com `APP_ENV=dev` e `AUTH_MODE=dev`). Sobe o Vite sozinho. Cada execução usa usuários novos, então roda de novo no mesmo banco.
 
 ## Fluxo de trabalho
 - Um PR por história ou marco pequeno (veja os marcos em `docs/mvp.md` §7).

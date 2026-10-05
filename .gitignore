@@ -9,3 +9,5 @@ dev-dist/
 .terraform.lock.hcl
 *.tfvars
 *.tfstate*
+test-results/
+playwright-report/
