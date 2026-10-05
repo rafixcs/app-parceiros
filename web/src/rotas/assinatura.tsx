@@ -57,6 +57,7 @@ function Situacao({ a }: { a: DadosAssinatura }) {
     ativo: "bg-emerald-100 text-emerald-900",
     teste: "bg-amber-100 text-amber-900",
     suspenso: "bg-red-100 text-red-900",
+    gratuito: "bg-sky-100 text-sky-900",
   } as const;
   return (
     <Card className="flex flex-col gap-3 p-4">
@@ -65,7 +66,9 @@ function Situacao({ a }: { a: DadosAssinatura }) {
         <span className="text-sm text-suave">
           {a.situacao === "suspenso"
             ? `Sem acesso desde ${dia(a.acesso_ate)}.`
-            : `Acesso garantido até ${dia(a.acesso_ate)}.`}
+            : a.situacao === "gratuito"
+              ? "Enquanto você for aluno de uma mentoria em dia, este workspace não é cobrado."
+              : `Acesso garantido até ${dia(a.acesso_ate)}.`}
         </span>
       </div>
       <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">

@@ -244,7 +244,7 @@ export function Layout() {
         </div>
       </header>
       <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-6">
-        {ws && ws.status !== "ativo" && <AvisoCobranca ws={ws} />}
+        {ws && (ws.status === "teste" || ws.status === "suspenso") && <AvisoCobranca ws={ws} />}
         <Outlet />
       </div>
     </div>

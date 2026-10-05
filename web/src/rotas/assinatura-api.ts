@@ -85,6 +85,8 @@ export function rotuloSituacao(a: Assinatura): string {
       return "Assinatura ativa";
     case "suspenso":
       return "Workspace suspenso";
+    case "gratuito":
+      return "Grátis para alunos de mentoria";
     default: {
       const d = diasAte(a.acesso_ate);
       return d <= 1 ? "Teste terminando" : `Teste · ${d} dias restantes`;

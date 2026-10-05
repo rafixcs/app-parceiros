@@ -1259,10 +1259,10 @@ export interface components {
             cpf_cnpj: string;
         };
         /**
-         * @description `teste` no período de avaliação, `ativo` com a assinatura paga e `suspenso` quando o acesso venceu. Suspenso, o workspace só permite ver a si mesmo, sair dele, mexer no consentimento e cuidar da assinatura; o resto devolve 402 `workspace_suspenso`.
+         * @description `teste` no período de avaliação, `ativo` com a assinatura paga, `gratuito` no workspace pessoal de quem é aluno de uma mentoria em dia (não é cobrado, por enquanto) e `suspenso` quando o acesso venceu. Suspenso, o workspace só permite ver a si mesmo, sair dele, mexer no consentimento e cuidar da assinatura; o resto devolve 402 `workspace_suspenso`.
          * @enum {string}
          */
-        SituacaoWorkspace: "teste" | "ativo" | "suspenso";
+        SituacaoWorkspace: "teste" | "ativo" | "gratuito" | "suspenso";
         Usuario: {
             /** Format: uuid */
             id: string;

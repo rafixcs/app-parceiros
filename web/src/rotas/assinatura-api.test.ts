@@ -40,5 +40,6 @@ describe("rotuloSituacao", () => {
   it("nomeia a assinatura ativa e o workspace suspenso", () => {
     expect(rotuloSituacao({ ...base, situacao: "ativo", status: "ativa" })).toBe("Assinatura ativa");
     expect(rotuloSituacao({ ...base, situacao: "suspenso" })).toBe("Workspace suspenso");
+    expect(rotuloSituacao({ ...base, situacao: "gratuito" })).toBe("Grátis para alunos de mentoria");
   });
 });

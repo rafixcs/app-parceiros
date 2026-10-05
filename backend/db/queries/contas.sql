@@ -122,3 +122,16 @@ UPDATE workspaces SET acesso_ate = least(acesso_ate, now()) WHERE id = $1;
 
 -- name: DefinirAssentos :exec
 UPDATE workspaces SET assentos = $2 WHERE id = $1;
+
+-- name: AlunoDeMentoriaAtiva :one
+-- Se o usuário é afiliado de alguma mentoria com acesso em dia. Enquanto for,
+-- o workspace pessoal dele não é cobrado.
+SELECT EXISTS (
+    SELECT 1
+    FROM membros m
+    JOIN workspaces w ON w.id = m.workspace_id
+    WHERE m.usuario_id = $1
+      AND m.papel = 'afiliado'
+      AND w.tipo = 'mentoria'
+      AND w.acesso_ate > now()
+)::boolean AS aluno;

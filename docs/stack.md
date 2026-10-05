@@ -146,8 +146,8 @@ app-parceiros/
 
 ## Decisões em aberto
 1. **Cloud:** GCP, AWS ou DigitalOcean. Sugiro GCP (GKE Autopilot + Cloud SQL), com R2 para vídeos.
-2. **Cobrança:** o M7 saiu com Asaas, a confirmar. Mercado Pago entra como outra implementação de `assinaturas.Gateway`.
-3. **Mentor paga pela turma ou cada aluno paga?** O M7 saiu com o mentor pagando por assento, a confirmar.
+2. **Cobrança:** Asaas, confirmado pelo Rafael em 05/10/2026. Mercado Pago entra como outra implementação de `assinaturas.Gateway`.
+3. **Mentor paga pela turma ou cada aluno paga?** Por enquanto o mentor paga por assento e o workspace pessoal do aluno é grátis; a regra definitiva fica para depois (veja `docs/mvp.md` §8).
 4. **Preços:** `limites` saiu com R$ 29,90 por mês no avulso e R$ 14,90 por assento na mentoria, valores provisórios.
 
 Ação que não depende de código: **pedir agora o acesso à Shopee Affiliate Open API**, porque precisa de aprovação.
