@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, Outlet, useNavigate, useParams } from "@tanstack/react-router";
-import { Bell, Bookmark, Flame, ListChecks, LogOut, Plug, Users } from "lucide-react";
+import { Bell, Bookmark, Clapperboard, Flame, ListChecks, LogOut, Plug, Users } from "lucide-react";
 import { useEffect } from "react";
 import { api, exigir } from "@/api/cliente";
 import { Button } from "@/components/ui/button";
@@ -96,6 +96,15 @@ export function Layout() {
               >
                 <Bookmark className="size-4" />
                 <span className="hidden sm:inline">Coleção</span>
+              </Link>
+              <Link
+                to="/w/$workspaceId/videos"
+                params={{ workspaceId: atual }}
+                className={secao}
+                activeProps={{ className: "bg-zinc-100 font-medium" }}
+              >
+                <Clapperboard className="size-4" />
+                <span className="hidden sm:inline">Vídeos</span>
               </Link>
               {ws?.tipo === "mentoria" && (
                 <Link

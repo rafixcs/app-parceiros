@@ -27,6 +27,7 @@ import (
 	"github.com/rafixcs/app-parceiros/backend/internal/curadoria"
 	"github.com/rafixcs/app-parceiros/backend/internal/fontes"
 	"github.com/rafixcs/app-parceiros/backend/internal/fontes/shopee"
+	"github.com/rafixcs/app-parceiros/backend/internal/midia"
 	"github.com/rafixcs/app-parceiros/backend/internal/notificacoes"
 	"github.com/rafixcs/app-parceiros/backend/internal/platform/auth"
 	"github.com/rafixcs/app-parceiros/backend/internal/platform/crypto"
@@ -165,7 +166,8 @@ func novoAmbiente(t *testing.T) *ambiente {
 	colecoesSvc := colecoes.NewService(pool, produtosSvc, app, afiliador, filaLinks, log)
 	notificacoesSvc := notificacoes.NewService(pool, filaAvisos, contasSvc, rem, ps, "https://app.teste", log)
 	contasSvc.EnviarConvitesCom(notificacoesSvc.EnviarConvite)
-	curadoriaSvc := curadoria.NewService(pool, produtosSvc, colecoesSvc, contasSvc, notificacoesSvc, log)
+	midiaSvc := midia.NewService(pool, produtosSvc, &midia.OEmbed{}, nil, nil, contasSvc, nil, log)
+	curadoriaSvc := curadoria.NewService(pool, produtosSvc, colecoesSvc, contasSvc, notificacoesSvc, midiaSvc, log)
 
 	r := httpserver.NewRouter(log, nil)
 	contas.NewHandler(contasSvc, log).Rotas(r, auth.Dev{},

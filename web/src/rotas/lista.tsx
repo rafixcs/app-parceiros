@@ -1,11 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { ArrowDown, ArrowUp, ChevronLeft, Copy, Download, Plus, Search, Send, Trash2, Users } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronLeft, Clapperboard, Copy, Download, Plus, Search, Send, Trash2, Unlink, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api, exigir, type ItemLista, type ListaDetalhe } from "@/api/cliente";
 import { Button } from "@/components/ui/button";
 import { Aviso, Badge, Card } from "@/components/ui/card";
-import { Input, Rotulo, Textarea } from "@/components/ui/input";
+import { Input, Rotulo, Select, Textarea } from "@/components/ui/input";
+import { AdicionarVideo } from "@/components/video/adicionar";
+import { LegendaVideo, PlayerVideo } from "@/components/video/player";
 import { canais, copiar, textoParaCopiar } from "@/lib/copiar";
 import { faixaPreco, haQuanto, porcentagem, reais } from "@/lib/formato";
 import { useCanal, StatusLink } from "./colecao";
@@ -14,6 +16,8 @@ import { useConexaoShopee } from "./layout";
 import { useAtualizarLista, useLista, useWorkspaceAtual } from "./listas-api";
 import { Imagem } from "./radar";
 import { rotaLista } from "./router";
+import { CartaoVideo } from "./videos";
+import { useVideoLista, useVideos } from "./videos-api";
 
 type Caminho = { workspaceId: string; listaId: string };
 
@@ -57,6 +61,7 @@ export function Lista() {
           onLimpar={() => setSelecionados(new Set())}
         />
       )}
+      {(gestor || l.videos.length > 0) && <VideosDaLista lista={l} caminho={caminho} gestor={gestor} />}
       {gestor && l.itens.length < 100 && <AdicionarProduto caminho={caminho} />}
 
       {l.itens.length === 0 && (
@@ -388,7 +393,7 @@ function CartaoItemLista({
 }) {
   const p = it.produto;
   return (
-    <Card className="flex flex-col gap-3 p-3 sm:flex-row">
+    <Card className="flex flex-col gap-3 p-3 sm:flex-row sm:flex-wrap">
       <div className="flex min-w-0 flex-1 gap-3">
         {onSelecionar && (
           <input
@@ -424,6 +429,101 @@ function CartaoItemLista({
         {gestor && <ControlesMentor item={it} lista={lista} indice={indice} caminho={caminho} />}
         {it.meu_item ? <MeuLink item={it} workspaceId={caminho.workspaceId} /> : null}
       </div>
+      {it.videos.length > 0 && (
+        <ul className="flex basis-full gap-3 overflow-x-auto pb-1" aria-label={`Vídeos de ${p.nome}`}>
+          {it.videos.map((v) => (
+            <li key={v.id} className="flex w-40 shrink-0 flex-col gap-1">
+              <PlayerVideo video={v} />
+              <LegendaVideo video={v} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
+/** Vídeos anexados à lista: o mentor anexa da biblioteca ou adiciona um novo. */
+function VideosDaLista({ lista: l, caminho, gestor }: { lista: ListaDetalhe; caminho: Caminho; gestor: boolean }) {
+  const { workspaceId, listaId } = caminho;
+  const anexar = useVideoLista(workspaceId, listaId);
+  const biblioteca = useVideos(workspaceId);
+  const [adicionando, setAdicionando] = useState(false);
+  const [escolhido, setEscolhido] = useState("");
+  const anexados = new Set(l.videos.map((v) => v.id));
+  const livres = (biblioteca.data ?? []).filter((v) => v.meu && !anexados.has(v.id));
+
+  return (
+    <Card className="flex flex-col gap-3 p-4">
+      <div className="flex items-center gap-2">
+        <Clapperboard className="size-4 text-suave" />
+        <h2 className="mr-auto font-medium">Vídeos da lista</h2>
+        {gestor && (
+          <Button tamanho="sm" variante="secundario" onClick={() => setAdicionando((a) => !a)}>
+            <Plus className="size-4" /> Anexar vídeo
+          </Button>
+        )}
+      </div>
+      {gestor && adicionando && (
+        <div className="flex flex-col gap-3 rounded-lg border border-borda p-3">
+          {livres.length > 0 && (
+            <form
+              className="flex gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                anexar.mutate({ id: escolhido, anexar: true }, { onSuccess: () => setEscolhido("") });
+              }}
+            >
+              <Select aria-label="Vídeo da biblioteca" value={escolhido} onChange={(e) => setEscolhido(e.target.value)}>
+                <option value="">Escolha um vídeo da sua biblioteca…</option>
+                {livres.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.titulo || "Sem título"}
+                  </option>
+                ))}
+              </Select>
+              <Button type="submit" variante="secundario" disabled={!escolhido || anexar.isPending}>
+                Anexar
+              </Button>
+            </form>
+          )}
+          <AdicionarVideo
+            workspaceId={workspaceId}
+            onAdicionado={(v) => anexar.mutate({ id: v.id, anexar: true }, { onSuccess: () => setAdicionando(false) })}
+          />
+          <p className="text-xs text-suave">Os vídeos anexados ficam visíveis para toda a turma.</p>
+        </div>
+      )}
+      {anexar.error && <p className="text-sm text-red-700">{anexar.error.message}</p>}
+      {l.videos.length === 0 ? (
+        <p className="text-sm text-suave">Anexe vídeos de referência ou seus para a turma se inspirar.</p>
+      ) : (
+        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {l.videos.map((v) => (
+            <li key={v.id}>
+              <CartaoVideo
+                video={v}
+                workspaceId={workspaceId}
+                podeCompartilhar={gestor}
+                acoes={
+                  gestor && (
+                    <Button
+                      variante="fantasma"
+                      tamanho="sm"
+                      title="Tirar da lista"
+                      disabled={anexar.isPending}
+                      onClick={() => anexar.mutate({ id: v.id, anexar: false })}
+                    >
+                      <Unlink className="size-4" />
+                      <span className="sr-only">Tirar da lista</span>
+                    </Button>
+                  )
+                }
+              />
+            </li>
+          ))}
+        </ul>
+      )}
     </Card>
   );
 }

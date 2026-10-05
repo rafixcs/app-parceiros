@@ -312,6 +312,135 @@ func (ns NullMembroPapel) Value() (driver.Value, error) {
 	return string(ns.MembroPapel), nil
 }
 
+type VideoAlvo string
+
+const (
+	VideoAlvoProduto VideoAlvo = "produto"
+	VideoAlvoLista   VideoAlvo = "lista"
+)
+
+func (e *VideoAlvo) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = VideoAlvo(s)
+	case string:
+		*e = VideoAlvo(s)
+	default:
+		return fmt.Errorf("unsupported scan type for VideoAlvo: %T", src)
+	}
+	return nil
+}
+
+type NullVideoAlvo struct {
+	VideoAlvo VideoAlvo
+	Valid     bool // Valid is true if VideoAlvo is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullVideoAlvo) Scan(value interface{}) error {
+	if value == nil {
+		ns.VideoAlvo, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.VideoAlvo.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullVideoAlvo) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.VideoAlvo), nil
+}
+
+type VideoStatus string
+
+const (
+	VideoStatusEnviando     VideoStatus = "enviando"
+	VideoStatusProcessando  VideoStatus = "processando"
+	VideoStatusPronto       VideoStatus = "pronto"
+	VideoStatusFalhou       VideoStatus = "falhou"
+	VideoStatusIndisponivel VideoStatus = "indisponivel"
+)
+
+func (e *VideoStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = VideoStatus(s)
+	case string:
+		*e = VideoStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for VideoStatus: %T", src)
+	}
+	return nil
+}
+
+type NullVideoStatus struct {
+	VideoStatus VideoStatus
+	Valid       bool // Valid is true if VideoStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullVideoStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.VideoStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.VideoStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullVideoStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.VideoStatus), nil
+}
+
+type VideoTipo string
+
+const (
+	VideoTipoEmbed  VideoTipo = "embed"
+	VideoTipoUpload VideoTipo = "upload"
+)
+
+func (e *VideoTipo) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = VideoTipo(s)
+	case string:
+		*e = VideoTipo(s)
+	default:
+		return fmt.Errorf("unsupported scan type for VideoTipo: %T", src)
+	}
+	return nil
+}
+
+type NullVideoTipo struct {
+	VideoTipo VideoTipo
+	Valid     bool // Valid is true if VideoTipo is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullVideoTipo) Scan(value interface{}) error {
+	if value == nil {
+		ns.VideoTipo, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.VideoTipo.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullVideoTipo) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.VideoTipo), nil
+}
+
 type WorkspaceTipo string
 
 const (
@@ -561,6 +690,11 @@ type Tendencia struct {
 	Busca                 interface{}
 }
 
+type UsoVideo struct {
+	WorkspaceID uuid.UUID
+	Bytes       int64
+}
+
 type Usuario struct {
 	ID              uuid.UUID
 	ZitadelSub      string
@@ -568,6 +702,42 @@ type Usuario struct {
 	Email           string
 	EmailVerificado bool
 	CriadoEm        time.Time
+}
+
+type Video struct {
+	ID            uuid.UUID
+	WorkspaceID   uuid.UUID
+	DonoID        uuid.UUID
+	Tipo          VideoTipo
+	Plataforma    string
+	Status        VideoStatus
+	Titulo        string
+	Autor         string
+	Compartilhado bool
+	Url           *string
+	EmbedID       *string
+	ThumbUrl      *string
+	VerificadoEm  *time.Time
+	StorageKey    *string
+	UploadID      *string
+	NomeArquivo   *string
+	ContentType   *string
+	TamanhoBytes  int64
+	DuracaoS      *int32
+	Largura       *int32
+	Altura        *int32
+	DireitoUsoEm  *time.Time
+	CriadoEm      time.Time
+	AtualizadoEm  time.Time
+}
+
+type VideoVinculo struct {
+	VideoID     uuid.UUID
+	WorkspaceID uuid.UUID
+	DonoID      uuid.UUID
+	AlvoTipo    VideoAlvo
+	AlvoID      uuid.UUID
+	CriadoEm    time.Time
 }
 
 type Workspace struct {

@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { Imagem, Tendencia } from "./radar";
 import { rotaProduto } from "./router";
 import { BotaoSalvar } from "./salvar";
+import { VideosDoProduto } from "./videos-produto";
 
 const series = {
   preco: { rotulo: "Preço", valor: (s: Schemas["Snapshot"]) => s.preco_min_centavos / 100, formato: (v: number) => reais(v * 100) },
@@ -90,6 +91,8 @@ export function Produto() {
           </div>
         </div>
       </Card>
+
+      <VideosDoProduto workspaceId={workspaceId} produtoId={p.produto_id} />
 
       <Card className="p-4">
         <div className="mb-3 flex flex-wrap items-center gap-2">

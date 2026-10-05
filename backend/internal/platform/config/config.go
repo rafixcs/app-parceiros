@@ -42,12 +42,15 @@ type Config struct {
 	ShopeePaginas     int // páginas de 50 itens por categoria em cada snapshot
 
 	// Bucket S3 (R2 em produção, SeaweedFS local). Sem S3_ENDPOINT, as respostas
-	// brutas da Shopee não são guardadas.
-	S3Endpoint  string
-	S3Bucket    string
-	S3AccessKey string
-	S3SecretKey string
-	S3Region    string
+	// brutas da Shopee não são guardadas e não há upload de vídeos.
+	// S3_ENDPOINT_PUBLICO assina as URLs que o navegador usa, quando ele não
+	// alcança o S3_ENDPOINT (no ambiente local, http://localhost:8333).
+	S3Endpoint        string
+	S3EndpointPublico string
+	S3Bucket          string
+	S3AccessKey       string
+	S3SecretKey       string
+	S3Region          string
 
 	// E-mail das notificações por SMTP (Mailpit no ambiente local). Sem
 	// SMTP_ADDR, nenhum e-mail é enviado.
@@ -65,35 +68,36 @@ type Config struct {
 
 func Load() (Config, error) {
 	c := Config{
-		Env:             getenv("APP_ENV", "dev"),
-		HTTPAddr:        getenv("HTTP_ADDR", ":8080"),
-		DatabaseURL:     os.Getenv("DATABASE_URL"),
-		RedisURL:        os.Getenv("REDIS_URL"),
-		ShutdownTimeout: 15 * time.Second,
-		AppURL:          getenv("APP_URL", "http://localhost:5173"),
-		AuthMode:        getenv("AUTH_MODE", "oidc"),
-		OIDCIssuer:      os.Getenv("OIDC_ISSUER"),
-		OIDCAudience:    os.Getenv("OIDC_AUDIENCE"),
-		OIDCJWKSURL:     os.Getenv("OIDC_JWKS_URL"),
-		OIDCUserinfoURL: os.Getenv("OIDC_USERINFO_URL"),
-		CryptoKEK:       os.Getenv("CRYPTO_KEK"),
-		CryptoKEKID:     getenv("CRYPTO_KEK_ID", "local-1"),
-		ShopeeModo:      os.Getenv("SHOPEE_MODO"),
-		ShopeeURL:       os.Getenv("SHOPEE_URL"),
-		ShopeeAppID:     os.Getenv("SHOPEE_APP_ID"),
-		ShopeeAppSecret: os.Getenv("SHOPEE_APP_SECRET"),
-		S3Endpoint:      os.Getenv("S3_ENDPOINT"),
-		S3Bucket:        getenv("S3_BUCKET", "parceiros"),
-		S3AccessKey:     os.Getenv("S3_ACCESS_KEY"),
-		S3SecretKey:     os.Getenv("S3_SECRET_KEY"),
-		S3Region:        os.Getenv("S3_REGION"),
-		SMTPAddr:        os.Getenv("SMTP_ADDR"),
-		SMTPUsuario:     os.Getenv("SMTP_USUARIO"),
-		SMTPSenha:       os.Getenv("SMTP_SENHA"),
-		SMTPRemetente:   getenv("SMTP_REMETENTE", "App Parceiros <nao-responda@parceiros.local>"),
-		VAPIDPublica:    os.Getenv("VAPID_PUBLICA"),
-		VAPIDPrivada:    os.Getenv("VAPID_PRIVADA"),
-		VAPIDContato:    getenv("VAPID_CONTATO", "contato@parceiros.local"),
+		Env:               getenv("APP_ENV", "dev"),
+		HTTPAddr:          getenv("HTTP_ADDR", ":8080"),
+		DatabaseURL:       os.Getenv("DATABASE_URL"),
+		RedisURL:          os.Getenv("REDIS_URL"),
+		ShutdownTimeout:   15 * time.Second,
+		AppURL:            getenv("APP_URL", "http://localhost:5173"),
+		AuthMode:          getenv("AUTH_MODE", "oidc"),
+		OIDCIssuer:        os.Getenv("OIDC_ISSUER"),
+		OIDCAudience:      os.Getenv("OIDC_AUDIENCE"),
+		OIDCJWKSURL:       os.Getenv("OIDC_JWKS_URL"),
+		OIDCUserinfoURL:   os.Getenv("OIDC_USERINFO_URL"),
+		CryptoKEK:         os.Getenv("CRYPTO_KEK"),
+		CryptoKEKID:       getenv("CRYPTO_KEK_ID", "local-1"),
+		ShopeeModo:        os.Getenv("SHOPEE_MODO"),
+		ShopeeURL:         os.Getenv("SHOPEE_URL"),
+		ShopeeAppID:       os.Getenv("SHOPEE_APP_ID"),
+		ShopeeAppSecret:   os.Getenv("SHOPEE_APP_SECRET"),
+		S3Endpoint:        os.Getenv("S3_ENDPOINT"),
+		S3EndpointPublico: os.Getenv("S3_ENDPOINT_PUBLICO"),
+		S3Bucket:          getenv("S3_BUCKET", "parceiros"),
+		S3AccessKey:       os.Getenv("S3_ACCESS_KEY"),
+		S3SecretKey:       os.Getenv("S3_SECRET_KEY"),
+		S3Region:          os.Getenv("S3_REGION"),
+		SMTPAddr:          os.Getenv("SMTP_ADDR"),
+		SMTPUsuario:       os.Getenv("SMTP_USUARIO"),
+		SMTPSenha:         os.Getenv("SMTP_SENHA"),
+		SMTPRemetente:     getenv("SMTP_REMETENTE", "App Parceiros <nao-responda@parceiros.local>"),
+		VAPIDPublica:      os.Getenv("VAPID_PUBLICA"),
+		VAPIDPrivada:      os.Getenv("VAPID_PRIVADA"),
+		VAPIDContato:      getenv("VAPID_CONTATO", "contato@parceiros.local"),
 	}
 	var err error
 	if c.ShopeeRatePorHora, err = getint("SHOPEE_RATE_POR_HORA", 1800); err != nil {

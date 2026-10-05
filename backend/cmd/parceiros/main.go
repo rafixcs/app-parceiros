@@ -27,6 +27,7 @@ import (
 	"github.com/rafixcs/app-parceiros/backend/internal/curadoria"
 	"github.com/rafixcs/app-parceiros/backend/internal/fontes"
 	"github.com/rafixcs/app-parceiros/backend/internal/fontes/shopee"
+	"github.com/rafixcs/app-parceiros/backend/internal/midia"
 	"github.com/rafixcs/app-parceiros/backend/internal/notificacoes"
 	"github.com/rafixcs/app-parceiros/backend/internal/platform/auth"
 	"github.com/rafixcs/app-parceiros/backend/internal/platform/config"
@@ -194,13 +195,16 @@ func runAPI(ctx context.Context, log *slog.Logger, cfg config.Config, pool *pgxp
 	remetente, push := canaisNotificacao(log, cfg)
 	notificacoesSvc := notificacoes.NewService(pool, notificacoes.FilaRiver{Client: fila}, contasSvc, remetente, push, cfg.AppURL, log)
 	contasSvc.EnviarConvitesCom(notificacoesSvc.EnviarConvite)
-	curadoriaSvc := curadoria.NewService(pool, produtosSvc, colecoesSvc, contasSvc, notificacoesSvc, log)
+	midiaSvc := midia.NewService(pool, produtosSvc, &midia.OEmbed{Cache: midia.CacheRedis{R: rdb}},
+		objetosMidia(novoBucket(ctx, log, cfg)), nil, contasSvc, &midia.FilaRiver{Client: fila}, log)
+	curadoriaSvc := curadoria.NewService(pool, produtosSvc, colecoesSvc, contasSvc, notificacoesSvc, midiaSvc, log)
 	contas.NewHandler(contasSvc, log).Rotas(router, verificador,
 		shopee.NewHandler(credenciais, log).Modulo(),
 		tendencias.NewHandler(radar, log).Modulo(),
 		colecoes.NewHandler(colecoesSvc, log).Modulo(),
 		curadoria.NewHandler(curadoriaSvc, log).Modulo(),
 		notificacoes.NewHandler(notificacoesSvc, log).Modulo(),
+		midia.NewHandler(midiaSvc, log).Modulo(),
 	)
 
 	srv := &http.Server{Addr: cfg.HTTPAddr, Handler: router}
@@ -258,9 +262,14 @@ func runWorker(ctx context.Context, log *slog.Logger, cfg config.Config, pool *p
 	river.AddWorker(workers, &produtos.AgendarSnapshotsWorker{
 		Svc: produtosSvc, Fonte: fontes.Shopee, Paginas: cfg.ShopeePaginas,
 	})
+	bucket := novoBucket(ctx, log, cfg)
 	if catalogo != nil {
+		var brutos storage.Storage = storage.Descartar{}
+		if bucket != nil {
+			brutos = bucket
+		}
 		river.AddWorker(workers, &produtos.SnapshotCatalogoWorker{
-			Svc: produtosSvc, Catalogo: catalogo, Storage: novoStorage(ctx, log, cfg), Log: log,
+			Svc: produtosSvc, Catalogo: catalogo, Storage: brutos, Log: log,
 			Depois: tendencias.Enfileirar,
 		})
 	}
@@ -275,11 +284,19 @@ func runWorker(ctx context.Context, log *slog.Logger, cfg config.Config, pool *p
 	river.AddWorker(workers, &notificacoes.EntregarWorker{
 		Svc: notificacoes.NewService(pool, nil, contasSvc, remetente, push, cfg.AppURL, log),
 	})
+	// A revalidação agenda a próxima rodada pela fila, que recebe o cliente
+	// logo abaixo, antes de o worker começar.
+	filaMidia := &midia.FilaRiver{}
+	midiaSvc := midia.NewService(pool, produtosSvc, &midia.OEmbed{}, objetosMidia(bucket), midia.FFmpeg{}, contasSvc, filaMidia, log)
+	river.AddWorker(workers, &midia.ProcessarVideoWorker{Svc: midiaSvc, Log: log})
+	river.AddWorker(workers, &midia.RevalidarEmbedWorker{Svc: midiaSvc})
+	river.AddWorker(workers, &midia.LimparUploadWorker{Svc: midiaSvc})
 
 	client, err := jobs.NewWorkerClient(pool, workers, periodicos, log)
 	if err != nil {
 		return err
 	}
+	filaMidia.Client = client
 	if err := client.Start(ctx); err != nil {
 		return err
 	}
@@ -303,24 +320,33 @@ func cadastrarCategoriasMock(ctx context.Context, svc *produtos.Service) error {
 	return svc.SalvarCategorias(ctx, fontes.Shopee, out)
 }
 
-// novoStorage abre o bucket das respostas brutas. Sem S3_ENDPOINT, descarta.
-func novoStorage(ctx context.Context, log *slog.Logger, cfg config.Config) storage.Storage {
+// novoBucket abre o bucket S3 (respostas brutas da Shopee e vídeos). Sem
+// S3_ENDPOINT, devolve nil.
+func novoBucket(ctx context.Context, log *slog.Logger, cfg config.Config) *storage.S3 {
 	if cfg.S3Endpoint == "" {
-		log.Warn("sem S3_ENDPOINT: as respostas brutas da Shopee não serão guardadas")
-		return storage.Descartar{}
+		log.Warn("sem S3_ENDPOINT: sem bucket para vídeos e respostas brutas")
+		return nil
 	}
 	s3, err := storage.NovoS3(storage.Config{
-		Endpoint: cfg.S3Endpoint, Bucket: cfg.S3Bucket, AccessKey: cfg.S3AccessKey,
-		SecretKey: cfg.S3SecretKey, Region: cfg.S3Region,
+		Endpoint: cfg.S3Endpoint, EndpointPublico: cfg.S3EndpointPublico, Bucket: cfg.S3Bucket,
+		AccessKey: cfg.S3AccessKey, SecretKey: cfg.S3SecretKey, Region: cfg.S3Region,
 	})
 	if err != nil {
-		log.Error("bucket S3 inválido; respostas brutas não serão guardadas", "err", err)
-		return storage.Descartar{}
+		log.Error("bucket S3 inválido; sem vídeos nem respostas brutas", "err", err)
+		return nil
 	}
 	if cfg.Env == "dev" {
 		if err := s3.GarantirBucket(ctx); err != nil {
 			log.Warn("não foi possível criar o bucket local", "err", err)
 		}
+	}
+	return s3
+}
+
+// objetosMidia evita passar um *storage.S3 nil como interface não nula.
+func objetosMidia(s3 *storage.S3) midia.Objetos {
+	if s3 == nil {
+		return nil
 	}
 	return s3
 }

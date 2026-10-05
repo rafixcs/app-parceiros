@@ -1,6 +1,7 @@
 package curadoria
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/rafixcs/app-parceiros/backend/internal/colecoes"
 	"github.com/rafixcs/app-parceiros/backend/internal/contas"
+	"github.com/rafixcs/app-parceiros/backend/internal/midia"
 	"github.com/rafixcs/app-parceiros/backend/internal/platform/httpserver"
 )
 
@@ -36,6 +38,8 @@ func (h *Handler) Modulo() contas.Modulo {
 		r.Post("/listas/{listaId}/publicar", h.publicar)
 		r.Post("/listas/{listaId}/importar", h.importar)
 		r.Get("/listas/{listaId}/painel", h.painel)
+		r.Put("/listas/{listaId}/videos/{videoId}", h.anexarVideo)
+		r.Delete("/listas/{listaId}/videos/{videoId}", h.tirarVideo)
 	}}
 }
 
@@ -203,6 +207,27 @@ func (h *Handler) painel(w http.ResponseWriter, r *http.Request) {
 	h.responder(w, r, http.StatusOK, p, err)
 }
 
+func (h *Handler) anexarVideo(w http.ResponseWriter, r *http.Request) {
+	h.video(w, r, h.svc.AnexarVideo)
+}
+
+func (h *Handler) tirarVideo(w http.ResponseWriter, r *http.Request) {
+	h.video(w, r, h.svc.TirarVideo)
+}
+
+func (h *Handler) video(w http.ResponseWriter, r *http.Request, fn func(context.Context, contas.Membro, uuid.UUID, uuid.UUID) (ListaDetalhe, error)) {
+	id, ok := h.id(w, r, "listaId", ErrListaNaoEncontrada)
+	if !ok {
+		return
+	}
+	videoID, ok := h.id(w, r, "videoId", midia.ErrVideoNaoEncontrado)
+	if !ok {
+		return
+	}
+	l, err := fn(r.Context(), membro(r), id, videoID)
+	h.responder(w, r, http.StatusOK, l, err)
+}
+
 func (h *Handler) id(w http.ResponseWriter, r *http.Request, param string, naoEncontrado error) (uuid.UUID, bool) {
 	id, err := uuid.Parse(chi.URLParam(r, param))
 	if err != nil {
@@ -235,8 +260,8 @@ func (h *Handler) responder(w http.ResponseWriter, r *http.Request, status int, 
 	}
 }
 
-// erro devolve os erros de negócio da curadoria e os da coleção (produto
-// colado por link, importação).
+// erro devolve os erros de negócio da curadoria, os da coleção (produto
+// colado por link, importação) e os da mídia (vídeos anexados).
 func (h *Handler) erro(w http.ResponseWriter, r *http.Request, err error) {
 	var e *Erro
 	if errors.As(err, &e) {
@@ -246,6 +271,11 @@ func (h *Handler) erro(w http.ResponseWriter, r *http.Request, err error) {
 	var ec *colecoes.Erro
 	if errors.As(err, &ec) {
 		httpserver.JSONErro(w, ec.Status, ec.Codigo, ec.Mensagem)
+		return
+	}
+	var em *midia.Erro
+	if errors.As(err, &em) {
+		httpserver.JSONErro(w, em.Status, em.Codigo, em.Mensagem)
 		return
 	}
 	h.log.ErrorContext(r.Context(), "erro interno na curadoria", "err", err)

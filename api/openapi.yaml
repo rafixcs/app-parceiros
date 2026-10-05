@@ -1102,6 +1102,435 @@ paths:
         "401": { $ref: "#/components/responses/NaoAutenticado" }
         "403": { $ref: "#/components/responses/Erro" }
         "404": { $ref: "#/components/responses/Erro" }
+  /v1/workspaces/{workspaceId}/listas/{listaId}/videos/{videoId}:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceId"
+      - $ref: "#/components/parameters/ListaId"
+      - $ref: "#/components/parameters/VideoId"
+    put:
+      summary: Anexar vídeo à lista (dono e mentor)
+      description: >
+        Anexa um vídeo da biblioteca de quem edita a lista. O vídeo passa a
+        ser compartilhado com a turma.
+      operationId: anexarVideoLista
+      tags: [curadoria]
+      security: [{ bearer: [] }]
+      responses:
+        "200":
+          description: Lista com o vídeo
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ListaDetalhe" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Erro" }
+        "404":
+          description: "`lista_nao_encontrada` ou `video_nao_encontrado`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+    delete:
+      summary: Tirar vídeo da lista (dono e mentor)
+      description: O vídeo continua na biblioteca de quem o enviou, ainda compartilhado.
+      operationId: tirarVideoLista
+      tags: [curadoria]
+      security: [{ bearer: [] }]
+      responses:
+        "200":
+          description: Lista sem o vídeo
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ListaDetalhe" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Erro" }
+        "404": { $ref: "#/components/responses/Erro" }
+  /v1/workspaces/{workspaceId}/videos:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceId"
+    get:
+      summary: Biblioteca de vídeos
+      description: >
+        Os vídeos do usuário no workspace e os que dono e mentores
+        compartilharam com a turma, dos mais novos para os mais antigos (até
+        500). Com `produto_id`, só os ligados ao produto, na ordem em que
+        foram ligados.
+      operationId: listarVideos
+      tags: [midia]
+      security: [{ bearer: [] }]
+      parameters:
+        - name: produto_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: meus
+          in: query
+          description: Só os vídeos do próprio usuário
+          schema: { type: boolean }
+      responses:
+        "200":
+          description: Vídeos
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Video" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "404": { $ref: "#/components/responses/Erro" }
+  /v1/workspaces/{workspaceId}/videos/cota:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceId"
+    get:
+      summary: Espaço de vídeos do workspace
+      description: Bytes de upload usados (inclui envios em andamento) e o limite do plano.
+      operationId: cotaVideos
+      tags: [midia]
+      security: [{ bearer: [] }]
+      responses:
+        "200":
+          description: Cota
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CotaVideos" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "404": { $ref: "#/components/responses/Erro" }
+  /v1/workspaces/{workspaceId}/videos/embed:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceId"
+    post:
+      summary: Colar link de vídeo de referência
+      description: >
+        Aceita links do YouTube (vídeos e Shorts) e do TikTok, inclusive os
+        curtos. A API resolve pelo oEmbed oficial (com cache de um dia) e
+        guarda só título, autor, miniatura e URL; o vídeo toca no player da
+        plataforma. Colar de novo o mesmo vídeo devolve o existente (200). O
+        job `revalidar_embed` confere o vídeo a cada 7 dias e o marca como
+        `indisponivel` se ele sumir.
+      operationId: colarVideo
+      tags: [midia]
+      security: [{ bearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              additionalProperties: false
+              properties:
+                url: { type: string, maxLength: 2000 }
+                produto_id: { type: string, format: uuid, description: Liga o vídeo a este produto }
+      responses:
+        "200":
+          description: O vídeo já estava na biblioteca
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Video" }
+        "201":
+          description: Vídeo guardado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Video" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "404":
+          description: "`produto_nao_encontrado`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "422":
+          description: "`link_video_invalido` ou `video_indisponivel`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "502":
+          description: "`plataforma_indisponivel`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+  /v1/workspaces/{workspaceId}/videos/uploads:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceId"
+    post:
+      summary: Iniciar upload de vídeo próprio
+      description: >
+        Valida o arquivo (MP4, MOV ou WebM, até 1 GB), exige a declaração de
+        direito de uso, reserva o espaço na cota do plano e abre um upload
+        multipart no bucket. O navegador envia as partes direto ao bucket
+        pelas URLs de `POST .../partes` e termina com `POST .../concluir`. Um
+        envio que não termina em 24 h é descartado (job `limpar_upload`).
+      operationId: iniciarUploadVideo
+      tags: [midia]
+      security: [{ bearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nome, content_type, tamanho, direito_uso]
+              additionalProperties: false
+              properties:
+                nome: { type: string, description: Nome do arquivo }
+                content_type: { type: string, enum: [video/mp4, video/quicktime, video/webm] }
+                tamanho: { type: integer, format: int64, minimum: 1, maximum: 1073741824 }
+                direito_uso: { type: boolean, description: "Declaração \"tenho direito de uso\" (precisa ser true)" }
+                produto_id: { type: string, format: uuid, description: Liga o vídeo a este produto }
+      responses:
+        "201":
+          description: Upload aberto
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UploadIniciado" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "404": { $ref: "#/components/responses/Erro" }
+        "409":
+          description: "`cota_videos`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "422":
+          description: "`direito_uso_obrigatorio`, `formato_invalido`, `arquivo_grande` ou `dados_invalidos`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "503":
+          description: "`uploads_indisponiveis` (servidor sem bucket)"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+  /v1/workspaces/{workspaceId}/videos/{videoId}:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceId"
+      - $ref: "#/components/parameters/VideoId"
+    get:
+      summary: Ver vídeo
+      operationId: verVideo
+      tags: [midia]
+      security: [{ bearer: [] }]
+      responses:
+        "200":
+          description: Vídeo
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Video" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "404": { $ref: "#/components/responses/Erro" }
+    patch:
+      summary: Renomear ou compartilhar (só quem enviou)
+      description: >
+        `compartilhado` mostra o vídeo para todo o workspace; só dono e
+        mentores de uma mentoria compartilham.
+      operationId: editarVideo
+      tags: [midia]
+      security: [{ bearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                titulo: { type: string, maxLength: 200 }
+                compartilhado: { type: boolean }
+      responses:
+        "200":
+          description: Vídeo
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Video" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Erro" }
+        "404": { $ref: "#/components/responses/Erro" }
+        "422": { $ref: "#/components/responses/Erro" }
+    delete:
+      summary: Apagar vídeo (só quem enviou)
+      description: >
+        Apaga os arquivos do bucket (ou cancela o envio em andamento), os
+        vínculos com produtos e listas, e devolve o espaço à cota.
+      operationId: apagarVideo
+      tags: [midia]
+      security: [{ bearer: [] }]
+      responses:
+        "204": { description: Apagado }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Erro" }
+        "404": { $ref: "#/components/responses/Erro" }
+  /v1/workspaces/{workspaceId}/videos/{videoId}/partes:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceId"
+      - $ref: "#/components/parameters/VideoId"
+    get:
+      summary: Partes já enviadas (para retomar o upload)
+      operationId: partesUploadVideo
+      tags: [midia]
+      security: [{ bearer: [] }]
+      responses:
+        "200":
+          description: Partes
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ParteUpload" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Erro" }
+        "404": { $ref: "#/components/responses/Erro" }
+        "409":
+          description: "`upload_encerrado`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+    post:
+      summary: Assinar a URL de envio de uma parte
+      description: >
+        Devolve uma URL pré-assinada (PUT, válida por 1 hora) para o
+        navegador enviar a parte direto ao bucket. As partes têm pelo menos
+        5 MB, menos a última.
+      operationId: assinarParteVideo
+      tags: [midia]
+      security: [{ bearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [numero]
+              additionalProperties: false
+              properties:
+                numero: { type: integer, minimum: 1, maximum: 10000 }
+      responses:
+        "200":
+          description: URL assinada
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [url]
+                properties:
+                  url: { type: string }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Erro" }
+        "404": { $ref: "#/components/responses/Erro" }
+        "409":
+          description: "`upload_encerrado`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "422": { $ref: "#/components/responses/Erro" }
+  /v1/workspaces/{workspaceId}/videos/{videoId}/concluir:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceId"
+      - $ref: "#/components/parameters/VideoId"
+    post:
+      summary: Concluir upload
+      description: >
+        Junta as partes, confere o tamanho com o que foi reservado e põe o
+        vídeo na fila do `processar_video` (ffmpeg: duração, miniatura e
+        prévia em 720p). Um arquivo maior do que o informado é descartado.
+      operationId: concluirUploadVideo
+      tags: [midia]
+      security: [{ bearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [partes]
+              additionalProperties: false
+              properties:
+                partes:
+                  type: array
+                  minItems: 1
+                  maxItems: 10000
+                  items: { $ref: "#/components/schemas/ParteUpload" }
+      responses:
+        "200":
+          description: Vídeo em processamento
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Video" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Erro" }
+        "404": { $ref: "#/components/responses/Erro" }
+        "409":
+          description: "`upload_encerrado`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "422":
+          description: "`upload_incompleto` ou `dados_invalidos`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+  /v1/workspaces/{workspaceId}/videos/{videoId}/download:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceId"
+      - $ref: "#/components/parameters/VideoId"
+    get:
+      summary: Baixar o arquivo original
+      description: >
+        URL assinada de 5 minutos que baixa o arquivo enviado (o próprio ou
+        um compartilhado com a turma). Vídeos de referência não são baixados.
+      operationId: baixarVideo
+      tags: [midia]
+      security: [{ bearer: [] }]
+      responses:
+        "200":
+          description: URL de download
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [url]
+                properties:
+                  url: { type: string }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "404": { $ref: "#/components/responses/Erro" }
+        "409":
+          description: "`video_nao_pronto`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "422": { $ref: "#/components/responses/Erro" }
+  /v1/workspaces/{workspaceId}/videos/{videoId}/produtos/{produtoId}:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceId"
+      - $ref: "#/components/parameters/VideoId"
+      - name: produtoId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    put:
+      summary: Ligar vídeo a um produto (só quem enviou)
+      description: >
+        O vídeo aparece no produto (radar, coleção e listas) para o dono e,
+        se compartilhado, para a turma.
+      operationId: vincularVideoProduto
+      tags: [midia]
+      security: [{ bearer: [] }]
+      responses:
+        "200":
+          description: Vídeo
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Video" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Erro" }
+        "404": { $ref: "#/components/responses/Erro" }
+    delete:
+      summary: Tirar vídeo do produto (só quem enviou)
+      operationId: desvincularVideoProduto
+      tags: [midia]
+      security: [{ bearer: [] }]
+      responses:
+        "200":
+          description: Vídeo
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Video" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Erro" }
+        "404": { $ref: "#/components/responses/Erro" }
   /v1/workspaces/{workspaceId}/notificacoes:
     parameters:
       - $ref: "#/components/parameters/WorkspaceId"
@@ -1255,6 +1684,11 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    VideoId:
+      name: videoId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
     TokenConvite:
       name: token
       in: path
@@ -1292,7 +1726,11 @@ components:
             item_lista_nao_encontrado, limite_listas, lista_vazia, ja_na_lista,
             lista_cheia, lista_nao_publicada. Em notificações:
             notificacao_nao_encontrada, push_indisponivel, inscricao_invalida,
-            inscricoes_demais.
+            inscricoes_demais. Em mídia: video_nao_encontrado,
+            link_video_invalido, video_indisponivel, plataforma_indisponivel,
+            direito_uso_obrigatorio, formato_invalido, arquivo_grande,
+            cota_videos, uploads_indisponiveis, upload_encerrado,
+            upload_incompleto, video_nao_pronto.
         mensagem: { type: string, description: Texto pronto para mostrar ao usuário }
     Usuario:
       type: object
@@ -1523,7 +1961,7 @@ components:
         descricao: { type: string }
     ItemLista:
       type: object
-      required: [produto, comentario, ordem, meu_item]
+      required: [produto, comentario, ordem, meu_item, videos]
       properties:
         produto: { $ref: "#/components/schemas/ProdutoResumo" }
         comentario: { type: string }
@@ -1533,13 +1971,21 @@ components:
           oneOf:
             - $ref: "#/components/schemas/MeuItem"
             - type: "null"
+        videos:
+          type: array
+          description: Vídeos do produto que quem vê enxerga (os dele e os compartilhados)
+          items: { $ref: "#/components/schemas/Video" }
     ListaDetalhe:
       allOf:
         - $ref: "#/components/schemas/Lista"
         - type: object
-          required: [itens]
+          required: [itens, videos]
           properties:
             itens: { type: array, items: { $ref: "#/components/schemas/ItemLista" } }
+            videos:
+              type: array
+              description: Vídeos anexados à lista pelo mentor
+              items: { $ref: "#/components/schemas/Video" }
     ResultadoImportacao:
       type: object
       required: [criados, ja_salvos, colecao_id, link_status]
@@ -1603,6 +2049,67 @@ components:
           properties:
             p256dh: { type: string }
             auth: { type: string }
+    Video:
+      type: object
+      required: [id, tipo, plataforma, status, titulo, autor, url, player_url, thumb_url, preview_url, duracao_s, largura, altura, tamanho_bytes, nome_arquivo, compartilhado, meu, produto_ids, lista_ids, criado_em]
+      properties:
+        id: { type: string, format: uuid }
+        tipo:
+          type: string
+          enum: [embed, upload]
+          description: "`embed`: referência de outro criador (só metadados). `upload`: vídeo próprio."
+        plataforma: { type: string, enum: [youtube, tiktok, upload] }
+        status:
+          type: string
+          enum: [enviando, processando, pronto, falhou, indisponivel]
+          description: >
+            `enviando`: upload em andamento. `processando`: na fila do ffmpeg.
+            `falhou`: o arquivo não pôde ser lido como vídeo.
+            `indisponivel`: o vídeo de referência sumiu da plataforma.
+        titulo: { type: string }
+        autor: { type: string, description: Autor no YouTube ou no TikTok (embed) }
+        url: { type: [string, "null"], description: Página do vídeo na plataforma (embed) }
+        player_url: { type: [string, "null"], description: Player oficial da plataforma, para iframe (embed) }
+        thumb_url:
+          type: [string, "null"]
+          description: Miniatura da plataforma (embed) ou gerada pelo worker (upload pronto, URL assinada)
+        preview_url: { type: [string, "null"], description: Prévia em 720p do upload pronto (URL assinada de 6 horas) }
+        duracao_s: { type: [integer, "null"] }
+        largura: { type: [integer, "null"], description: Da prévia, na orientação de exibição }
+        altura: { type: [integer, "null"] }
+        tamanho_bytes: { type: integer, format: int64 }
+        nome_arquivo: { type: [string, "null"] }
+        compartilhado: { type: boolean, description: Visível para todo o workspace }
+        meu: { type: boolean, description: Se quem vê é quem enviou }
+        produto_ids:
+          type: array
+          description: Produtos ligados (só nos vídeos do próprio usuário)
+          items: { type: string, format: uuid }
+        lista_ids:
+          type: array
+          description: Listas em que está anexado (só nos vídeos do próprio usuário)
+          items: { type: string, format: uuid }
+        criado_em: { type: string, format: date-time }
+    UploadIniciado:
+      type: object
+      required: [video, upload_id, chave]
+      properties:
+        video: { $ref: "#/components/schemas/Video" }
+        upload_id: { type: string, description: Id do upload multipart no bucket }
+        chave: { type: string, description: Chave do objeto no bucket }
+    ParteUpload:
+      type: object
+      required: [numero, etag]
+      properties:
+        numero: { type: integer, minimum: 1, maximum: 10000 }
+        etag: { type: string, description: ETag que o bucket devolveu no PUT da parte }
+        tamanho: { type: integer, format: int64 }
+    CotaVideos:
+      type: object
+      required: [usados_bytes, limite_bytes]
+      properties:
+        usados_bytes: { type: integer, format: int64 }
+        limite_bytes: { type: integer, format: int64 }
     Prontidao:
       type: object
       additionalProperties:
