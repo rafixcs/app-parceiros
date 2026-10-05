@@ -9,7 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/rafixcs/app-parceiros/backend/internal/contas"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/httpserver"
+	"github.com/rafixcs/app-parceiros/backend/pkg/httputil"
 )
 
 // Handler expõe a conexão do usuário com a Shopee em /v1/eu/shopee.
@@ -35,7 +35,7 @@ func (h *Handler) ver(w http.ResponseWriter, r *http.Request) {
 		h.erro(w, r, err)
 		return
 	}
-	httpserver.JSON(w, http.StatusOK, c)
+	httputil.JSON(w, http.StatusOK, c)
 }
 
 type conexaoEntrada struct {
@@ -48,7 +48,7 @@ func (h *Handler) conectar(w http.ResponseWriter, r *http.Request) {
 	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4<<10))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&in); err != nil {
-		httpserver.JSONErro(w, http.StatusBadRequest, "json_invalido", "O corpo da requisição não é um JSON válido.")
+		httputil.Error(w, http.StatusBadRequest, "json_invalido", "O corpo da requisição não é um JSON válido.")
 		return
 	}
 	u, _ := contas.UsuarioDoContexto(r.Context())
@@ -57,7 +57,7 @@ func (h *Handler) conectar(w http.ResponseWriter, r *http.Request) {
 		h.erro(w, r, err)
 		return
 	}
-	httpserver.JSON(w, http.StatusOK, c)
+	httputil.JSON(w, http.StatusOK, c)
 }
 
 func (h *Handler) desconectar(w http.ResponseWriter, r *http.Request) {
@@ -77,9 +77,9 @@ func (h *Handler) erro(w http.ResponseWriter, r *http.Request, err error) {
 		if e == ErrShopeeIndisponivel {
 			h.log.WarnContext(r.Context(), "shopee indisponível ao validar credencial", "err", err)
 		}
-		httpserver.JSONErro(w, e.Status, e.Codigo, e.Mensagem)
+		httputil.Error(w, e.Status, e.Codigo, e.Mensagem)
 		return
 	}
 	h.log.ErrorContext(r.Context(), "erro interno na conexão shopee", "err", err)
-	httpserver.JSONErro(w, http.StatusInternalServerError, "erro_interno", "Algo deu errado. Tente de novo em instantes.")
+	httputil.Error(w, http.StatusInternalServerError, "erro_interno", "Algo deu errado. Tente de novo em instantes.")
 }

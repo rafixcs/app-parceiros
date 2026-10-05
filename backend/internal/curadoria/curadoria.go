@@ -25,9 +25,9 @@ import (
 	"github.com/rafixcs/app-parceiros/backend/internal/colecoes"
 	"github.com/rafixcs/app-parceiros/backend/internal/contas"
 	"github.com/rafixcs/app-parceiros/backend/internal/curadoria/curadoriadb"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/database"
 	"github.com/rafixcs/app-parceiros/backend/internal/midia"
 	"github.com/rafixcs/app-parceiros/backend/internal/notificacoes"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/postgres"
 	"github.com/rafixcs/app-parceiros/backend/internal/produtos"
 )
 
@@ -161,8 +161,8 @@ func NewService(pool *pgxpool.Pool, p *produtos.Service, c *colecoes.Service, t 
 	return &Service{pool: pool, produtos: p, colecoes: c, turma: t, notificador: n, videos: v, log: log}
 }
 
-func escopo(m contas.Membro) postgres.Escopo {
-	return postgres.Escopo{UsuarioID: m.UsuarioID.String(), WorkspaceID: m.WorkspaceID.String()}
+func escopo(m contas.Membro) database.Scope {
+	return database.Scope{UserID: m.UsuarioID.String(), WorkspaceID: m.WorkspaceID.String()}
 }
 
 func donoColecao(m contas.Membro) colecoes.Dono {
@@ -170,7 +170,7 @@ func donoColecao(m contas.Membro) colecoes.Dono {
 }
 
 func (s *Service) tx(ctx context.Context, m contas.Membro, fn func(*curadoriadb.Queries) error) error {
-	return postgres.InTx(ctx, s.pool, escopo(m), func(tx pgx.Tx) error { return fn(curadoriadb.New(tx)) })
+	return database.InTx(ctx, s.pool, escopo(m), func(tx pgx.Tx) error { return fn(curadoriadb.New(tx)) })
 }
 
 func exigirGestor(m contas.Membro) error {

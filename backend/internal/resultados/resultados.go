@@ -27,7 +27,7 @@ import (
 	"github.com/rafixcs/app-parceiros/backend/internal/contas"
 	"github.com/rafixcs/app-parceiros/backend/internal/curadoria"
 	"github.com/rafixcs/app-parceiros/backend/internal/fontes"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/postgres"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/database"
 	"github.com/rafixcs/app-parceiros/backend/internal/produtos"
 	"github.com/rafixcs/app-parceiros/backend/internal/resultados/resultadosdb"
 )
@@ -225,14 +225,14 @@ func (s *Service) ComRelogio(agora func() time.Time) *Service {
 	return &c
 }
 
-func (s *Service) tx(ctx context.Context, e postgres.Escopo, fn func(*resultadosdb.Queries) error) error {
-	return postgres.InTx(ctx, s.pool, e, func(tx pgx.Tx) error { return fn(resultadosdb.New(tx)) })
+func (s *Service) tx(ctx context.Context, e database.Scope, fn func(*resultadosdb.Queries) error) error {
+	return database.InTx(ctx, s.pool, e, func(tx pgx.Tx) error { return fn(resultadosdb.New(tx)) })
 }
 
-func escopoUsuario(id uuid.UUID) postgres.Escopo { return postgres.Escopo{UsuarioID: id.String()} }
+func escopoUsuario(id uuid.UUID) database.Scope { return database.Scope{UserID: id.String()} }
 
-func escopoMembro(m contas.Membro) postgres.Escopo {
-	return postgres.Escopo{UsuarioID: m.UsuarioID.String(), WorkspaceID: m.WorkspaceID.String()}
+func escopoMembro(m contas.Membro) database.Scope {
+	return database.Scope{UserID: m.UsuarioID.String(), WorkspaceID: m.WorkspaceID.String()}
 }
 
 // NovoPeriodo interpreta de e ate (AAAA-MM-DD, inclusive). Vazios valem os
@@ -422,7 +422,7 @@ func agregados(ctx context.Context, q *resultadosdb.Queries, ws uuid.UUID, usuar
 }
 
 // produtosDe completa as linhas por produto com a foto do catálogo.
-func (s *Service) produtosDe(ctx context.Context, e postgres.Escopo, rows []resultadosdb.PorProdutoRow) ([]Produto, error) {
+func (s *Service) produtosDe(ctx context.Context, e database.Scope, rows []resultadosdb.PorProdutoRow) ([]Produto, error) {
 	out := make([]Produto, 0, len(rows))
 	var ids []uuid.UUID
 	for _, r := range rows {

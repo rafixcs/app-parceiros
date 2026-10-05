@@ -11,8 +11,8 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/rafixcs/app-parceiros/backend/internal/contas"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/httpserver"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/postgres"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/database"
+	"github.com/rafixcs/app-parceiros/backend/pkg/httputil"
 )
 
 type Handler struct {
@@ -31,9 +31,9 @@ func (h *Handler) Modulo() contas.Modulo {
 	}}
 }
 
-func escopo(r *http.Request) postgres.Escopo {
+func escopo(r *http.Request) database.Scope {
 	m, _ := contas.MembroDoContexto(r.Context())
-	return postgres.Escopo{UsuarioID: m.UsuarioID.String(), WorkspaceID: m.WorkspaceID.String()}
+	return database.Scope{UserID: m.UsuarioID.String(), WorkspaceID: m.WorkspaceID.String()}
 }
 
 func (h *Handler) radar(w http.ResponseWriter, r *http.Request) {
@@ -74,7 +74,7 @@ func (h *Handler) radar(w http.ResponseWriter, r *http.Request) {
 		h.erro(w, r, err)
 		return
 	}
-	httpserver.JSON(w, http.StatusOK, p)
+	httputil.JSON(w, http.StatusOK, p)
 }
 
 func (h *Handler) categorias(w http.ResponseWriter, r *http.Request) {
@@ -83,7 +83,7 @@ func (h *Handler) categorias(w http.ResponseWriter, r *http.Request) {
 		h.erro(w, r, err)
 		return
 	}
-	httpserver.JSON(w, http.StatusOK, cs)
+	httputil.JSON(w, http.StatusOK, cs)
 }
 
 func (h *Handler) produto(w http.ResponseWriter, r *http.Request) {
@@ -104,7 +104,7 @@ func (h *Handler) produto(w http.ResponseWriter, r *http.Request) {
 		h.erro(w, r, err)
 		return
 	}
-	httpserver.JSON(w, http.StatusOK, d)
+	httputil.JSON(w, http.StatusOK, d)
 }
 
 func int64Em(v string, dst **int64) error {
@@ -117,11 +117,11 @@ func (h *Handler) erro(w http.ResponseWriter, r *http.Request, err error) {
 	var ef *ErrFiltro
 	switch {
 	case errors.As(err, &ef):
-		httpserver.JSONErro(w, http.StatusUnprocessableEntity, "dados_invalidos", ef.Mensagem)
+		httputil.Error(w, http.StatusUnprocessableEntity, "dados_invalidos", ef.Mensagem)
 	case errors.Is(err, ErrProdutoNaoEncontrado):
-		httpserver.JSONErro(w, http.StatusNotFound, "produto_nao_encontrado", "Produto não encontrado.")
+		httputil.Error(w, http.StatusNotFound, "produto_nao_encontrado", "Produto não encontrado.")
 	default:
 		h.log.ErrorContext(r.Context(), "erro interno no radar", "err", err)
-		httpserver.JSONErro(w, http.StatusInternalServerError, "erro_interno", "Algo deu errado. Tente de novo em instantes.")
+		httputil.Error(w, http.StatusInternalServerError, "erro_interno", "Algo deu errado. Tente de novo em instantes.")
 	}
 }

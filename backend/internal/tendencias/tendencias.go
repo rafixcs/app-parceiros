@@ -16,7 +16,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/rafixcs/app-parceiros/backend/internal/fontes"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/postgres"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/database"
 	"github.com/rafixcs/app-parceiros/backend/internal/produtos"
 	"github.com/rafixcs/app-parceiros/backend/internal/tendencias/tendenciasdb"
 )
@@ -152,13 +152,13 @@ func (s *Service) Calcular(ctx context.Context, agora time.Time) (int, error) {
 }
 
 // Radar lista o radar com filtros e ordenação.
-func (s *Service) Radar(ctx context.Context, e postgres.Escopo, f Filtro) (Pagina, error) {
+func (s *Service) Radar(ctx context.Context, e database.Scope, f Filtro) (Pagina, error) {
 	f, p, err := validar(f)
 	if err != nil {
 		return Pagina{}, err
 	}
 	out := Pagina{Itens: []Item{}, Pagina: f.Pagina, PorPagina: f.PorPagina}
-	err = postgres.InTx(ctx, s.pool, e, func(tx pgx.Tx) error {
+	err = database.InTx(ctx, s.pool, e, func(tx pgx.Tx) error {
 		q := tendenciasdb.New(tx)
 		rows, err := q.Radar(ctx, p)
 		if err != nil {
@@ -232,7 +232,7 @@ func escaparLike(s string) string {
 
 // Produto devolve o item do radar com o histórico dos últimos `dias`. Um
 // produto que saiu do radar ainda aparece, sem score.
-func (s *Service) Produto(ctx context.Context, e postgres.Escopo, id uuid.UUID, dias int, agora time.Time) (Detalhe, error) {
+func (s *Service) Produto(ctx context.Context, e database.Scope, id uuid.UUID, dias int, agora time.Time) (Detalhe, error) {
 	if dias == 0 {
 		dias = 30
 	}
@@ -240,7 +240,7 @@ func (s *Service) Produto(ctx context.Context, e postgres.Escopo, id uuid.UUID, 
 		return Detalhe{}, &ErrFiltro{"O histórico pode cobrir de 1 a 90 dias."}
 	}
 	var out Detalhe
-	err := postgres.InTx(ctx, s.pool, e, func(tx pgx.Tx) error {
+	err := database.InTx(ctx, s.pool, e, func(tx pgx.Tx) error {
 		r, err := tendenciasdb.New(tx).RadarItem(ctx, id)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil
@@ -280,9 +280,9 @@ func (s *Service) Produto(ctx context.Context, e postgres.Escopo, id uuid.UUID, 
 
 // Categorias lista as categorias de nível 1 presentes no radar, com nome
 // quando conhecido.
-func (s *Service) Categorias(ctx context.Context, e postgres.Escopo) ([]Categoria, error) {
+func (s *Service) Categorias(ctx context.Context, e database.Scope) ([]Categoria, error) {
 	var rows []tendenciasdb.CategoriasDoRadarRow
-	err := postgres.InTx(ctx, s.pool, e, func(tx pgx.Tx) error {
+	err := database.InTx(ctx, s.pool, e, func(tx pgx.Tx) error {
 		var err error
 		rows, err = tendenciasdb.New(tx).CategoriasDoRadar(ctx)
 		return err

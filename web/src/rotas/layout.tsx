@@ -6,10 +6,11 @@ import { api, exigir, type Workspace } from "@/api/cliente";
 import { Button } from "@/components/ui/button";
 import { Aviso } from "@/components/ui/card";
 import { Select } from "@/components/ui/input";
-import { sair } from "@/lib/auth";
+import { signOut } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { diasAte } from "./assinatura-api";
 import { useNaoLidas } from "./listas-api";
+import { EmailVerificationNotice } from "./internal-auth";
 
 const chaveUltimo = "parceiros.workspace";
 
@@ -234,7 +235,7 @@ export function Layout() {
               tamanho="sm"
               aria-label="Sair"
               onClick={async () => {
-                await sair();
+                await signOut();
                 await navigate({ to: "/entrar" });
               }}
             >
@@ -244,6 +245,7 @@ export function Layout() {
         </div>
       </header>
       <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-6">
+        <EmailVerificationNotice verified={eu.data?.email_verificado} />
         {ws && (ws.status === "teste" || ws.status === "suspenso") && <AvisoCobranca ws={ws} />}
         <Outlet />
       </div>

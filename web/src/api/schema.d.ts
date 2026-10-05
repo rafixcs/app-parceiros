@@ -38,6 +38,134 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/auth/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cria uma conta com e-mail e senha (provedor interno)
+         * @description Só existe com AUTH_PROVIDER=internal. Cria a conta, manda o link de confirmação do e-mail e já abre uma sessão. O usuário e o workspace pessoal são criados no primeiro GET /v1/eu, como em qualquer provedor.
+         */
+        post: operations["authRegister"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Entra com e-mail e senha (provedor interno) */
+        post: operations["authLogin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Encerra a sessão do token (provedor interno) */
+        post: operations["authLogout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/email/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Confirma o e-mail com o token do link enviado (provedor interno) */
+        post: operations["authVerifyEmail"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/email/resend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Manda de novo o link de confirmação do e-mail (provedor interno) */
+        post: operations["authResendVerification"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/password/forgot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pede o link para redefinir a senha (provedor interno)
+         * @description Responde 202 mesmo quando o e-mail não tem conta, para não revelar quem está cadastrado.
+         */
+        post: operations["authForgotPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/password/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Define uma nova senha com o token do link enviado (provedor interno)
+         * @description Encerra todas as sessões abertas da conta.
+         */
+        post: operations["authResetPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/eu": {
         parameters: {
             query?: never;
@@ -47,7 +175,7 @@ export interface paths {
         };
         /**
          * Usuário autenticado
-         * @description No primeiro acesso, cria o usuário a partir do perfil do Zitadel e o seu workspace pessoal.
+         * @description No primeiro acesso, cria o usuário a partir do perfil do provedor de identidade (Zitadel ou o provedor interno) e o seu workspace pessoal.
          */
         get: operations["eu"];
         put?: never;
@@ -1214,7 +1342,7 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         Erro: {
-            /** @description Código estável para o front. Em contas: nao_autenticado, dados_invalidos, json_invalido, sem_permissao, workspace_nao_encontrado, membro_nao_encontrado, convite_nao_encontrado, so_mentoria, dono_nao_sai, sem_assentos, ja_membro, convite_expirado, convite_usado, convite_revogado, convite_outro_email, workspace_suspenso, assentos_em_uso, erro_interno. Em assinatura: ja_assinada, sem_assinatura, sem_preco, cobranca_indisponivel. Em shopee: credencial_invalida, shopee_limite, shopee_indisponivel. Em radar: produto_nao_encontrado. Em coleções: item_nao_encontrado, colecao_nao_encontrada, colecao_existente, link_invalido, link_curto, sem_credencial, importacao_indisponivel. Em curadoria: lista_nao_encontrada, item_lista_nao_encontrado, limite_listas, lista_vazia, ja_na_lista, lista_cheia, lista_nao_publicada. Em notificações: notificacao_nao_encontrada, push_indisponivel, inscricao_invalida, inscricoes_demais. Em mídia: video_nao_encontrado, link_video_invalido, video_indisponivel, plataforma_indisponivel, direito_uso_obrigatorio, formato_invalido, arquivo_grande, cota_videos, uploads_indisponiveis, upload_encerrado, upload_incompleto, video_nao_pronto. */
+            /** @description Código estável para o front. Em auth (provedor interno): invalid_credentials, email_taken, invalid_email, invalid_name, weak_password, invalid_auth_token, too_many_attempts. Em contas: nao_autenticado, dados_invalidos, json_invalido, sem_permissao, workspace_nao_encontrado, membro_nao_encontrado, convite_nao_encontrado, so_mentoria, dono_nao_sai, sem_assentos, ja_membro, convite_expirado, convite_usado, convite_revogado, convite_outro_email, workspace_suspenso, assentos_em_uso, erro_interno. Em assinatura: ja_assinada, sem_assinatura, sem_preco, cobranca_indisponivel. Em shopee: credencial_invalida, shopee_limite, shopee_indisponivel. Em radar: produto_nao_encontrado. Em coleções: item_nao_encontrado, colecao_nao_encontrada, colecao_existente, link_invalido, link_curto, sem_credencial, importacao_indisponivel. Em curadoria: lista_nao_encontrada, item_lista_nao_encontrado, limite_listas, lista_vazia, ja_na_lista, lista_cheia, lista_nao_publicada. Em notificações: notificacao_nao_encontrada, push_indisponivel, inscricao_invalida, inscricoes_demais. Em mídia: video_nao_encontrado, link_video_invalido, video_indisponivel, plataforma_indisponivel, direito_uso_obrigatorio, formato_invalido, arquivo_grande, cota_videos, uploads_indisponiveis, upload_encerrado, upload_incompleto, video_nao_pronto. */
             codigo: string;
             /** @description Texto pronto para mostrar ao usuário */
             mensagem: string;
@@ -1269,8 +1397,33 @@ export interface components {
             nome: string;
             /** Format: email */
             email: string;
+            /** @description Convites por e-mail e avisos por e-mail exigem o e-mail confirmado. */
+            email_verificado: boolean;
             /** Format: date-time */
             criado_em: string;
+        };
+        AuthRegister: {
+            name: string;
+            /** Format: email */
+            email: string;
+            password: string;
+        };
+        AuthLogin: {
+            /** Format: email */
+            email: string;
+            password: string;
+        };
+        AuthToken: {
+            token: string;
+        };
+        AuthSession: {
+            /** @description Token opaco da sessão, enviado como Bearer. */
+            token: string;
+            /**
+             * Format: date-time
+             * @description A validade é renovada a cada uso.
+             */
+            expires_at: string;
         };
         /** @enum {string} */
         Papel: "dono" | "mentor" | "afiliado";
@@ -1785,7 +1938,7 @@ export interface components {
             por_produto: components["schemas"]["ResultadoProduto"][];
         };
         Prontidao: {
-            [key: string]: "ok" | "falhou";
+            [key: string]: "ok" | "failed";
         };
     };
     responses: {
@@ -1873,6 +2026,235 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Prontidao"];
+                };
+            };
+        };
+    };
+    authRegister: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AuthRegister"];
+            };
+        };
+        responses: {
+            /** @description Conta criada e sessão aberta */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthSession"];
+                };
+            };
+            400: components["responses"]["Erro"];
+            /** @description `email_taken` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+            /** @description `invalid_email`, `invalid_name` ou `weak_password` */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+            429: components["responses"]["Erro"];
+        };
+    };
+    authLogin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AuthLogin"];
+            };
+        };
+        responses: {
+            /** @description Sessão aberta. Use o token como Bearer. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthSession"];
+                };
+            };
+            400: components["responses"]["Erro"];
+            /** @description `invalid_credentials` */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+            /** @description `too_many_attempts` */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+        };
+    };
+    authLogout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sessão encerrada */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["NaoAutenticado"];
+        };
+    };
+    authVerifyEmail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AuthToken"];
+            };
+        };
+        responses: {
+            /** @description E-mail confirmado */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["Erro"];
+            /** @description `invalid_auth_token`: o link expirou ou já foi usado */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+        };
+    };
+    authResendVerification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Link enviado */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["NaoAutenticado"];
+            429: components["responses"]["Erro"];
+        };
+    };
+    authForgotPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: email */
+                    email: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Pedido recebido */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["Erro"];
+            429: components["responses"]["Erro"];
+        };
+    };
+    authResetPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    token: string;
+                    password: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Senha trocada */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["Erro"];
+            /** @description `invalid_auth_token` */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
+                };
+            };
+            /** @description `weak_password` */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erro"];
                 };
             };
         };

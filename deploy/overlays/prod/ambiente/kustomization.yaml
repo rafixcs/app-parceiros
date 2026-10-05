@@ -18,20 +18,20 @@ configMapGenerator:
     literals:
       - APP_ENV=prod
       - APP_URL=https://TROCAR.dominio
-      - AUTH_MODE=oidc
+      - AUTH_PROVIDER=oidc
       - OIDC_ISSUER=https://TROCAR-instancia.zitadel.cloud
       - OIDC_AUDIENCE=TROCAR-client-id-do-app-web
       - CRYPTO_KEK_ID=prod-1
-      - SHOPEE_MODO=api
-      - COBRANCA_MODO=asaas
+      - SHOPEE_MODE=api
+      - BILLING_MODE=asaas
       - ASAAS_URL=https://api.asaas.com/v3
       - S3_ENDPOINT=https://TROCAR-conta.r2.cloudflarestorage.com
-      - S3_ENDPOINT_PUBLICO=https://TROCAR-conta.r2.cloudflarestorage.com
+      - S3_PUBLIC_ENDPOINT=https://TROCAR-conta.r2.cloudflarestorage.com
       - S3_BUCKET=parceiros-prod
       - S3_REGION=auto
       - SMTP_ADDR=TROCAR-smtp:587
-      - SMTP_REMETENTE=App Parceiros <nao-responda@TROCAR.dominio>
-      - VAPID_PUBLICA=TROCAR-gerada-por-parceiros-vapid
-      - VAPID_CONTATO=contato@TROCAR.dominio
+      - SMTP_FROM=App Parceiros <nao-responda@TROCAR.dominio>
+      - VAPID_PUBLIC_KEY=TROCAR-gerada-por-parceiros-vapid
+      - VAPID_SUBJECT=contato@TROCAR.dominio
     options:
       disableNameSuffixHash: true

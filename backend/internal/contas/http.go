@@ -11,8 +11,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/auth"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/httpserver"
+	"github.com/rafixcs/app-parceiros/backend/internal/domain"
+	httpapi "github.com/rafixcs/app-parceiros/backend/internal/infrastructure/http"
+	"github.com/rafixcs/app-parceiros/backend/pkg/httputil"
 )
 
 type (
@@ -44,12 +45,12 @@ func NewHandler(svc *Service, log *slog.Logger) *Handler {
 }
 
 // Autenticado resolve o usuário da identidade (criando-o no primeiro acesso)
-// e o guarda no contexto. Deve rodar depois de auth.Middleware.
+// e o guarda no contexto. Deve rodar depois de httpapi.RequireIdentity.
 func (h *Handler) Autenticado(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		id, ok := auth.DoContexto(r.Context())
+		id, ok := httpapi.IdentityFromContext(r.Context())
 		if !ok {
-			httpserver.JSONErro(w, http.StatusUnauthorized, "nao_autenticado", "Faça login para continuar.")
+			httputil.Error(w, http.StatusUnauthorized, "nao_autenticado", "Faça login para continuar.")
 			return
 		}
 		u, err := h.svc.Entrar(r.Context(), id)
@@ -110,7 +111,7 @@ type Modulo struct {
 
 // Rotas registra as rotas de contas, e as dos módulos, em r. As rotas
 // autenticadas usam v.
-func (h *Handler) Rotas(r chi.Router, v auth.Verificador, modulos ...Modulo) {
+func (h *Handler) Rotas(r chi.Router, v domain.Authenticator, modulos ...Modulo) {
 	r.Get("/v1/convites/{token}", h.verConvite)
 	for _, m := range modulos {
 		if m.Publicas != nil {
@@ -119,7 +120,7 @@ func (h *Handler) Rotas(r chi.Router, v auth.Verificador, modulos ...Modulo) {
 	}
 
 	r.Group(func(r chi.Router) {
-		r.Use(auth.Middleware(v), h.Autenticado)
+		r.Use(httpapi.RequireIdentity(v), h.Autenticado)
 
 		r.Get("/v1/eu", h.eu)
 		r.Get("/v1/workspaces", h.listarWorkspaces)
@@ -161,7 +162,7 @@ func (h *Handler) Rotas(r chi.Router, v auth.Verificador, modulos ...Modulo) {
 
 func (h *Handler) eu(w http.ResponseWriter, r *http.Request) {
 	u, _ := UsuarioDoContexto(r.Context())
-	httpserver.JSON(w, http.StatusOK, u)
+	httputil.JSON(w, http.StatusOK, u)
 }
 
 func (h *Handler) listarWorkspaces(w http.ResponseWriter, r *http.Request) {
@@ -171,7 +172,7 @@ func (h *Handler) listarWorkspaces(w http.ResponseWriter, r *http.Request) {
 		h.erro(w, r, err)
 		return
 	}
-	httpserver.JSON(w, http.StatusOK, ws)
+	httputil.JSON(w, http.StatusOK, ws)
 }
 
 type novaMentoria struct {
@@ -190,7 +191,7 @@ func (h *Handler) criarMentoria(w http.ResponseWriter, r *http.Request) {
 		h.erro(w, r, err)
 		return
 	}
-	httpserver.JSON(w, http.StatusCreated, ws)
+	httputil.JSON(w, http.StatusCreated, ws)
 }
 
 func (h *Handler) verWorkspace(w http.ResponseWriter, r *http.Request) {
@@ -200,7 +201,7 @@ func (h *Handler) verWorkspace(w http.ResponseWriter, r *http.Request) {
 		h.erro(w, r, err)
 		return
 	}
-	httpserver.JSON(w, http.StatusOK, ws)
+	httputil.JSON(w, http.StatusOK, ws)
 }
 
 type atualizacaoWorkspace struct {
@@ -219,7 +220,7 @@ func (h *Handler) atualizarWorkspace(w http.ResponseWriter, r *http.Request) {
 		h.erro(w, r, err)
 		return
 	}
-	httpserver.JSON(w, http.StatusOK, ws)
+	httputil.JSON(w, http.StatusOK, ws)
 }
 
 func (h *Handler) listarMembros(w http.ResponseWriter, r *http.Request) {
@@ -229,7 +230,7 @@ func (h *Handler) listarMembros(w http.ResponseWriter, r *http.Request) {
 		h.erro(w, r, err)
 		return
 	}
-	httpserver.JSON(w, http.StatusOK, ms)
+	httputil.JSON(w, http.StatusOK, ms)
 }
 
 func (h *Handler) removerMembro(w http.ResponseWriter, r *http.Request) {
@@ -253,7 +254,7 @@ func (h *Handler) listarConvites(w http.ResponseWriter, r *http.Request) {
 		h.erro(w, r, err)
 		return
 	}
-	httpserver.JSON(w, http.StatusOK, cs)
+	httputil.JSON(w, http.StatusOK, cs)
 }
 
 type novoConvite struct {
@@ -272,7 +273,7 @@ func (h *Handler) criarConvite(w http.ResponseWriter, r *http.Request) {
 		h.erro(w, r, err)
 		return
 	}
-	httpserver.JSON(w, http.StatusCreated, c)
+	httputil.JSON(w, http.StatusCreated, c)
 }
 
 func (h *Handler) revogarConvite(w http.ResponseWriter, r *http.Request) {
@@ -295,7 +296,7 @@ func (h *Handler) verConvite(w http.ResponseWriter, r *http.Request) {
 		h.erro(w, r, err)
 		return
 	}
-	httpserver.JSON(w, http.StatusOK, c)
+	httputil.JSON(w, http.StatusOK, c)
 }
 
 func (h *Handler) aceitarConvite(w http.ResponseWriter, r *http.Request) {
@@ -305,7 +306,7 @@ func (h *Handler) aceitarConvite(w http.ResponseWriter, r *http.Request) {
 		h.erro(w, r, err)
 		return
 	}
-	httpserver.JSON(w, http.StatusOK, ws)
+	httputil.JSON(w, http.StatusOK, ws)
 }
 
 const maxCorpo = 64 << 10
@@ -314,7 +315,7 @@ func (h *Handler) ler(w http.ResponseWriter, r *http.Request, v any) bool {
 	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxCorpo))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(v); err != nil {
-		httpserver.JSONErro(w, http.StatusBadRequest, "json_invalido", "O corpo da requisição não é um JSON válido.")
+		httputil.Error(w, http.StatusBadRequest, "json_invalido", "O corpo da requisição não é um JSON válido.")
 		return false
 	}
 	return true
@@ -323,9 +324,9 @@ func (h *Handler) ler(w http.ResponseWriter, r *http.Request, v any) bool {
 func (h *Handler) erro(w http.ResponseWriter, r *http.Request, err error) {
 	var e *Erro
 	if errors.As(err, &e) {
-		httpserver.JSONErro(w, e.Status, e.Codigo, e.Mensagem)
+		httputil.Error(w, e.Status, e.Codigo, e.Mensagem)
 		return
 	}
 	h.log.ErrorContext(r.Context(), "erro interno em contas", "err", err)
-	httpserver.JSONErro(w, http.StatusInternalServerError, "erro_interno", "Algo deu errado. Tente de novo em instantes.")
+	httputil.Error(w, http.StatusInternalServerError, "erro_interno", "Algo deu errado. Tente de novo em instantes.")
 }

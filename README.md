@@ -47,19 +47,27 @@ make migrate
 
 ## Autenticação
 
-A identidade vem do Zitadel (OIDC). A API valida o token de acesso (JWT) e, no primeiro acesso, cria o usuário e o seu workspace pessoal.
+O provedor de identidade é plugável (detalhes em [docs/arquitetura.md](docs/arquitetura.md)). `AUTH_PROVIDER` escolhe:
+
+- `oidc` (padrão): provedor externo, o Zitadel. A API valida o token de acesso (JWT).
+- `internal`: cadastro e login por e-mail e senha no próprio app, com confirmação do e-mail e redefinição da senha por link (rotas `/v1/auth/*`).
+- `dev`: só no ambiente local, aceita qualquer nome.
+
+Em todos, o primeiro acesso cria o usuário e o seu workspace pessoal. O front usa `VITE_AUTH_PROVIDER` com o mesmo valor da API.
 
 | Variável | Uso |
 |---|---|
-| `AUTH_MODE` | `oidc` (padrão) ou `dev` |
+| `AUTH_PROVIDER` | `oidc` (padrão), `internal` ou `dev` |
 | `OIDC_ISSUER` | URL do Zitadel, ex.: `https://auth.exemplo.com.br` |
 | `OIDC_AUDIENCE` | ID do projeto ou do app no Zitadel (precisa estar no `aud` do token) |
 | `OIDC_JWKS_URL`, `OIDC_USERINFO_URL` | Opcionais; o padrão segue os caminhos do Zitadel |
-| `APP_URL` | Endereço do front, usado nos links de convite |
+| `APP_URL` | Endereço do front, usado nos links de convite e nos e-mails do provedor interno |
+
+Com `internal`, os e-mails de confirmação e de redefinição da senha saem pelo SMTP (veja `SMTP_ADDR` abaixo); no cluster local, ficam no Mailpit.
 
 No app do Zitadel, configure o token de acesso como **JWT** e peça os escopos `openid profile email`.
 
-No cluster local não há Zitadel: o overlay `dev` liga `AUTH_MODE=dev`, que aceita `Authorization: Bearer dev:<qualquer-nome>` (recusado fora de `APP_ENV=dev`). No front, o mesmo vale para o nome digitado em "Entrar". Exemplo do fluxo de convite pela API (pelo app, use "Mentoria" no topo):
+No cluster local não há Zitadel: o overlay `dev` liga `AUTH_PROVIDER=dev`, que aceita `Authorization: Bearer dev:<qualquer-nome>` (recusado fora de `APP_ENV=dev`). No front, o mesmo vale para o nome digitado em "Entrar". Exemplo do fluxo de convite pela API (pelo app, use "Mentoria" no topo):
 
 ```sh
 curl -s -X POST localhost:8080/v1/workspaces -H 'Authorization: Bearer dev:mentor' -d '{"nome":"Minha turma"}'
@@ -73,10 +81,10 @@ O radar usa a **credencial do app** (`SHOPEE_APP_ID` e `SHOPEE_APP_SECRET`) para
 
 | Variável | Uso |
 |---|---|
-| `SHOPEE_MODO` | `api` ou `mock`. O padrão é `mock` em `APP_ENV=dev` sem `SHOPEE_APP_ID`; `mock` é recusado fora de dev |
+| `SHOPEE_MODE` | `api` ou `mock`. O padrão é `mock` em `APP_ENV=dev` sem `SHOPEE_APP_ID`; `mock` é recusado fora de dev |
 | `SHOPEE_APP_ID`, `SHOPEE_APP_SECRET` | Credencial do app para o catálogo. Sem elas (e fora do mock), o worker não coleta |
-| `SHOPEE_RATE_POR_HORA` | Chamadas por hora por credencial (padrão 1800) |
-| `SHOPEE_PAGINAS` | Páginas de 50 produtos por categoria em cada coleta (padrão 10) |
+| `SHOPEE_RATE_PER_HOUR` | Chamadas por hora por credencial (padrão 1800) |
+| `SHOPEE_PAGES` | Páginas de 50 produtos por categoria em cada coleta (padrão 10) |
 | `CRYPTO_KEK`, `CRYPTO_KEK_ID` | Chave mestra (32 bytes em base64) que cifra as credenciais. A API e o worker (que gera os links) precisam dela. Gere com `head -c32 /dev/urandom \| base64` |
 | `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` | Bucket onde ficam as respostas brutas da Shopee (R2 em produção, SeaweedFS local) |
 
@@ -99,7 +107,7 @@ No mock, o `generateShortLink` devolve um link fixo para cada AppID, página e s
 
 **Modo mock.** Sem credencial aprovada, a Shopee é simulada com as respostas gravadas em `backend/internal/fontes/shopee/testdata/`, e as vendas crescem um pouco a cada dia para o radar ter tendência. Qualquer AppID numérico conecta, exceto estes, que simulam erros da Open API: `10020` (credencial recusada), `10030` (limite de chamadas) e `10031` (acesso negado).
 
-Para ligar a Shopee de verdade: defina `SHOPEE_MODO=api`, `SHOPEE_APP_ID` e `SHOPEE_APP_SECRET` e marque as categorias a monitorar:
+Para ligar a Shopee de verdade: defina `SHOPEE_MODE=api`, `SHOPEE_APP_ID` e `SHOPEE_APP_SECRET` e marque as categorias a monitorar:
 
 ```sql
 INSERT INTO categorias (fonte, id, nome, monitorar) VALUES ('shopee', <id>, '<nome>', true);
@@ -120,9 +128,9 @@ A entrega é o job `entregar_notificacao` (fila `default`), um por destinatário
 | Variável | Uso |
 |---|---|
 | `SMTP_ADDR` | `host:porta` do SMTP. Sem ela, nenhum e-mail sai (no cluster local, `mailpit:1025`) |
-| `SMTP_USUARIO`, `SMTP_SENHA` | Opcionais. Usa STARTTLS quando o servidor oferece |
-| `SMTP_REMETENTE` | Padrão `App Parceiros <nao-responda@parceiros.local>` |
-| `VAPID_PUBLICA`, `VAPID_PRIVADA` | Chaves do Web Push. Gere com `./bin/parceiros vapid`. Sem elas, o push fica desligado |
-| `VAPID_CONTATO` | E-mail de contato enviado aos serviços de push (padrão `contato@parceiros.local`) |
+| `SMTP_USERNAME`, `SMTP_PASSWORD` | Opcionais. Usa STARTTLS quando o servidor oferece |
+| `SMTP_FROM` | Padrão `App Parceiros <nao-responda@parceiros.local>` |
+| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | Chaves do Web Push. Gere com `./bin/parceiros vapid`. Sem elas, o push fica desligado |
+| `VAPID_SUBJECT` | E-mail de contato enviado aos serviços de push (padrão `contato@parceiros.local`) |
 
 O overlay `dev` já traz um par VAPID só para o ambiente local. O service worker do front também roda no `npm run dev`, então dá para testar o push em http://localhost:5173: em "Notificações", clique em "Ativar". O navegador precisa alcançar o serviço de push dele (Google, Mozilla, Microsoft ou Apple); são os únicos endpoints que a API aceita.

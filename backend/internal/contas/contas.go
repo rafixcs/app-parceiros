@@ -67,19 +67,20 @@ func situacaoDe(w contasdb.Workspace, agora time.Time, aluno bool) Situacao {
 }
 
 type Usuario struct {
-	ID       uuid.UUID `json:"id"`
-	Nome     string    `json:"nome"`
-	Email    string    `json:"email"`
-	CriadoEm time.Time `json:"criado_em"`
+	ID              uuid.UUID `json:"id"`
+	Nome            string    `json:"nome"`
+	Email           string    `json:"email"`
+	EmailVerificado bool      `json:"email_verificado"`
+	CriadoEm        time.Time `json:"criado_em"`
 }
 
 type Workspace struct {
-	ID       uuid.UUID     `json:"id"`
-	Tipo     TipoWorkspace `json:"tipo"`
-	Nome     string        `json:"nome"`
-	FotoURL  *string       `json:"foto_url"`
-	Plano    string        `json:"plano"`
-	Status   Situacao      `json:"status"`
+	ID      uuid.UUID     `json:"id"`
+	Tipo    TipoWorkspace `json:"tipo"`
+	Nome    string        `json:"nome"`
+	FotoURL *string       `json:"foto_url"`
+	Plano   string        `json:"plano"`
+	Status  Situacao      `json:"status"`
 	// AcessoAte é até quando o workspace pode ser usado: o fim do teste ou do
 	// ciclo pago, mais a tolerância.
 	AcessoAte time.Time `json:"acesso_ate"`

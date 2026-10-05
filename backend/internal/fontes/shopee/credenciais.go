@@ -15,8 +15,8 @@ import (
 
 	"github.com/rafixcs/app-parceiros/backend/internal/fontes"
 	"github.com/rafixcs/app-parceiros/backend/internal/fontes/shopee/shopeedb"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/crypto"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/postgres"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/crypto"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/database"
 )
 
 // Status da conexão do usuário com a Shopee.
@@ -65,17 +65,17 @@ const tamanhoSecretMax = 256
 // Credenciais guarda e valida a credencial da Open API de cada usuário.
 type Credenciais struct {
 	pool      *pgxpool.Pool
-	cofre     *crypto.Cofre
+	cofre     *crypto.Vault
 	validador Validador
 	agora     func() time.Time
 }
 
-func NovasCredenciais(pool *pgxpool.Pool, cofre *crypto.Cofre, v Validador) *Credenciais {
+func NovasCredenciais(pool *pgxpool.Pool, cofre *crypto.Vault, v Validador) *Credenciais {
 	return &Credenciais{pool: pool, cofre: cofre, validador: v, agora: time.Now}
 }
 
 func (s *Credenciais) tx(ctx context.Context, usuarioID uuid.UUID, fn func(*shopeedb.Queries) error) error {
-	return postgres.InTx(ctx, s.pool, postgres.Escopo{UsuarioID: usuarioID.String()}, func(tx pgx.Tx) error {
+	return database.InTx(ctx, s.pool, database.Scope{UserID: usuarioID.String()}, func(tx pgx.Tx) error {
 		return fn(shopeedb.New(tx))
 	})
 }
@@ -117,14 +117,14 @@ func (s *Credenciais) Conectar(ctx context.Context, usuarioID uuid.UUID, appID, 
 		return Conexao{}, traduzir(err)
 	}
 
-	env, err := s.cofre.Cifrar(ctx, []byte(secret), aad(usuarioID))
+	env, err := s.cofre.Encrypt(ctx, []byte(secret), aad(usuarioID))
 	if err != nil {
 		return Conexao{}, fmt.Errorf("cifrando credencial: %w", err)
 	}
 	var c shopeedb.CredenciaisShopee
 	err = s.tx(ctx, usuarioID, func(q *shopeedb.Queries) error {
 		c, err = q.SalvarCredencial(ctx, shopeedb.SalvarCredencialParams{
-			UsuarioID: usuarioID, AppID: appID, SecretCifrado: env.Cifrado, DekCifrada: env.DEKCifrada,
+			UsuarioID: usuarioID, AppID: appID, SecretCifrado: env.Ciphertext, DekCifrada: env.EncryptedDEK,
 			KekID: env.KEKID, VerificadoEm: s.agora(),
 		})
 		return err
@@ -161,7 +161,7 @@ func (s *Credenciais) DoUsuario(ctx context.Context, usuarioID uuid.UUID) (Crede
 	if Status(c.Status) != StatusConectado {
 		return Credencial{}, ErrSemCredencial
 	}
-	secret, err := s.cofre.Decifrar(ctx, crypto.Envelope{Cifrado: c.SecretCifrado, DEKCifrada: c.DekCifrada, KEKID: c.KekID}, aad(usuarioID))
+	secret, err := s.cofre.Decrypt(ctx, crypto.Envelope{Ciphertext: c.SecretCifrado, EncryptedDEK: c.DekCifrada, KEKID: c.KekID}, aad(usuarioID))
 	if err != nil {
 		return Credencial{}, err
 	}

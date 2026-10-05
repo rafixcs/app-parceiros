@@ -512,9 +512,9 @@ func (q *Queries) TravarWorkspace(ctx context.Context, id uuid.UUID) (Workspace,
 }
 
 const upsertUsuario = `-- name: UpsertUsuario :one
-INSERT INTO usuarios (zitadel_sub, nome, email, email_verificado)
-VALUES ($1, $2, $3, $4)
-ON CONFLICT (zitadel_sub) DO UPDATE
+INSERT INTO usuarios (auth_provider, auth_subject, nome, email, email_verificado)
+VALUES ($1, $2, $3, $4, $5)
+ON CONFLICT (auth_provider, auth_subject) DO UPDATE
     SET nome = EXCLUDED.nome,
         email = EXCLUDED.email,
         email_verificado = EXCLUDED.email_verificado
@@ -522,7 +522,8 @@ RETURNING id, (xmax = 0)::boolean AS criado
 `
 
 type UpsertUsuarioParams struct {
-	ZitadelSub      string
+	AuthProvider    string
+	AuthSubject     string
 	Nome            string
 	Email           string
 	EmailVerificado bool
@@ -537,7 +538,8 @@ type UpsertUsuarioRow struct {
 // se a linha acabou de ser inserida.
 func (q *Queries) UpsertUsuario(ctx context.Context, arg UpsertUsuarioParams) (UpsertUsuarioRow, error) {
 	row := q.db.QueryRow(ctx, upsertUsuario,
-		arg.ZitadelSub,
+		arg.AuthProvider,
+		arg.AuthSubject,
 		arg.Nome,
 		arg.Email,
 		arg.EmailVerificado,
@@ -548,7 +550,7 @@ func (q *Queries) UpsertUsuario(ctx context.Context, arg UpsertUsuarioParams) (U
 }
 
 const usuarioPorID = `-- name: UsuarioPorID :one
-SELECT id, zitadel_sub, nome, email, email_verificado, criado_em FROM usuarios WHERE id = $1
+SELECT id, auth_subject, nome, email, email_verificado, criado_em, auth_provider FROM usuarios WHERE id = $1
 `
 
 func (q *Queries) UsuarioPorID(ctx context.Context, id uuid.UUID) (Usuario, error) {
@@ -556,31 +558,38 @@ func (q *Queries) UsuarioPorID(ctx context.Context, id uuid.UUID) (Usuario, erro
 	var i Usuario
 	err := row.Scan(
 		&i.ID,
-		&i.ZitadelSub,
+		&i.AuthSubject,
 		&i.Nome,
 		&i.Email,
 		&i.EmailVerificado,
 		&i.CriadoEm,
+		&i.AuthProvider,
 	)
 	return i, err
 }
 
-const usuarioPorSub = `-- name: UsuarioPorSub :one
+const usuarioPorIdentidade = `-- name: UsuarioPorIdentidade :one
 
-SELECT id, zitadel_sub, nome, email, email_verificado, criado_em FROM usuarios WHERE zitadel_sub = $1
+SELECT id, auth_subject, nome, email, email_verificado, criado_em, auth_provider FROM usuarios WHERE auth_provider = $1 AND auth_subject = $2
 `
 
+type UsuarioPorIdentidadeParams struct {
+	AuthProvider string
+	AuthSubject  string
+}
+
 // Queries do módulo contas. Gere o código com `make sqlc`.
-func (q *Queries) UsuarioPorSub(ctx context.Context, zitadelSub string) (Usuario, error) {
-	row := q.db.QueryRow(ctx, usuarioPorSub, zitadelSub)
+func (q *Queries) UsuarioPorIdentidade(ctx context.Context, arg UsuarioPorIdentidadeParams) (Usuario, error) {
+	row := q.db.QueryRow(ctx, usuarioPorIdentidade, arg.AuthProvider, arg.AuthSubject)
 	var i Usuario
 	err := row.Scan(
 		&i.ID,
-		&i.ZitadelSub,
+		&i.AuthSubject,
 		&i.Nome,
 		&i.Email,
 		&i.EmailVerificado,
 		&i.CriadoEm,
+		&i.AuthProvider,
 	)
 	return i, err
 }

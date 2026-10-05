@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"github.com/rafixcs/app-parceiros/backend/internal/fontes"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/ratelimit"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/ratelimit"
 )
 
 const (
@@ -56,7 +56,7 @@ const (
 type Config struct {
 	URL       string
 	HTTP      *http.Client
-	Limitador ratelimit.Limitador
+	Limitador ratelimit.Limiter
 	// EsperaMax é quanto uma chamada aceita esperar pelo rate limit antes de
 	// devolver fontes.ErrLimite.
 	EsperaMax time.Duration
@@ -66,7 +66,7 @@ type Config struct {
 type Cliente struct {
 	url       string
 	http      *http.Client
-	limitador ratelimit.Limitador
+	limitador ratelimit.Limiter
 	esperaMax time.Duration
 	agora     func() time.Time
 }
@@ -79,7 +79,7 @@ func NovoCliente(c Config) *Cliente {
 		c.HTTP = &http.Client{Timeout: 20 * time.Second}
 	}
 	if c.Limitador == nil {
-		c.Limitador = ratelimit.Livre{}
+		c.Limitador = ratelimit.Unlimited{}
 	}
 	if c.EsperaMax == 0 {
 		c.EsperaMax = 20 * time.Second
@@ -244,8 +244,8 @@ func (c *Cliente) Validar(ctx context.Context, cred Credencial) error {
 const camposOferta = "itemId productName shopId shopName imageUrl productLink priceMin priceMax commissionRate sales ratingStar productCatIds"
 
 func (c *Cliente) chamar(ctx context.Context, cred Credencial, query string) ([]byte, error) {
-	if err := ratelimit.Esperar(ctx, c.limitador, "shopee:"+cred.AppID, c.esperaMax); err != nil {
-		var lim *ratelimit.ErrLimite
+	if err := ratelimit.Wait(ctx, c.limitador, "shopee:"+cred.AppID, c.esperaMax); err != nil {
+		var lim *ratelimit.ErrLimited
 		if errors.As(err, &lim) {
 			return nil, fmt.Errorf("%w: %v", fontes.ErrLimite, err)
 		}

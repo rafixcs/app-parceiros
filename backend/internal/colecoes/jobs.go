@@ -14,7 +14,7 @@ import (
 
 	"github.com/rafixcs/app-parceiros/backend/internal/colecoes/colecoesdb"
 	"github.com/rafixcs/app-parceiros/backend/internal/fontes"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/jobs"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/queue"
 )
 
 // GerarLinkArgs gera os links de afiliado de um item, um por canal, com a
@@ -29,7 +29,7 @@ func (GerarLinkArgs) Kind() string { return "gerar_link" }
 
 func (GerarLinkArgs) InsertOpts() river.InsertOpts {
 	return river.InsertOpts{
-		Queue:       jobs.FilaShopee,
+		Queue:       queue.QueueShopee,
 		MaxAttempts: 6,
 		// Um job por item na fila de cada vez. Depois de concluído, pedir de
 		// novo gera outro.

@@ -8,7 +8,7 @@ import (
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/rivertype"
 
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/jobs"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/queue"
 )
 
 // EntregarArgs entrega uma notificação a um usuário. Leva só o conteúdo e os
@@ -27,7 +27,7 @@ func (EntregarArgs) Kind() string { return "entregar_notificacao" }
 
 func (EntregarArgs) InsertOpts() river.InsertOpts {
 	return river.InsertOpts{
-		Queue:       jobs.FilaDefault,
+		Queue:       queue.QueueDefault,
 		MaxAttempts: 8,
 		UniqueOpts: river.UniqueOpts{ByArgs: true, ByState: []rivertype.JobState{
 			rivertype.JobStateAvailable, rivertype.JobStatePending, rivertype.JobStateRetryable,

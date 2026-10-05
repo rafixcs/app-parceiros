@@ -22,8 +22,9 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/rafixcs/app-parceiros/backend/internal/contas"
+	"github.com/rafixcs/app-parceiros/backend/internal/domain"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/database"
 	"github.com/rafixcs/app-parceiros/backend/internal/notificacoes/notificacoesdb"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/postgres"
 )
 
 // Dono identifica a caixa de entrada: um usuário dentro de um workspace.
@@ -32,12 +33,12 @@ type Dono struct {
 	UsuarioID   uuid.UUID
 }
 
-func (d Dono) escopo() postgres.Escopo {
-	return postgres.Escopo{UsuarioID: d.UsuarioID.String(), WorkspaceID: d.WorkspaceID.String()}
+func (d Dono) escopo() database.Scope {
+	return database.Scope{UserID: d.UsuarioID.String(), WorkspaceID: d.WorkspaceID.String()}
 }
 
-func escopoUsuario(id uuid.UUID) postgres.Escopo {
-	return postgres.Escopo{UsuarioID: id.String()}
+func escopoUsuario(id uuid.UUID) database.Scope {
+	return database.Scope{UserID: id.String()}
 }
 
 type Notificacao struct {
@@ -125,23 +126,23 @@ type Service struct {
 	pool      *pgxpool.Pool
 	fila      Fila
 	contatos  Contatos
-	remetente Remetente // nil: sem e-mail
-	push      Push      // nil: sem Web Push
+	remetente domain.Mailer // nil: sem e-mail
+	push      Push          // nil: sem Web Push
 	appURL    string
 	log       *slog.Logger
 }
 
 // NewService monta o serviço. remetente e push podem ser nil (o canal fica
 // desligado); fila pode ser nil no worker, que não enfileira.
-func NewService(pool *pgxpool.Pool, fila Fila, contatos Contatos, remetente Remetente, push Push, appURL string, log *slog.Logger) *Service {
+func NewService(pool *pgxpool.Pool, fila Fila, contatos Contatos, remetente domain.Mailer, push Push, appURL string, log *slog.Logger) *Service {
 	return &Service{
 		pool: pool, fila: fila, contatos: contatos, remetente: remetente, push: push,
 		appURL: strings.TrimRight(appURL, "/"), log: log,
 	}
 }
 
-func (s *Service) tx(ctx context.Context, e postgres.Escopo, fn func(*notificacoesdb.Queries) error) error {
-	return postgres.InTx(ctx, s.pool, e, func(tx pgx.Tx) error { return fn(notificacoesdb.New(tx)) })
+func (s *Service) tx(ctx context.Context, e database.Scope, fn func(*notificacoesdb.Queries) error) error {
+	return database.InTx(ctx, s.pool, e, func(tx pgx.Tx) error { return fn(notificacoesdb.New(tx)) })
 }
 
 // Notificar enfileira a entrega para cada destinatário.
@@ -273,7 +274,7 @@ func (s *Service) EnviarConvite(ctx context.Context, c contas.EnvioConvite) erro
 	}
 	ctx, cancel := context.WithTimeout(ctx, timeoutConvite)
 	defer cancel()
-	err := s.remetente.Enviar(ctx, emailConvite(c))
+	err := s.remetente.Send(ctx, emailConvite(c))
 	if err != nil {
 		s.log.WarnContext(ctx, "não foi possível enviar o e-mail do convite", "err", err)
 	}
@@ -321,7 +322,7 @@ func (s *Service) entregarEmail(ctx context.Context, d Dono, n notificacoesdb.No
 		}
 		// E-mail não verificado pode ser de outra pessoa: não mandamos.
 		if c.EmailVerificado && c.Email != "" {
-			if err := s.remetente.Enviar(ctx, s.emailNotificacao(c, n)); err != nil {
+			if err := s.remetente.Send(ctx, s.emailNotificacao(c, n)); err != nil {
 				return fmt.Errorf("enviando e-mail: %w", err)
 			}
 		}

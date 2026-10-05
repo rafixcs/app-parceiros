@@ -588,6 +588,33 @@ type Assinatura struct {
 	CanceladaEm      *time.Time
 }
 
+type AuthAccount struct {
+	ID              uuid.UUID
+	Email           string
+	Name            string
+	PasswordHash    string
+	EmailVerifiedAt *time.Time
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
+type AuthSession struct {
+	TokenHash  []byte
+	AccountID  uuid.UUID
+	CreatedAt  time.Time
+	LastSeenAt time.Time
+	ExpiresAt  time.Time
+}
+
+type AuthToken struct {
+	TokenHash []byte
+	AccountID uuid.UUID
+	Purpose   string
+	ExpiresAt time.Time
+	UsedAt    *time.Time
+	CreatedAt time.Time
+}
+
 type Categoria struct {
 	Fonte     Fonte
 	ID        int64
@@ -842,11 +869,12 @@ type UsoVideo struct {
 
 type Usuario struct {
 	ID              uuid.UUID
-	ZitadelSub      string
+	AuthSubject     string
 	Nome            string
 	Email           string
 	EmailVerificado bool
 	CriadoEm        time.Time
+	AuthProvider    string
 }
 
 type Video struct {

@@ -11,8 +11,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/riverqueue/river"
 
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/queue"
 	"github.com/rafixcs/app-parceiros/backend/internal/midia/midiadb"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/jobs"
 )
 
 // JobArgs são os argumentos de um job do River.
@@ -30,7 +30,7 @@ func (ProcessarVideoArgs) Kind() string { return "processar_video" }
 
 func (ProcessarVideoArgs) InsertOpts() river.InsertOpts {
 	return river.InsertOpts{
-		Queue: jobs.FilaMidia, MaxAttempts: 3,
+		Queue: queue.QueueMedia, MaxAttempts: 3,
 		UniqueOpts: river.UniqueOpts{ByArgs: true},
 	}
 }
@@ -49,7 +49,7 @@ func (RevalidarEmbedArgs) InsertOpts() river.InsertOpts {
 	return river.InsertOpts{
 		// Sem UniqueOpts: o River exige o estado running nelas, e o job agenda
 		// a próxima rodada de si mesmo. Cada vídeo só agenda uma vez, ao ser criado.
-		Queue: jobs.FilaDefault, MaxAttempts: 5,
+		Queue: queue.QueueDefault, MaxAttempts: 5,
 	}
 }
 
@@ -65,7 +65,7 @@ func (LimparUploadArgs) Kind() string { return "limpar_upload" }
 
 func (LimparUploadArgs) InsertOpts() river.InsertOpts {
 	return river.InsertOpts{
-		Queue: jobs.FilaMidia, MaxAttempts: 10,
+		Queue: queue.QueueMedia, MaxAttempts: 10,
 	}
 }
 
@@ -147,7 +147,7 @@ func (s *Service) Processar(ctx context.Context, d Dono, id uuid.UUID) error {
 	if err != nil || !ok || Status(row.Status) != StatusProcessando {
 		return err // apagado ou já processado
 	}
-	entrada, err := s.objetos.URLInterna(ctx, chaveOriginal(row), time.Hour)
+	entrada, err := s.objetos.InternalURL(ctx, chaveOriginal(row), time.Hour)
 	if err != nil {
 		return err
 	}
@@ -160,10 +160,10 @@ func (s *Service) Processar(ctx context.Context, d Dono, id uuid.UUID) error {
 	if err != nil {
 		return err
 	}
-	if err := s.objetos.EnviarArquivo(ctx, chavePrevia(row), p.Previa, "video/mp4"); err != nil {
+	if err := s.objetos.UploadFile(ctx, chavePrevia(row), p.Previa, "video/mp4"); err != nil {
 		return err
 	}
-	if err := s.objetos.EnviarArquivo(ctx, chaveThumb(row), p.Thumb, "image/jpeg"); err != nil {
+	if err := s.objetos.UploadFile(ctx, chaveThumb(row), p.Thumb, "image/jpeg"); err != nil {
 		return err
 	}
 	return s.tx(ctx, d, func(q *midiadb.Queries) error {

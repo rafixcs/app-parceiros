@@ -21,11 +21,12 @@ import (
 	"github.com/rafixcs/app-parceiros/backend/internal/contas"
 	"github.com/rafixcs/app-parceiros/backend/internal/fontes"
 	"github.com/rafixcs/app-parceiros/backend/internal/fontes/shopee"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/auth"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/crypto"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/httpserver"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/postgres"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/postgres/pgtest"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/auth"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/crypto"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/database"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/database/dbtest"
+	httpapi "github.com/rafixcs/app-parceiros/backend/internal/infrastructure/http"
+	"github.com/rafixcs/app-parceiros/backend/pkg/httputil"
 )
 
 const secret = "s3gr3d0-d4-sh0p33"
@@ -40,21 +41,21 @@ type ambiente struct {
 
 func novoAmbiente(t *testing.T) (*ambiente, func(sql string) []byte) {
 	t.Helper()
-	pool := pgtest.New(t)
+	pool := dbtest.New(t)
 	logs := &bytes.Buffer{}
 	log := slog.New(slog.NewTextHandler(logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 	chave := make([]byte, 32)
 	_, _ = rand.Read(chave)
-	kek, err := crypto.NovaKEKLocal("teste-1", base64.StdEncoding.EncodeToString(chave))
+	kek, err := crypto.NewLocalKEK("teste-1", base64.StdEncoding.EncodeToString(chave))
 	if err != nil {
 		t.Fatal(err)
 	}
 	mock := &shopee.Mock{Segredos: map[string]string{"18300001234": secret}}
-	svc := shopee.NovasCredenciais(pool, crypto.NovoCofre(kek), shopee.NovoMock(mock, shopee.Config{}))
+	svc := shopee.NovasCredenciais(pool, crypto.NewVault(kek), shopee.NovoMock(mock, shopee.Config{}))
 	contasSvc := contas.NewService(pool, auth.Dev{}, "https://app.teste")
 
-	r := httpserver.NewRouter(log, nil)
+	r := httpapi.NewRouter(log, nil)
 	contas.NewHandler(contasSvc, log).Rotas(r, auth.Dev{}, shopee.NewHandler(svc, log).Modulo())
 
 	// bruto lê uma coluna bytea como dono das tabelas (sem RLS).
@@ -97,9 +98,9 @@ func TestConexaoShopee(t *testing.T) {
 	}
 
 	t.Run("dados inválidos", func(t *testing.T) {
-		var e httpserver.Erro
+		var e httputil.ErrorBody
 		st, _ := a.chamar("ana", http.MethodPut, "/v1/eu/shopee", map[string]string{"app_id": "abc", "secret": "x"}, &e)
-		if st != 422 || e.Codigo != "dados_invalidos" {
+		if st != 422 || e.Code != "dados_invalidos" {
 			t.Fatalf("%d %+v", st, e)
 		}
 	})
@@ -116,9 +117,9 @@ func TestConexaoShopee(t *testing.T) {
 			"limite":        {shopee.MockAppIDLimite, secret, 429, "shopee_limite"},
 		}
 		for nome, c := range casos {
-			var e httpserver.Erro
+			var e httputil.ErrorBody
 			st, corpo := a.chamar("ana", http.MethodPut, "/v1/eu/shopee", map[string]string{"app_id": c.app, "secret": c.secret}, &e)
-			if st != c.status || e.Codigo != c.codigo {
+			if st != c.status || e.Code != c.codigo {
 				t.Errorf("%s: %d %+v", nome, st, e)
 			}
 			if strings.Contains(corpo, c.secret) {
@@ -168,7 +169,7 @@ func TestConexaoShopee(t *testing.T) {
 		}
 		// Mesmo uma query sem filtro, no escopo da bia, não enxerga a linha da ana.
 		var n int
-		err := postgres.InTx(ctx, a.pool, postgres.Escopo{UsuarioID: bia.String()}, func(tx pgx.Tx) error {
+		err := database.InTx(ctx, a.pool, database.Scope{UserID: bia.String()}, func(tx pgx.Tx) error {
 			return tx.QueryRow(ctx, "SELECT count(*) FROM credenciais_shopee").Scan(&n)
 		})
 		if err != nil || n != 0 {

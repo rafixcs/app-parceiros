@@ -12,7 +12,7 @@ import (
 	"github.com/riverqueue/river/rivertype"
 
 	"github.com/rafixcs/app-parceiros/backend/internal/fontes"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/jobs"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/queue"
 )
 
 // IntervaloSync é a frequência da sincronização automática.
@@ -28,7 +28,7 @@ func (SyncConversoesArgs) Kind() string { return "sync_conversoes" }
 
 func (SyncConversoesArgs) InsertOpts() river.InsertOpts {
 	return river.InsertOpts{
-		Queue:       jobs.FilaShopee,
+		Queue:       queue.QueueShopee,
 		MaxAttempts: 5,
 		// Uma sincronização por usuário na fila de cada vez.
 		UniqueOpts: river.UniqueOpts{ByArgs: true, ByState: []rivertype.JobState{

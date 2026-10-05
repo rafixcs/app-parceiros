@@ -65,9 +65,13 @@ jobs:
       redis:
         image: redis:7
         ports: ["6379:6379"]
+      # Receives the emails of the internal identity provider.
+      mailpit:
+        image: axllent/mailpit:v1.31
+        ports: ["1025:1025", "8025:8025"]
     env:
       APP_ENV: dev
-      AUTH_MODE: dev
+      AUTH_PROVIDER: dev
       DATABASE_URL: postgres://parceiros:parceiros@localhost:5432/parceiros?sslmode=disable
       REDIS_URL: redis://localhost:6379/0
       CRYPTO_KEK: FqpezR/uQXmGJwq4y1/m3ULeVkNyjxAF5OpNgmPmqVE=
@@ -98,8 +102,20 @@ jobs:
         working-directory: web
       - run: npm run e2e
         working-directory: web
+      - name: API com o provedor de identidade interno (e-mail e senha)
+        working-directory: backend
+        run: |
+          pkill -f '^/tmp/parceiros api' || true
+          sleep 1
+          AUTH_PROVIDER=internal SMTP_ADDR=localhost:1025 /tmp/parceiros api > /tmp/api-internal.log 2>&1 &
+          for i in $(seq 30); do curl -sf localhost:8080/readyz && exit 0; sleep 1; done
+          cat /tmp/api-internal.log; exit 1
+      - run: npm run e2e
+        working-directory: web
+        env:
+          E2E_AUTH_PROVIDER: internal
       - if: failure()
-        run: tail -n 100 /tmp/api.log /tmp/worker.log
+        run: tail -n 100 /tmp/api.log /tmp/worker.log /tmp/api-internal.log
       - if: failure()
         uses: actions/upload-artifact@v4
         with:

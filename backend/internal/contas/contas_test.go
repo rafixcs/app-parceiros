@@ -17,10 +17,11 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/rafixcs/app-parceiros/backend/internal/contas"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/auth"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/httpserver"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/postgres"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/postgres/pgtest"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/auth"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/database"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/database/dbtest"
+	httpapi "github.com/rafixcs/app-parceiros/backend/internal/infrastructure/http"
+	"github.com/rafixcs/app-parceiros/backend/pkg/httputil"
 )
 
 type ambiente struct {
@@ -32,10 +33,10 @@ type ambiente struct {
 
 func novoAmbiente(t *testing.T) *ambiente {
 	t.Helper()
-	pool := pgtest.New(t)
+	pool := dbtest.New(t)
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	svc := contas.NewService(pool, auth.Dev{}, "https://app.teste")
-	r := httpserver.NewRouter(log, nil)
+	r := httpapi.NewRouter(log, nil)
 	contas.NewHandler(svc, log).Rotas(r, auth.Dev{})
 	return &ambiente{t: t, pool: pool, svc: svc, router: r}
 }
@@ -68,7 +69,7 @@ func (a *ambiente) chamar(sub, metodo, caminho string, corpo any, out any) int {
 
 func (a *ambiente) exigir(sub, metodo, caminho string, corpo any, out any, status int) {
 	a.t.Helper()
-	var erro httpserver.Erro
+	var erro httputil.ErrorBody
 	if out == nil {
 		out = &erro
 	}
@@ -79,10 +80,10 @@ func (a *ambiente) exigir(sub, metodo, caminho string, corpo any, out any, statu
 
 func (a *ambiente) exigirErro(sub, metodo, caminho string, corpo any, status int, codigo string) {
 	a.t.Helper()
-	var erro httpserver.Erro
+	var erro httputil.ErrorBody
 	got := a.chamar(sub, metodo, caminho, corpo, &erro)
-	if got != status || erro.Codigo != codigo {
-		a.t.Fatalf("%s %s como %q: %d %q, quer %d %q", metodo, caminho, sub, got, erro.Codigo, status, codigo)
+	if got != status || erro.Code != codigo {
+		a.t.Fatalf("%s %s como %q: %d %q, quer %d %q", metodo, caminho, sub, got, erro.Code, status, codigo)
 	}
 }
 
@@ -459,12 +460,12 @@ func TestVazamentoEntreWorkspacesRLS(t *testing.T) {
 
 	var pessoal []contas.Workspace
 	a.exigir("intruso", http.MethodGet, "/v1/workspaces", nil, &pessoal, http.StatusOK)
-	escopo := postgres.Escopo{UsuarioID: intruso.ID.String(), WorkspaceID: pessoal[0].ID.String()}
+	escopo := database.Scope{UserID: intruso.ID.String(), WorkspaceID: pessoal[0].ID.String()}
 
-	contar := func(e postgres.Escopo, tabela string) int {
+	contar := func(e database.Scope, tabela string) int {
 		t.Helper()
 		var n int
-		err := postgres.InTx(ctx, a.pool, e, func(tx pgx.Tx) error {
+		err := database.InTx(ctx, a.pool, e, func(tx pgx.Tx) error {
 			return tx.QueryRow(ctx, "SELECT count(*) FROM "+tabela).Scan(&n)
 		})
 		if err != nil {
@@ -477,7 +478,7 @@ func TestVazamentoEntreWorkspacesRLS(t *testing.T) {
 		if n := contar(escopo, tabela); n != quer {
 			t.Errorf("%s visíveis para o intruso = %d, quer %d", tabela, n, quer)
 		}
-		if n := contar(postgres.Escopo{}, tabela); n != 0 {
+		if n := contar(database.Scope{}, tabela); n != 0 {
 			t.Errorf("%s visíveis sem escopo = %d, quer 0", tabela, n)
 		}
 	}
@@ -501,14 +502,14 @@ func TestVazamentoEntreWorkspacesRLS(t *testing.T) {
 		},
 	}
 	for nome, escrever := range escritas {
-		err := postgres.InTx(ctx, a.pool, escopo, escrever)
+		err := database.InTx(ctx, a.pool, escopo, escrever)
 		if err == nil || !contemRLS(err) {
 			t.Errorf("%s: err = %v, quer violação de RLS", nome, err)
 		}
 	}
 
 	// Alterações e remoções em outro workspace não afetam nenhuma linha.
-	err := postgres.InTx(ctx, a.pool, escopo, func(tx pgx.Tx) error {
+	err := database.InTx(ctx, a.pool, escopo, func(tx pgx.Tx) error {
 		for _, sql := range []string{
 			"UPDATE workspaces SET nome = 'invadido' WHERE id = $1",
 			"DELETE FROM membros WHERE workspace_id = $1",

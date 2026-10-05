@@ -3,8 +3,9 @@ import { token } from "@/lib/auth";
 import { Assinatura } from "./assinatura";
 import { Colecao, validarBuscaColecao } from "./colecao";
 import { Convite } from "./convite";
-import { Callback, Entrar } from "./entrar";
+import { Callback, SignIn } from "./entrar";
 import { Inicio } from "./inicio";
+import { ForgotPassword, ResetPassword, SignUp, VerifyEmail } from "./internal-auth";
 import { Layout } from "./layout";
 import { Listas } from "./listas";
 import { Notificacoes } from "./notificacoes";
@@ -15,8 +16,26 @@ import { Turma } from "./turma";
 
 const raiz = createRootRoute();
 
-const entrar = createRoute({ getParentRoute: () => raiz, path: "/entrar", component: Entrar });
+const entrar = createRoute({ getParentRoute: () => raiz, path: "/entrar", component: SignIn });
 const callback = createRoute({ getParentRoute: () => raiz, path: "/callback", component: Callback });
+
+// Internal identity provider (email and password). The links sent by email
+// carry the one-time token in ?token=.
+const validateTokenSearch = (s: Record<string, unknown>) => ({ token: typeof s.token === "string" ? s.token : "" });
+const cadastro = createRoute({ getParentRoute: () => raiz, path: "/cadastro", component: SignUp });
+const esqueciSenha = createRoute({ getParentRoute: () => raiz, path: "/esqueci-a-senha", component: ForgotPassword });
+export const rotaRedefinirSenha = createRoute({
+  getParentRoute: () => raiz,
+  path: "/redefinir-senha",
+  validateSearch: validateTokenSearch,
+  component: ResetPassword,
+});
+export const rotaVerificarEmail = createRoute({
+  getParentRoute: () => raiz,
+  path: "/verificar-email",
+  validateSearch: validateTokenSearch,
+  component: VerifyEmail,
+});
 
 // O convite abre sem login: mostra a mentoria e leva ao login para aceitar.
 export const rotaConvite = createRoute({ getParentRoute: () => raiz, path: "/convite/$token", component: Convite });
@@ -113,6 +132,10 @@ export const router = createRouter({
   routeTree: raiz.addChildren([
     entrar,
     callback,
+    cadastro,
+    esqueciSenha,
+    rotaRedefinirSenha,
+    rotaVerificarEmail,
     rotaConvite,
     app.addChildren([
       inicio,

@@ -17,9 +17,10 @@ import (
 
 	"github.com/rafixcs/app-parceiros/backend/internal/assinaturas"
 	"github.com/rafixcs/app-parceiros/backend/internal/contas"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/auth"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/httpserver"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/postgres/pgtest"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/auth"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/database/dbtest"
+	httpapi "github.com/rafixcs/app-parceiros/backend/internal/infrastructure/http"
+	"github.com/rafixcs/app-parceiros/backend/pkg/httputil"
 )
 
 type ambiente struct {
@@ -33,12 +34,12 @@ type ambiente struct {
 
 func novoAmbiente(t *testing.T) *ambiente {
 	t.Helper()
-	pool := pgtest.New(t)
+	pool := dbtest.New(t)
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	contasSvc := contas.NewService(pool, auth.Dev{}, "https://app.teste")
 	gw := assinaturas.NovoMock()
 	svc := assinaturas.NewService(pool, gw, contasSvc, nil, log)
-	r := httpserver.NewRouter(log, nil)
+	r := httpapi.NewRouter(log, nil)
 	contas.NewHandler(contasSvc, log).Rotas(r, auth.Dev{}, assinaturas.NewHandler(svc, log).Modulo())
 	return &ambiente{t: t, pool: pool, contas: contasSvc, svc: svc, gw: gw, router: r}
 }
@@ -69,7 +70,7 @@ func (a *ambiente) chamar(sub, metodo, caminho string, corpo any, out any) int {
 
 func (a *ambiente) exigir(sub, metodo, caminho string, corpo any, out any, status int) {
 	a.t.Helper()
-	var erro httpserver.Erro
+	var erro httputil.ErrorBody
 	if out == nil {
 		out = &erro
 	}
@@ -80,10 +81,10 @@ func (a *ambiente) exigir(sub, metodo, caminho string, corpo any, out any, statu
 
 func (a *ambiente) exigirErro(sub, metodo, caminho string, corpo any, status int, codigo string) {
 	a.t.Helper()
-	var erro httpserver.Erro
+	var erro httputil.ErrorBody
 	got := a.chamar(sub, metodo, caminho, corpo, &erro)
-	if got != status || erro.Codigo != codigo {
-		a.t.Fatalf("%s %s como %q: %d %q, quer %d %q", metodo, caminho, sub, got, erro.Codigo, status, codigo)
+	if got != status || erro.Code != codigo {
+		a.t.Fatalf("%s %s como %q: %d %q, quer %d %q", metodo, caminho, sub, got, erro.Code, status, codigo)
 	}
 }
 

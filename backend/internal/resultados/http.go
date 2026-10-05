@@ -10,7 +10,7 @@ import (
 
 	"github.com/rafixcs/app-parceiros/backend/internal/contas"
 	"github.com/rafixcs/app-parceiros/backend/internal/curadoria"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/httpserver"
+	"github.com/rafixcs/app-parceiros/backend/pkg/httputil"
 )
 
 type Handler struct {
@@ -75,7 +75,7 @@ func (h *Handler) consentimento(w http.ResponseWriter, r *http.Request) {
 	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<10))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&in); err != nil || in.Consente == nil {
-		httpserver.JSONErro(w, http.StatusBadRequest, "json_invalido", "Envie {\"consente\": true} ou {\"consente\": false}.")
+		httputil.Error(w, http.StatusBadRequest, "json_invalido", "Envie {\"consente\": true} ou {\"consente\": false}.")
 		return
 	}
 	m, _ := contas.MembroDoContexto(r.Context())
@@ -100,7 +100,7 @@ func (h *Handler) responder(w http.ResponseWriter, r *http.Request, status int, 
 		h.erro(w, r, err)
 		return
 	}
-	httpserver.JSON(w, status, v)
+	httputil.JSON(w, status, v)
 }
 
 // erro devolve os erros de negócio dos resultados, de contas (consentimento)
@@ -108,19 +108,19 @@ func (h *Handler) responder(w http.ResponseWriter, r *http.Request, status int, 
 func (h *Handler) erro(w http.ResponseWriter, r *http.Request, err error) {
 	var e *Erro
 	if errors.As(err, &e) {
-		httpserver.JSONErro(w, e.Status, e.Codigo, e.Mensagem)
+		httputil.Error(w, e.Status, e.Codigo, e.Mensagem)
 		return
 	}
 	var ec *contas.Erro
 	if errors.As(err, &ec) {
-		httpserver.JSONErro(w, ec.Status, ec.Codigo, ec.Mensagem)
+		httputil.Error(w, ec.Status, ec.Codigo, ec.Mensagem)
 		return
 	}
 	var ecur *curadoria.Erro
 	if errors.As(err, &ecur) {
-		httpserver.JSONErro(w, ecur.Status, ecur.Codigo, ecur.Mensagem)
+		httputil.Error(w, ecur.Status, ecur.Codigo, ecur.Mensagem)
 		return
 	}
 	h.log.ErrorContext(r.Context(), "erro interno nos resultados", "err", err)
-	httpserver.JSONErro(w, http.StatusInternalServerError, "erro_interno", "Algo deu errado. Tente de novo em instantes.")
+	httputil.Error(w, http.StatusInternalServerError, "erro_interno", "Algo deu errado. Tente de novo em instantes.")
 }

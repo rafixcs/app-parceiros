@@ -11,8 +11,8 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/rafixcs/app-parceiros/backend/internal/contas"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/httpserver"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/storage"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/storage"
+	"github.com/rafixcs/app-parceiros/backend/pkg/httputil"
 )
 
 type Handler struct {
@@ -142,10 +142,10 @@ func (h *Handler) partes(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	ps, err := h.svc.Partes(r.Context(), membro(r), id)
+	ps, err := h.svc.Parts(r.Context(), membro(r), id)
 	out := make([]parteJSON, len(ps))
 	for i, p := range ps {
-		out[i] = parteJSON{Numero: p.Numero, ETag: p.ETag, Tamanho: p.Tamanho}
+		out[i] = parteJSON{Numero: p.Number, ETag: p.ETag, Tamanho: p.Size}
 	}
 	h.responder(w, r, http.StatusOK, out, err)
 }
@@ -161,7 +161,7 @@ func (h *Handler) assinarParte(w http.ResponseWriter, r *http.Request) {
 	if !h.ler(w, r, &in, maxCorpo) {
 		return
 	}
-	url, err := h.svc.AssinarParte(r.Context(), membro(r), id, in.Numero)
+	url, err := h.svc.SignPart(r.Context(), membro(r), id, in.Numero)
 	h.responder(w, r, http.StatusOK, map[string]string{"url": url}, err)
 }
 
@@ -171,14 +171,14 @@ func (h *Handler) concluir(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var in struct {
-		Partes []parteJSON `json:"partes"`
+		Parts []parteJSON `json:"partes"`
 	}
 	if !h.ler(w, r, &in, maxCorpoPartes) {
 		return
 	}
-	ps := make([]storage.Parte, len(in.Partes))
-	for i, p := range in.Partes {
-		ps[i] = storage.Parte{Numero: p.Numero, ETag: p.ETag}
+	ps := make([]storage.Part, len(in.Parts))
+	for i, p := range in.Parts {
+		ps[i] = storage.Part{Number: p.Numero, ETag: p.ETag}
 	}
 	v, err := h.svc.ConcluirUpload(r.Context(), membro(r), id, ps)
 	h.responder(w, r, http.StatusOK, v, err)
@@ -232,7 +232,7 @@ func (h *Handler) ler(w http.ResponseWriter, r *http.Request, v any, max int64) 
 	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, max))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(v); err != nil {
-		httpserver.JSONErro(w, http.StatusBadRequest, "json_invalido", "O corpo da requisição não é um JSON válido.")
+		httputil.Error(w, http.StatusBadRequest, "json_invalido", "O corpo da requisição não é um JSON válido.")
 		return false
 	}
 	return true
@@ -245,16 +245,16 @@ func (h *Handler) responder(w http.ResponseWriter, r *http.Request, status int, 
 	case status == http.StatusNoContent:
 		w.WriteHeader(status)
 	default:
-		httpserver.JSON(w, status, v)
+		httputil.JSON(w, status, v)
 	}
 }
 
 func (h *Handler) erro(w http.ResponseWriter, r *http.Request, err error) {
 	var e *Erro
 	if errors.As(err, &e) {
-		httpserver.JSONErro(w, e.Status, e.Codigo, e.Mensagem)
+		httputil.Error(w, e.Status, e.Codigo, e.Mensagem)
 		return
 	}
 	h.log.ErrorContext(r.Context(), "erro interno na mídia", "err", err)
-	httpserver.JSONErro(w, http.StatusInternalServerError, "erro_interno", "Algo deu errado. Tente de novo em instantes.")
+	httputil.Error(w, http.StatusInternalServerError, "erro_interno", "Algo deu errado. Tente de novo em instantes.")
 }

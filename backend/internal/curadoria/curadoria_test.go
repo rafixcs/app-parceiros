@@ -25,16 +25,18 @@ import (
 	"github.com/rafixcs/app-parceiros/backend/internal/colecoes"
 	"github.com/rafixcs/app-parceiros/backend/internal/contas"
 	"github.com/rafixcs/app-parceiros/backend/internal/curadoria"
+	"github.com/rafixcs/app-parceiros/backend/internal/domain"
 	"github.com/rafixcs/app-parceiros/backend/internal/fontes"
 	"github.com/rafixcs/app-parceiros/backend/internal/fontes/shopee"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/auth"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/crypto"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/database"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/database/dbtest"
+	httpapi "github.com/rafixcs/app-parceiros/backend/internal/infrastructure/http"
 	"github.com/rafixcs/app-parceiros/backend/internal/midia"
 	"github.com/rafixcs/app-parceiros/backend/internal/notificacoes"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/auth"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/crypto"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/httpserver"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/postgres"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/postgres/pgtest"
 	"github.com/rafixcs/app-parceiros/backend/internal/produtos"
+	"github.com/rafixcs/app-parceiros/backend/pkg/httputil"
 )
 
 const (
@@ -67,22 +69,22 @@ func (f *fila[T]) tirar() []T {
 
 type remetente struct {
 	mu     sync.Mutex
-	emails []notificacoes.Email
+	emails []domain.Email
 }
 
-func (r *remetente) Enviar(_ context.Context, e notificacoes.Email) error {
+func (r *remetente) Send(_ context.Context, e domain.Email) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.emails = append(r.emails, e)
 	return nil
 }
 
-func (r *remetente) para(email string) []notificacoes.Email {
+func (r *remetente) para(email string) []domain.Email {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	var out []notificacoes.Email
+	var out []domain.Email
 	for _, e := range r.emails {
-		if e.Para == email {
+		if e.To == email {
 			out = append(out, e)
 		}
 	}
@@ -127,17 +129,17 @@ type ambiente struct {
 func novoAmbiente(t *testing.T) *ambiente {
 	t.Helper()
 	ctx := context.Background()
-	pool := pgtest.New(t)
+	pool := dbtest.New(t)
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 
 	chave := make([]byte, 32)
 	_, _ = rand.Read(chave)
-	kek, err := crypto.NovaKEKLocal("teste-1", base64.StdEncoding.EncodeToString(chave))
+	kek, err := crypto.NewLocalKEK("teste-1", base64.StdEncoding.EncodeToString(chave))
 	if err != nil {
 		t.Fatal(err)
 	}
 	cliente := shopee.NovoMock(&shopee.Mock{Segredos: map[string]string{appIDUsuario: secretUsuario}}, shopee.Config{})
-	credenciais := shopee.NovasCredenciais(pool, crypto.NovoCofre(kek), cliente)
+	credenciais := shopee.NovasCredenciais(pool, crypto.NewVault(kek), cliente)
 	app := shopee.CatalogoDoApp{Cliente: cliente, Credencial: shopee.Credencial{AppID: "1", Secret: "x"}}
 
 	produtosSvc := produtos.NewService(pool)
@@ -169,7 +171,7 @@ func novoAmbiente(t *testing.T) *ambiente {
 	midiaSvc := midia.NewService(pool, produtosSvc, &midia.OEmbed{}, nil, nil, contasSvc, nil, log)
 	curadoriaSvc := curadoria.NewService(pool, produtosSvc, colecoesSvc, contasSvc, notificacoesSvc, midiaSvc, log)
 
-	r := httpserver.NewRouter(log, nil)
+	r := httpapi.NewRouter(log, nil)
 	contas.NewHandler(contasSvc, log).Rotas(r, auth.Dev{},
 		colecoes.NewHandler(colecoesSvc, log).Modulo(),
 		curadoria.NewHandler(curadoriaSvc, log).Modulo(),
@@ -219,9 +221,9 @@ func (a *ambiente) exigir(sub, metodo, caminho string, corpo any, out any, statu
 
 func (a *ambiente) exigirErro(sub, metodo, caminho string, corpo any, status int, codigo string) {
 	a.t.Helper()
-	var e httpserver.Erro
-	if got := a.chamar(sub, metodo, caminho, corpo, &e); got != status || e.Codigo != codigo {
-		a.t.Fatalf("%s %s como %q: %d %q, quer %d %q (%s)", metodo, caminho, sub, got, e.Codigo, status, codigo, e.Mensagem)
+	var e httputil.ErrorBody
+	if got := a.chamar(sub, metodo, caminho, corpo, &e); got != status || e.Code != codigo {
+		a.t.Fatalf("%s %s como %q: %d %q, quer %d %q (%s)", metodo, caminho, sub, got, e.Code, status, codigo, e.Message)
 	}
 }
 
@@ -241,7 +243,7 @@ func (a *ambiente) conectar(sub string) {
 
 func (a *ambiente) produtoID(i int) uuid.UUID {
 	a.t.Helper()
-	p, err := a.produtos.PorItem(context.Background(), postgres.Escopo{}, fontes.Shopee, a.ofertas[i].ItemID)
+	p, err := a.produtos.PorItem(context.Background(), database.Scope{}, fontes.Shopee, a.ofertas[i].ItemID)
 	if err != nil {
 		a.t.Fatal(err)
 	}
@@ -353,7 +355,7 @@ func TestListaChegaAoAfiliado(t *testing.T) {
 			t.Fatalf("caixa de %s: %+v", sub, c)
 		}
 		emails := a.remetente.para(sub + "@dev.local")
-		if len(emails) != 1 || !strings.Contains(emails[0].Texto, "https://app.teste/w/"+ws+"/listas/"+l.ID.String()) {
+		if len(emails) != 1 || !strings.Contains(emails[0].Text, "https://app.teste/w/"+ws+"/listas/"+l.ID.String()) {
 			t.Fatalf("e-mail de %s: %+v", sub, emails)
 		}
 	}
@@ -569,10 +571,10 @@ func TestVazamento(t *testing.T) {
 		t.Fatalf("carla recebeu aviso de outra mentoria: %+v", c)
 	}
 
-	contar := func(e postgres.Escopo, tabela string) int {
+	contar := func(e database.Scope, tabela string) int {
 		t.Helper()
 		var n int
-		err := postgres.InTx(ctx, a.pool, e, func(tx pgx.Tx) error {
+		err := database.InTx(ctx, a.pool, e, func(tx pgx.Tx) error {
 			return tx.QueryRow(ctx, "SELECT count(*) FROM "+tabela).Scan(&n)
 		})
 		if err != nil {
@@ -580,12 +582,12 @@ func TestVazamento(t *testing.T) {
 		}
 		return n
 	}
-	esc := func(sub, workspace string) postgres.Escopo {
-		return postgres.Escopo{UsuarioID: a.usuario(sub).ID.String(), WorkspaceID: workspace}
+	esc := func(sub, workspace string) database.Scope {
+		return database.Scope{UserID: a.usuario(sub).ID.String(), WorkspaceID: workspace}
 	}
 	for _, c := range []struct {
 		nome   string
-		e      postgres.Escopo
+		e      database.Scope
 		tabela string
 		quer   int
 	}{
@@ -594,7 +596,7 @@ func TestVazamento(t *testing.T) {
 		{"afiliado só vê itens da publicada", esc("beto", ws), "lista_itens", 1},
 		{"outro workspace não vê listas", esc("rival", outro), "listas_curadoria", 0},
 		{"mentor de outro workspace no workspace errado", esc("rival", ws), "listas_curadoria", 1},
-		{"sem workspace não vê listas", postgres.Escopo{UsuarioID: a.usuario("mestre").ID.String()}, "listas_curadoria", 0},
+		{"sem workspace não vê listas", database.Scope{UserID: a.usuario("mestre").ID.String()}, "listas_curadoria", 0},
 		{"mentor vê as importações da turma", esc("mestre", ws), "importacoes", 1},
 		{"ana vê a importação dela", esc("ana", ws), "importacoes", 1},
 		{"beto não vê a importação da ana", esc("beto", ws), "importacoes", 0},
@@ -611,8 +613,8 @@ func TestVazamento(t *testing.T) {
 
 	// Gravar com o papel da aplicação: afiliado não cria lista nem importa em
 	// nome de outro, e ninguém importa um rascunho.
-	gravar := func(e postgres.Escopo, sql string, args ...any) error {
-		return postgres.InTx(ctx, a.pool, e, func(tx pgx.Tx) error {
+	gravar := func(e database.Scope, sql string, args ...any) error {
+		return database.InTx(ctx, a.pool, e, func(tx pgx.Tx) error {
 			_, err := tx.Exec(ctx, sql, args...)
 			return err
 		})

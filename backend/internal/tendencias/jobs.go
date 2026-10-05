@@ -8,7 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/riverqueue/river"
 
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/jobs"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/queue"
 )
 
 // CalcularTendenciasArgs recalcula o radar. É enfileirado ao fim de cada
@@ -19,7 +19,7 @@ func (CalcularTendenciasArgs) Kind() string { return "calcular_tendencias" }
 
 func (CalcularTendenciasArgs) InsertOpts() river.InsertOpts {
 	return river.InsertOpts{
-		Queue: jobs.FilaDefault,
+		Queue: queue.QueueDefault,
 		// Um cálculo por janela de 5 minutos; o próximo snapshot que terminar
 		// depois disso agenda outro.
 		UniqueOpts: river.UniqueOpts{ByPeriod: 5 * time.Minute},

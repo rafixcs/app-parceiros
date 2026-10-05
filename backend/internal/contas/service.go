@@ -19,8 +19,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/rafixcs/app-parceiros/backend/internal/contas/contasdb"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/auth"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/postgres"
+	"github.com/rafixcs/app-parceiros/backend/internal/domain"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/database"
 )
 
 const (
@@ -38,7 +38,7 @@ const (
 
 type Service struct {
 	pool   *pgxpool.Pool
-	perfil func(context.Context, auth.Identidade) (auth.Perfil, error)
+	perfil func(context.Context, domain.Identity) (domain.Profile, error)
 	appURL string
 	// enviarConvite manda o e-mail do convite (módulo notificacoes). Nil não envia.
 	enviarConvite func(context.Context, EnvioConvite) error
@@ -61,7 +61,7 @@ func (s *Service) EnviarConvitesCom(fn func(context.Context, EnvioConvite) error
 // Contato devolve nome e e-mail de um usuário, para as notificações.
 func (s *Service) Contato(ctx context.Context, usuarioID uuid.UUID) (Contato, error) {
 	var u contasdb.Usuario
-	err := s.tx(ctx, postgres.Escopo{UsuarioID: usuarioID.String()}, func(q *contasdb.Queries, _ pgx.Tx) error {
+	err := s.tx(ctx, database.Scope{UserID: usuarioID.String()}, func(q *contasdb.Queries, _ pgx.Tx) error {
 		var err error
 		u, err = q.UsuarioPorID(ctx, usuarioID)
 		return err
@@ -74,57 +74,63 @@ func (s *Service) Contato(ctx context.Context, usuarioID uuid.UUID) (Contato, er
 
 // NewService cria o serviço. appURL é a base dos links de convite
 // (ex.: https://app.exemplo.com.br). O worker, que só lê contatos, passa v nil.
-func NewService(pool *pgxpool.Pool, v auth.Verificador, appURL string) *Service {
+func NewService(pool *pgxpool.Pool, v domain.Authenticator, appURL string) *Service {
 	s := &Service{pool: pool, appURL: strings.TrimRight(appURL, "/")}
 	if v != nil {
-		s.perfil = v.Perfil
+		s.perfil = v.Profile
 	}
 	return s
 }
 
-func (s *Service) tx(ctx context.Context, e postgres.Escopo, fn func(*contasdb.Queries, pgx.Tx) error) error {
-	return postgres.InTx(ctx, s.pool, e, func(tx pgx.Tx) error {
+func (s *Service) tx(ctx context.Context, e database.Scope, fn func(*contasdb.Queries, pgx.Tx) error) error {
+	return database.InTx(ctx, s.pool, e, func(tx pgx.Tx) error {
 		return fn(contasdb.New(tx), tx)
 	})
 }
 
 // Entrar devolve o usuário da identidade. No primeiro acesso, cria o usuário
-// e o seu workspace pessoal.
-func (s *Service) Entrar(ctx context.Context, id auth.Identidade) (Usuario, error) {
+// e o seu workspace pessoal. Depois, atualiza nome e e-mail quando a
+// identidade traz dados novos (por exemplo, o e-mail confirmado no provedor
+// interno).
+func (s *Service) Entrar(ctx context.Context, id domain.Identity) (Usuario, error) {
+	escopoID := database.Scope{AuthProvider: id.Provider, AuthSubject: id.Subject}
 	var u contasdb.Usuario
-	err := s.tx(ctx, postgres.Escopo{ZitadelSub: id.Sub}, func(q *contasdb.Queries, _ pgx.Tx) error {
+	err := s.tx(ctx, escopoID, func(q *contasdb.Queries, _ pgx.Tx) error {
 		var err error
-		u, err = q.UsuarioPorSub(ctx, id.Sub)
+		u, err = q.UsuarioPorIdentidade(ctx, contasdb.UsuarioPorIdentidadeParams{AuthProvider: id.Provider, AuthSubject: id.Subject})
 		return err
 	})
-	if err == nil {
+	if err == nil && !mudouPerfil(u, id) {
 		return usuarioDe(u), nil
 	}
-	if !errors.Is(err, pgx.ErrNoRows) {
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return Usuario{}, err
 	}
 
-	perfil, err := s.perfil(ctx, id)
-	if err != nil {
-		return Usuario{}, fmt.Errorf("buscando perfil no provedor: %w", err)
+	var perfil domain.Profile
+	if err == nil {
+		perfil = domain.Profile{Email: id.Email, EmailVerified: id.EmailVerified, Name: id.Name}
+	} else if perfil, err = s.perfil(ctx, id); err != nil {
+		return Usuario{}, fmt.Errorf("fetching profile from the identity provider: %w", err)
 	}
-	nome := strings.TrimSpace(perfil.Nome)
+	nome := strings.TrimSpace(perfil.Name)
 	if nome == "" {
 		nome, _, _ = strings.Cut(perfil.Email, "@")
 	}
 
-	err = s.tx(ctx, postgres.Escopo{ZitadelSub: id.Sub}, func(q *contasdb.Queries, tx pgx.Tx) error {
+	err = s.tx(ctx, escopoID, func(q *contasdb.Queries, tx pgx.Tx) error {
 		r, err := q.UpsertUsuario(ctx, contasdb.UpsertUsuarioParams{
-			ZitadelSub:      id.Sub,
+			AuthProvider:    id.Provider,
+			AuthSubject:     id.Subject,
 			Nome:            nome,
 			Email:           strings.ToLower(strings.TrimSpace(perfil.Email)),
-			EmailVerificado: perfil.EmailVerificado,
+			EmailVerificado: perfil.EmailVerified,
 		})
 		if err != nil {
 			return err
 		}
 		if r.Criado {
-			if err := postgres.SetEscopo(ctx, tx, postgres.Escopo{UsuarioID: r.ID.String(), ZitadelSub: id.Sub}); err != nil {
+			if err := database.SetScope(ctx, tx, database.Scope{UserID: r.ID.String(), AuthProvider: id.Provider, AuthSubject: id.Subject}); err != nil {
 				return err
 			}
 			if _, err := criarWorkspace(ctx, q, tx, r.ID, TipoPessoal, nomePessoal, nil); err != nil {
@@ -138,6 +144,15 @@ func (s *Service) Entrar(ctx context.Context, id auth.Identidade) (Usuario, erro
 		return Usuario{}, err
 	}
 	return usuarioDe(u), nil
+}
+
+// mudouPerfil diz se a identidade traz nome ou e-mail diferentes dos guardados.
+// Tokens sem esses claims (comuns no OIDC) não mudam nada.
+func mudouPerfil(u contasdb.Usuario, id domain.Identity) bool {
+	if id.Email == "" || id.Name == "" {
+		return false
+	}
+	return !strings.EqualFold(u.Email, id.Email) || u.EmailVerificado != id.EmailVerified || u.Nome != strings.TrimSpace(id.Name)
 }
 
 // criarWorkspace insere o workspace e o dono como membro. O escopo da
@@ -157,7 +172,7 @@ func criarWorkspace(ctx context.Context, q *contasdb.Queries, tx pgx.Tx, dono uu
 	if err != nil {
 		return w, err
 	}
-	if err := postgres.SetEscopo(ctx, tx, postgres.Escopo{UsuarioID: dono.String(), WorkspaceID: w.ID.String()}); err != nil {
+	if err := database.SetScope(ctx, tx, database.Scope{UserID: dono.String(), WorkspaceID: w.ID.String()}); err != nil {
 		return w, err
 	}
 	err = q.InserirMembro(ctx, contasdb.InserirMembroParams{
@@ -169,7 +184,7 @@ func criarWorkspace(ctx context.Context, q *contasdb.Queries, tx pgx.Tx, dono uu
 // Workspaces lista os workspaces de que o usuário participa (seletor do topo).
 func (s *Service) Workspaces(ctx context.Context, usuarioID uuid.UUID) ([]Workspace, error) {
 	var out []Workspace
-	err := s.tx(ctx, postgres.Escopo{UsuarioID: usuarioID.String()}, func(q *contasdb.Queries, _ pgx.Tx) error {
+	err := s.tx(ctx, database.Scope{UserID: usuarioID.String()}, func(q *contasdb.Queries, _ pgx.Tx) error {
 		rows, err := q.WorkspacesDoUsuario(ctx, usuarioID)
 		if err != nil {
 			return err
@@ -200,7 +215,7 @@ func (s *Service) CriarMentoria(ctx context.Context, usuarioID uuid.UUID, nome s
 		return Workspace{}, err
 	}
 	var w contasdb.Workspace
-	err = s.tx(ctx, postgres.Escopo{UsuarioID: usuarioID.String()}, func(q *contasdb.Queries, tx pgx.Tx) error {
+	err = s.tx(ctx, database.Scope{UserID: usuarioID.String()}, func(q *contasdb.Queries, tx pgx.Tx) error {
 		w, err = criarWorkspace(ctx, q, tx, usuarioID, TipoMentoria, nome, foto)
 		return err
 	})
@@ -224,7 +239,7 @@ func alunoSe(ctx context.Context, q *contasdb.Queries, w contasdb.Workspace, usu
 // existe).
 func (s *Service) Membro(ctx context.Context, usuarioID, workspaceID uuid.UUID) (Membro, error) {
 	var m Membro
-	err := s.tx(ctx, postgres.Escopo{UsuarioID: usuarioID.String()}, func(q *contasdb.Queries, _ pgx.Tx) error {
+	err := s.tx(ctx, database.Scope{UserID: usuarioID.String()}, func(q *contasdb.Queries, _ pgx.Tx) error {
 		mb, err := q.Membro(ctx, contasdb.MembroParams{WorkspaceID: workspaceID, UsuarioID: usuarioID})
 		if err != nil {
 			return err
@@ -250,8 +265,8 @@ func (s *Service) Membro(ctx context.Context, usuarioID, workspaceID uuid.UUID) 
 	return m, err
 }
 
-func escopoDe(m Membro) postgres.Escopo {
-	return postgres.Escopo{UsuarioID: m.UsuarioID.String(), WorkspaceID: m.WorkspaceID.String()}
+func escopoDe(m Membro) database.Scope {
+	return database.Scope{UserID: m.UsuarioID.String(), WorkspaceID: m.WorkspaceID.String()}
 }
 
 func (s *Service) Workspace(ctx context.Context, m Membro) (Workspace, error) {
@@ -560,7 +575,7 @@ func validarAssentos(ctx context.Context, q *contasdb.Queries, w contasdb.Worksp
 // `ate` (nunca encurta) e, se informado, fixa os assentos contratados. Chamado
 // pelo webhook de cobrança, que não tem usuário; é idempotente.
 func (s *Service) LiberarAcesso(ctx context.Context, workspaceID uuid.UUID, ate time.Time, assentos *int32) error {
-	return s.tx(ctx, postgres.Escopo{WorkspaceID: workspaceID.String()}, func(q *contasdb.Queries, _ pgx.Tx) error {
+	return s.tx(ctx, database.Scope{WorkspaceID: workspaceID.String()}, func(q *contasdb.Queries, _ pgx.Tx) error {
 		_, err := q.LiberarAcesso(ctx, contasdb.LiberarAcessoParams{ID: workspaceID, Ate: ate, Assentos: assentos})
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrWorkspaceNaoEncontrado
@@ -572,7 +587,7 @@ func (s *Service) LiberarAcesso(ctx context.Context, workspaceID uuid.UUID, ate 
 // BloquearAcesso suspende o workspace agora (estorno ou contestação de um
 // pagamento). É idempotente.
 func (s *Service) BloquearAcesso(ctx context.Context, workspaceID uuid.UUID) error {
-	return s.tx(ctx, postgres.Escopo{WorkspaceID: workspaceID.String()}, func(q *contasdb.Queries, _ pgx.Tx) error {
+	return s.tx(ctx, database.Scope{WorkspaceID: workspaceID.String()}, func(q *contasdb.Queries, _ pgx.Tx) error {
 		_, err := q.BloquearAcesso(ctx, workspaceID)
 		return err
 	})
@@ -623,7 +638,7 @@ func (s *Service) VerConvite(ctx context.Context, token string) (ConvitePublico,
 		return ConvitePublico{}, ErrConviteNaoEncontrado
 	}
 	var out ConvitePublico
-	err := s.tx(ctx, postgres.Escopo{ConviteHash: hex.EncodeToString(hash)}, func(q *contasdb.Queries, _ pgx.Tx) error {
+	err := s.tx(ctx, database.Scope{InviteHash: hex.EncodeToString(hash)}, func(q *contasdb.Queries, _ pgx.Tx) error {
 		c, err := q.ConvitePorHash(ctx, hash)
 		if err != nil {
 			return err
@@ -647,7 +662,7 @@ func (s *Service) AceitarConvite(ctx context.Context, usuarioID uuid.UUID, token
 	if !ok {
 		return Workspace{}, ErrConviteNaoEncontrado
 	}
-	escopo := postgres.Escopo{UsuarioID: usuarioID.String(), ConviteHash: hex.EncodeToString(hash)}
+	escopo := database.Scope{UserID: usuarioID.String(), InviteHash: hex.EncodeToString(hash)}
 	var w contasdb.Workspace
 	err := s.tx(ctx, escopo, func(q *contasdb.Queries, tx pgx.Tx) error {
 		c, err := q.ConvitePorHash(ctx, hash)
@@ -659,7 +674,7 @@ func (s *Service) AceitarConvite(ctx context.Context, usuarioID uuid.UUID, token
 		}
 		// A partir daqui a transação opera no workspace do convite.
 		escopo.WorkspaceID = c.WorkspaceID.String()
-		if err := postgres.SetEscopo(ctx, tx, escopo); err != nil {
+		if err := database.SetScope(ctx, tx, escopo); err != nil {
 			return err
 		}
 		if c, err = q.TravarConvitePorHash(ctx, hash); err != nil {
@@ -788,5 +803,5 @@ func validarEmail(email string) (*string, error) {
 }
 
 func usuarioDe(u contasdb.Usuario) Usuario {
-	return Usuario{ID: u.ID, Nome: u.Nome, Email: u.Email, CriadoEm: u.CriadoEm}
+	return Usuario{ID: u.ID, Nome: u.Nome, Email: u.Email, EmailVerificado: u.EmailVerificado, CriadoEm: u.CriadoEm}
 }

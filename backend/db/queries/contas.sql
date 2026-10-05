@@ -1,14 +1,14 @@
 -- Queries do módulo contas. Gere o código com `make sqlc`.
 
--- name: UsuarioPorSub :one
-SELECT * FROM usuarios WHERE zitadel_sub = $1;
+-- name: UsuarioPorIdentidade :one
+SELECT * FROM usuarios WHERE auth_provider = $1 AND auth_subject = $2;
 
 -- name: UpsertUsuario :one
 -- Cria o usuário no primeiro acesso ou atualiza nome e e-mail. `criado` diz
 -- se a linha acabou de ser inserida.
-INSERT INTO usuarios (zitadel_sub, nome, email, email_verificado)
-VALUES ($1, $2, $3, $4)
-ON CONFLICT (zitadel_sub) DO UPDATE
+INSERT INTO usuarios (auth_provider, auth_subject, nome, email, email_verificado)
+VALUES ($1, $2, $3, $4, $5)
+ON CONFLICT (auth_provider, auth_subject) DO UPDATE
     SET nome = EXCLUDED.nome,
         email = EXCLUDED.email,
         email_verificado = EXCLUDED.email_verificado

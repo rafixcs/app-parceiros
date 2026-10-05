@@ -2,7 +2,7 @@
 // histórico em produto_snapshots) coletado das fontes com a credencial do app.
 //
 // O catálogo não é dado de cliente. A API só lê, com o papel parceiros_app
-// (postgres.InTx); o worker escreve com o papel dono das tabelas, porque cria
+// (database.InTx); o worker escreve com o papel dono das tabelas, porque cria
 // as partições mensais dos snapshots.
 package produtos
 
@@ -17,7 +17,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/rafixcs/app-parceiros/backend/internal/fontes"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/postgres"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/database"
 	"github.com/rafixcs/app-parceiros/backend/internal/produtos/produtosdb"
 )
 
@@ -75,8 +75,8 @@ func (s *Service) worker(ctx context.Context, fn func(*produtosdb.Queries) error
 	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error { return fn(produtosdb.New(tx)) })
 }
 
-func (s *Service) leitura(ctx context.Context, e postgres.Escopo, fn func(*produtosdb.Queries) error) error {
-	return postgres.InTx(ctx, s.pool, e, func(tx pgx.Tx) error { return fn(produtosdb.New(tx)) })
+func (s *Service) leitura(ctx context.Context, e database.Scope, fn func(*produtosdb.Queries) error) error {
+	return database.InTx(ctx, s.pool, e, func(tx pgx.Tx) error { return fn(produtosdb.New(tx)) })
 }
 
 // Registrar grava as ofertas de uma coleta: atualiza os dados atuais de cada
@@ -230,7 +230,7 @@ func produtoDe(p produtosdb.Produto) Produto {
 
 // Varios lê vários produtos do catálogo de uma vez (API). Ids desconhecidos
 // ficam de fora do mapa.
-func (s *Service) Varios(ctx context.Context, e postgres.Escopo, ids []uuid.UUID) (map[uuid.UUID]Produto, error) {
+func (s *Service) Varios(ctx context.Context, e database.Scope, ids []uuid.UUID) (map[uuid.UUID]Produto, error) {
 	out := make(map[uuid.UUID]Produto, len(ids))
 	if len(ids) == 0 {
 		return out, nil
@@ -247,7 +247,7 @@ func (s *Service) Varios(ctx context.Context, e postgres.Escopo, ids []uuid.UUID
 
 // PorItem acha um produto do catálogo pelo ID na fonte (API). Devolve
 // ErrProdutoNaoEncontrado se ele ainda não foi coletado.
-func (s *Service) PorItem(ctx context.Context, e postgres.Escopo, fonte fontes.Fonte, itemID int64) (Produto, error) {
+func (s *Service) PorItem(ctx context.Context, e database.Scope, fonte fontes.Fonte, itemID int64) (Produto, error) {
 	var p produtosdb.Produto
 	err := s.leitura(ctx, e, func(q *produtosdb.Queries) error {
 		var err error
@@ -283,7 +283,7 @@ func (s *Service) Importar(ctx context.Context, fonte fontes.Fonte, o fontes.Ofe
 }
 
 // Produto lê um produto do catálogo (API).
-func (s *Service) Produto(ctx context.Context, e postgres.Escopo, id uuid.UUID) (Produto, error) {
+func (s *Service) Produto(ctx context.Context, e database.Scope, id uuid.UUID) (Produto, error) {
 	var p produtosdb.Produto
 	err := s.leitura(ctx, e, func(q *produtosdb.Queries) error {
 		var err error
@@ -301,7 +301,7 @@ func (s *Service) Produto(ctx context.Context, e postgres.Escopo, id uuid.UUID) 
 
 // Historico devolve os snapshots do produto desde `desde`, do mais antigo ao
 // mais novo (API).
-func (s *Service) Historico(ctx context.Context, e postgres.Escopo, id uuid.UUID, desde time.Time) ([]Snapshot, error) {
+func (s *Service) Historico(ctx context.Context, e database.Scope, id uuid.UUID, desde time.Time) ([]Snapshot, error) {
 	var out []Snapshot
 	err := s.leitura(ctx, e, func(q *produtosdb.Queries) error {
 		rows, err := q.Historico(ctx, produtosdb.HistoricoParams{ProdutoID: id, Desde: desde})
@@ -321,7 +321,7 @@ func (s *Service) Historico(ctx context.Context, e postgres.Escopo, id uuid.UUID
 }
 
 // NomesCategorias devolve o nome das categorias conhecidas entre ids (API).
-func (s *Service) NomesCategorias(ctx context.Context, e postgres.Escopo, fonte fontes.Fonte, ids []int64) (map[int64]string, error) {
+func (s *Service) NomesCategorias(ctx context.Context, e database.Scope, fonte fontes.Fonte, ids []int64) (map[int64]string, error) {
 	out := make(map[int64]string, len(ids))
 	err := s.leitura(ctx, e, func(q *produtosdb.Queries) error {
 		rows, err := q.NomesCategorias(ctx, produtosdb.NomesCategoriasParams{Fonte: produtosdb.Fonte(fonte), Ids: ids})

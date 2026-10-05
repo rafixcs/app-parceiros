@@ -26,15 +26,16 @@ import (
 	"github.com/rafixcs/app-parceiros/backend/internal/curadoria"
 	"github.com/rafixcs/app-parceiros/backend/internal/fontes"
 	"github.com/rafixcs/app-parceiros/backend/internal/fontes/shopee"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/auth"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/crypto"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/database"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/database/dbtest"
+	httpapi "github.com/rafixcs/app-parceiros/backend/internal/infrastructure/http"
 	"github.com/rafixcs/app-parceiros/backend/internal/midia"
 	"github.com/rafixcs/app-parceiros/backend/internal/notificacoes"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/auth"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/crypto"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/httpserver"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/postgres"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/postgres/pgtest"
 	"github.com/rafixcs/app-parceiros/backend/internal/produtos"
 	"github.com/rafixcs/app-parceiros/backend/internal/resultados"
+	"github.com/rafixcs/app-parceiros/backend/pkg/httputil"
 )
 
 const (
@@ -94,7 +95,7 @@ type ambiente struct {
 func novoAmbiente(t *testing.T) *ambiente {
 	t.Helper()
 	ctx := context.Background()
-	pool := pgtest.New(t)
+	pool := dbtest.New(t)
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	// O relógio dos resultados e da Shopee fica no futuro, para haver vendas
 	// depois das importações feitas agora.
@@ -103,13 +104,13 @@ func novoAmbiente(t *testing.T) *ambiente {
 
 	chave := make([]byte, 32)
 	_, _ = rand.Read(chave)
-	kek, err := crypto.NovaKEKLocal("teste-1", base64.StdEncoding.EncodeToString(chave))
+	kek, err := crypto.NewLocalKEK("teste-1", base64.StdEncoding.EncodeToString(chave))
 	if err != nil {
 		t.Fatal(err)
 	}
 	mock := &shopee.Mock{Segredos: map[string]string{appIDAna: secretAna, appIDBia: secretBia}, Agora: relogio}
 	cliente := shopee.NovoMock(mock, shopee.Config{})
-	credenciais := shopee.NovasCredenciais(pool, crypto.NovoCofre(kek), cliente)
+	credenciais := shopee.NovasCredenciais(pool, crypto.NewVault(kek), cliente)
 	app := shopee.CatalogoDoApp{Cliente: cliente, Credencial: shopee.Credencial{AppID: "1", Secret: "x"}}
 
 	produtosSvc := produtos.NewService(pool)
@@ -141,7 +142,7 @@ func novoAmbiente(t *testing.T) *ambiente {
 	curadoriaSvc := curadoria.NewService(pool, produtosSvc, colecoesSvc, contasSvc, notificacoesSvc, midiaSvc, log)
 	resultadosSvc := resultados.NewService(pool, relatorio, afiliador, produtosSvc, contasSvc, curadoriaSvc, fs, log).ComRelogio(relogio)
 
-	r := httpserver.NewRouter(log, nil)
+	r := httpapi.NewRouter(log, nil)
 	contas.NewHandler(contasSvc, log).Rotas(r, auth.Dev{},
 		colecoes.NewHandler(colecoesSvc, log).Modulo(),
 		curadoria.NewHandler(curadoriaSvc, log).Modulo(),
@@ -194,9 +195,9 @@ func (a *ambiente) exigir(sub, metodo, caminho string, corpo any, out any, statu
 
 func (a *ambiente) exigirErro(sub, metodo, caminho string, corpo any, status int, codigo string) {
 	a.t.Helper()
-	var e httpserver.Erro
-	if got := a.chamar(sub, metodo, caminho, corpo, &e); got != status || e.Codigo != codigo {
-		a.t.Fatalf("%s %s como %q: %d %q, quer %d %q (%s)", metodo, caminho, sub, got, e.Codigo, status, codigo, e.Mensagem)
+	var e httputil.ErrorBody
+	if got := a.chamar(sub, metodo, caminho, corpo, &e); got != status || e.Code != codigo {
+		a.t.Fatalf("%s %s como %q: %d %q, quer %d %q (%s)", metodo, caminho, sub, got, e.Code, status, codigo, e.Message)
 	}
 }
 
@@ -229,7 +230,7 @@ func (a *ambiente) conectar(sub, appID, secret string) {
 
 func (a *ambiente) produtoID(i int) uuid.UUID {
 	a.t.Helper()
-	p, err := a.produtos.PorItem(context.Background(), postgres.Escopo{}, fontes.Shopee, a.ofertas[i].ItemID)
+	p, err := a.produtos.PorItem(context.Background(), database.Scope{}, fontes.Shopee, a.ofertas[i].ItemID)
 	if err != nil {
 		a.t.Fatal(err)
 	}
@@ -471,9 +472,9 @@ func TestRLSConversoes(t *testing.T) {
 
 	contar := func(sub, workspace string) int {
 		t.Helper()
-		e := postgres.Escopo{UsuarioID: a.usuario(sub).ID.String(), WorkspaceID: workspace}
+		e := database.Scope{UserID: a.usuario(sub).ID.String(), WorkspaceID: workspace}
 		var n int
-		err := postgres.InTx(context.Background(), a.pool, e, func(tx pgx.Tx) error {
+		err := database.InTx(context.Background(), a.pool, e, func(tx pgx.Tx) error {
 			return tx.QueryRow(context.Background(), "SELECT count(*) FROM conversoes").Scan(&n)
 		})
 		if err != nil {
@@ -503,7 +504,7 @@ func TestRLSConversoes(t *testing.T) {
 		t.Fatalf("outro afiliado vê %d", n)
 	}
 	// Só a sincronização (sem workspace) grava.
-	err := postgres.InTx(context.Background(), a.pool, postgres.Escopo{UsuarioID: a.usuario("ana").ID.String(), WorkspaceID: ws},
+	err := database.InTx(context.Background(), a.pool, database.Scope{UserID: a.usuario("ana").ID.String(), WorkspaceID: ws},
 		func(tx pgx.Tx) error {
 			_, err := tx.Exec(context.Background(), "UPDATE conversoes SET comissao_centavos = 0")
 			return err

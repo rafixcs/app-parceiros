@@ -18,12 +18,13 @@ import (
 	"github.com/rafixcs/app-parceiros/backend/internal/contas"
 	"github.com/rafixcs/app-parceiros/backend/internal/fontes"
 	"github.com/rafixcs/app-parceiros/backend/internal/fontes/shopee"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/auth"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/httpserver"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/postgres/pgtest"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/storage"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/auth"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/database/dbtest"
+	httpapi "github.com/rafixcs/app-parceiros/backend/internal/infrastructure/http"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/storage"
 	"github.com/rafixcs/app-parceiros/backend/internal/produtos"
 	"github.com/rafixcs/app-parceiros/backend/internal/tendencias"
+	"github.com/rafixcs/app-parceiros/backend/pkg/httputil"
 )
 
 type ambiente struct {
@@ -58,7 +59,7 @@ func (a *ambiente) pessoal(sub string) string {
 // coletas com 7 dias de intervalo, o cálculo de tendências e as rotas do radar.
 func TestRadar(t *testing.T) {
 	ctx := context.Background()
-	pool := pgtest.New(t)
+	pool := dbtest.New(t)
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 
 	produtosSvc := produtos.NewService(pool)
@@ -82,7 +83,7 @@ func TestRadar(t *testing.T) {
 
 	agora := time.Now().UTC().Truncate(time.Hour)
 	mock := &shopee.Mock{Evoluir: true, Agora: func() time.Time { return agora }}
-	bucket := &storage.Memoria{}
+	bucket := &storage.Memory{}
 	depois := 0
 	w := &produtos.SnapshotCatalogoWorker{
 		Svc:      produtosSvc,
@@ -115,11 +116,11 @@ func TestRadar(t *testing.T) {
 	if depois != 2 {
 		t.Fatalf("Depois rodou %d vezes", depois)
 	}
-	if len(bucket.Chaves()) != 4 { // 80 itens = 2 páginas por coleta
-		t.Fatalf("respostas brutas guardadas: %v", bucket.Chaves())
+	if len(bucket.Keys()) != 4 { // 80 itens = 2 páginas por coleta
+		t.Fatalf("respostas brutas guardadas: %v", bucket.Keys())
 	}
 
-	r := httpserver.NewRouter(log, nil)
+	r := httpapi.NewRouter(log, nil)
 	contas.NewHandler(contas.NewService(pool, auth.Dev{}, "https://app.teste"), log).
 		Rotas(r, auth.Dev{}, tendencias.NewHandler(radar, log).Modulo())
 	a := &ambiente{t: t, router: r}
@@ -191,9 +192,9 @@ func TestRadar(t *testing.T) {
 			t.Fatalf("última página: %d itens", len(p.Itens))
 		}
 
-		var e httpserver.Erro
+		var e httputil.ErrorBody
 		for _, ruim := range []string{"ordem=preco", "por_pagina=51", "nota_min=6", "comissao_min=x"} {
-			if st := a.chamar("ana", base+"?"+ruim, &e); st != 422 || e.Codigo != "dados_invalidos" {
+			if st := a.chamar("ana", base+"?"+ruim, &e); st != 422 || e.Code != "dados_invalidos" {
 				t.Errorf("%s: %d %+v", ruim, st, e)
 			}
 		}
@@ -215,16 +216,16 @@ func TestRadar(t *testing.T) {
 		if d.Produto.ProdutoID != it.ProdutoID || len(d.Historico) != 2 || d.Historico[1].Vendas <= d.Historico[0].Vendas {
 			t.Fatalf("%+v", d)
 		}
-		var e httpserver.Erro
-		if st := a.chamar("ana", base+"/produtos/00000000-0000-0000-0000-000000000000", &e); st != 404 || e.Codigo != "produto_nao_encontrado" {
+		var e httputil.ErrorBody
+		if st := a.chamar("ana", base+"/produtos/00000000-0000-0000-0000-000000000000", &e); st != 404 || e.Code != "produto_nao_encontrado" {
 			t.Fatalf("produto inexistente: %d %+v", st, e)
 		}
 	})
 
 	t.Run("só membros do workspace", func(t *testing.T) {
-		var e httpserver.Erro
+		var e httputil.ErrorBody
 		for _, c := range []string{base, base + "/categorias", base + "/produtos/" + it.ProdutoID.String()} {
-			if st := a.chamar("bia", c, &e); st != 404 || e.Codigo != "workspace_nao_encontrado" {
+			if st := a.chamar("bia", c, &e); st != 404 || e.Code != "workspace_nao_encontrado" {
 				t.Fatalf("bia em %s: %d %+v", c, st, e)
 			}
 		}

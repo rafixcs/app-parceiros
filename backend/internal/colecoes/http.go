@@ -12,7 +12,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/rafixcs/app-parceiros/backend/internal/contas"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/httpserver"
+	"github.com/rafixcs/app-parceiros/backend/pkg/httputil"
 )
 
 type Handler struct {
@@ -230,7 +230,7 @@ func (h *Handler) ler(w http.ResponseWriter, r *http.Request, v any) bool {
 	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxCorpo))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(v); err != nil {
-		httpserver.JSONErro(w, http.StatusBadRequest, "json_invalido", "O corpo da requisição não é um JSON válido.")
+		httputil.Error(w, http.StatusBadRequest, "json_invalido", "O corpo da requisição não é um JSON válido.")
 		return false
 	}
 	return true
@@ -243,16 +243,16 @@ func (h *Handler) responder(w http.ResponseWriter, r *http.Request, status int, 
 	case status == http.StatusNoContent:
 		w.WriteHeader(status)
 	default:
-		httpserver.JSON(w, status, v)
+		httputil.JSON(w, status, v)
 	}
 }
 
 func (h *Handler) erro(w http.ResponseWriter, r *http.Request, err error) {
 	var e *Erro
 	if errors.As(err, &e) {
-		httpserver.JSONErro(w, e.Status, e.Codigo, e.Mensagem)
+		httputil.Error(w, e.Status, e.Codigo, e.Mensagem)
 		return
 	}
 	h.log.ErrorContext(r.Context(), "erro interno em coleções", "err", err)
-	httpserver.JSONErro(w, http.StatusInternalServerError, "erro_interno", "Algo deu errado. Tente de novo em instantes.")
+	httputil.Error(w, http.StatusInternalServerError, "erro_interno", "Algo deu errado. Tente de novo em instantes.")
 }

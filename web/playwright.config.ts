@@ -1,8 +1,15 @@
 import { defineConfig, devices } from "@playwright/test";
 
 // Testes ponta a ponta das telas (e2e/). Precisam da API no ar em
-// localhost:8080 com APP_ENV=dev e AUTH_MODE=dev (Shopee e cobrança em mock) e
-// do worker rodando. O front sobe sozinho com o Vite, que repassa /v1 para a API.
+// localhost:8080 com APP_ENV=dev (Shopee e cobrança em mock) e do worker
+// rodando. O front sobe sozinho com o Vite, que repassa /v1 para a API.
+//
+// E2E_AUTH_PROVIDER escolhe o provedor de identidade, igual ao AUTH_PROVIDER
+// da API: "dev" (padrão) roda o roteiro do MVP; "internal" roda o login por
+// e-mail e senha e precisa do Mailpit (MAILPIT_URL, padrão localhost:8025)
+// recebendo os e-mails da API.
+const authProvider = process.env.E2E_AUTH_PROVIDER ?? "dev";
+
 export default defineConfig({
   testDir: "./e2e",
   testMatch: "**/*.e2e.ts",
@@ -28,5 +35,6 @@ export default defineConfig({
         url: "http://localhost:5173",
         reuseExistingServer: !process.env.CI,
         timeout: 60_000,
+        env: { VITE_AUTH_PROVIDER: authProvider },
       },
 });

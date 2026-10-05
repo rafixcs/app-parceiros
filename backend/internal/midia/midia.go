@@ -24,9 +24,9 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/rafixcs/app-parceiros/backend/internal/contas"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/database"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/storage"
 	"github.com/rafixcs/app-parceiros/backend/internal/midia/midiadb"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/postgres"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/storage"
 	"github.com/rafixcs/app-parceiros/backend/internal/produtos"
 )
 
@@ -154,16 +154,16 @@ var formatos = map[string]string{
 
 // Objetos é o bucket dos vídeos (storage.S3).
 type Objetos interface {
-	IniciarMultipart(ctx context.Context, chave, contentType string) (string, error)
-	AssinarParte(ctx context.Context, chave, uploadID string, numero int, validade time.Duration) (string, error)
-	Partes(ctx context.Context, chave, uploadID string) ([]storage.Parte, error)
-	ConcluirMultipart(ctx context.Context, chave, uploadID string, partes []storage.Parte) error
-	AbortarMultipart(ctx context.Context, chave, uploadID string) error
-	Info(ctx context.Context, chave string) (storage.Objeto, error)
-	AssinarGet(ctx context.Context, chave string, validade time.Duration, baixarComo string) (string, error)
-	URLInterna(ctx context.Context, chave string, validade time.Duration) (string, error)
-	EnviarArquivo(ctx context.Context, chave, caminho, contentType string) error
-	ApagarPrefixo(ctx context.Context, prefixo string) error
+	StartMultipart(ctx context.Context, chave, contentType string) (string, error)
+	SignPart(ctx context.Context, chave, uploadID string, numero int, validade time.Duration) (string, error)
+	Parts(ctx context.Context, chave, uploadID string) ([]storage.Part, error)
+	CompleteMultipart(ctx context.Context, chave, uploadID string, partes []storage.Part) error
+	AbortMultipart(ctx context.Context, chave, uploadID string) error
+	Info(ctx context.Context, chave string) (storage.Object, error)
+	SignGet(ctx context.Context, chave string, validade time.Duration, baixarComo string) (string, error)
+	InternalURL(ctx context.Context, chave string, validade time.Duration) (string, error)
+	UploadFile(ctx context.Context, chave, caminho, contentType string) error
+	DeletePrefix(ctx context.Context, prefixo string) error
 }
 
 // Limites lê os limites do plano (implementado por contas.Service).
@@ -188,8 +188,8 @@ type Dono struct {
 	UsuarioID   uuid.UUID
 }
 
-func (d Dono) escopo() postgres.Escopo {
-	return postgres.Escopo{UsuarioID: d.UsuarioID.String(), WorkspaceID: d.WorkspaceID.String()}
+func (d Dono) escopo() database.Scope {
+	return database.Scope{UserID: d.UsuarioID.String(), WorkspaceID: d.WorkspaceID.String()}
 }
 
 func donoDe(m contas.Membro) Dono { return Dono{WorkspaceID: m.WorkspaceID, UsuarioID: m.UsuarioID} }
@@ -212,7 +212,7 @@ func NewService(pool *pgxpool.Pool, p *produtos.Service, o *OEmbed, objetos Obje
 }
 
 func (s *Service) tx(ctx context.Context, d Dono, fn func(*midiadb.Queries) error) error {
-	return postgres.InTx(ctx, s.pool, d.escopo(), func(tx pgx.Tx) error { return fn(midiadb.New(tx)) })
+	return database.InTx(ctx, s.pool, d.escopo(), func(tx pgx.Tx) error { return fn(midiadb.New(tx)) })
 }
 
 func chaveOriginal(v midiadb.Video) string { return *v.StorageKey + "original" }
@@ -399,7 +399,7 @@ func (s *Service) agendar(ctx context.Context, jobs ...Job) {
 
 // IniciarUpload valida o arquivo, reserva o espaço na cota do workspace e
 // abre o upload multipart no bucket. O navegador envia as partes direto ao
-// bucket, pelas URLs de AssinarParte. Um upload que não termina em 24 h é
+// bucket, pelas URLs de SignPart. Um upload que não termina em 24 h é
 // descartado pelo job limpar_upload.
 func (s *Service) IniciarUpload(ctx context.Context, m contas.Membro, n NovoUpload) (UploadIniciado, error) {
 	d := donoDe(m)
@@ -435,7 +435,7 @@ func (s *Service) IniciarUpload(ctx context.Context, m contas.Membro, n NovoUplo
 
 	id := uuid.New()
 	prefixo := fmt.Sprintf("videos/%s/%s/", d.WorkspaceID, id)
-	uploadID, err := s.objetos.IniciarMultipart(ctx, prefixo+"original", ct)
+	uploadID, err := s.objetos.StartMultipart(ctx, prefixo+"original", ct)
 	if err != nil {
 		return UploadIniciado{}, err
 	}
@@ -463,7 +463,7 @@ func (s *Service) IniciarUpload(ctx context.Context, m contas.Membro, n NovoUplo
 		return err
 	})
 	if err != nil {
-		if errAbort := s.objetos.AbortarMultipart(ctx, prefixo+"original", uploadID); errAbort != nil {
+		if errAbort := s.objetos.AbortMultipart(ctx, prefixo+"original", uploadID); errAbort != nil {
 			s.log.ErrorContext(ctx, "upload aberto ficou sem vídeo", "chave", prefixo, "err", errAbort)
 		}
 		return UploadIniciado{}, err
@@ -491,8 +491,8 @@ func (s *Service) enviando(ctx context.Context, d Dono, id uuid.UUID) (midiadb.V
 	return row, nil
 }
 
-// AssinarParte devolve a URL para o navegador enviar uma parte do upload.
-func (s *Service) AssinarParte(ctx context.Context, m contas.Membro, id uuid.UUID, numero int) (string, error) {
+// SignPart devolve a URL para o navegador enviar uma parte do upload.
+func (s *Service) SignPart(ctx context.Context, m contas.Membro, id uuid.UUID, numero int) (string, error) {
 	if numero < 1 || numero > maxPartes {
 		return "", erroValidacao(fmt.Sprintf("A parte deve ser de 1 a %d.", maxPartes))
 	}
@@ -500,17 +500,17 @@ func (s *Service) AssinarParte(ctx context.Context, m contas.Membro, id uuid.UUI
 	if err != nil {
 		return "", err
 	}
-	return s.objetos.AssinarParte(ctx, chaveOriginal(row), *row.UploadID, numero, validadeParte)
+	return s.objetos.SignPart(ctx, chaveOriginal(row), *row.UploadID, numero, validadeParte)
 }
 
-// Partes lista as partes já enviadas, para retomar um upload.
-func (s *Service) Partes(ctx context.Context, m contas.Membro, id uuid.UUID) ([]storage.Parte, error) {
+// Parts lista as partes já enviadas, para retomar um upload.
+func (s *Service) Parts(ctx context.Context, m contas.Membro, id uuid.UUID) ([]storage.Part, error) {
 	row, err := s.enviando(ctx, donoDe(m), id)
 	if err != nil {
 		return nil, err
 	}
-	ps, err := s.objetos.Partes(ctx, chaveOriginal(row), *row.UploadID)
-	if errors.Is(err, storage.ErrNaoEncontrado) {
+	ps, err := s.objetos.Parts(ctx, chaveOriginal(row), *row.UploadID)
+	if errors.Is(err, storage.ErrNotFound) {
 		return nil, ErrUploadEncerrado
 	}
 	return ps, err
@@ -518,7 +518,7 @@ func (s *Service) Partes(ctx context.Context, m contas.Membro, id uuid.UUID) ([]
 
 // ConcluirUpload junta as partes, confere o tamanho com o que foi reservado
 // na cota e põe o vídeo na fila do processar_video.
-func (s *Service) ConcluirUpload(ctx context.Context, m contas.Membro, id uuid.UUID, partes []storage.Parte) (Video, error) {
+func (s *Service) ConcluirUpload(ctx context.Context, m contas.Membro, id uuid.UUID, partes []storage.Part) (Video, error) {
 	d := donoDe(m)
 	if len(partes) == 0 || len(partes) > maxPartes {
 		return Video{}, ErrSemPartes
@@ -528,11 +528,11 @@ func (s *Service) ConcluirUpload(ctx context.Context, m contas.Membro, id uuid.U
 		return Video{}, err
 	}
 	chave := chaveOriginal(row)
-	if err := s.objetos.ConcluirMultipart(ctx, chave, *row.UploadID, partes); err != nil {
-		if errors.Is(err, storage.ErrNaoEncontrado) {
+	if err := s.objetos.CompleteMultipart(ctx, chave, *row.UploadID, partes); err != nil {
+		if errors.Is(err, storage.ErrNotFound) {
 			return Video{}, ErrUploadEncerrado
 		}
-		// Partes faltando ou com ETag errado: o upload continua aberto.
+		// Parts faltando ou com ETag errado: o upload continua aberto.
 		s.log.WarnContext(ctx, "não deu para concluir o upload", "video_id", id, "err", err)
 		return Video{}, ErrUploadIncompleto
 	}
@@ -540,7 +540,7 @@ func (s *Service) ConcluirUpload(ctx context.Context, m contas.Membro, id uuid.U
 	if err != nil {
 		return Video{}, err
 	}
-	if info.Tamanho > row.TamanhoBytes {
+	if info.Size > row.TamanhoBytes {
 		// Maior do que o reservado na cota: descarta.
 		if err := s.apagar(ctx, d, id); err != nil {
 			return Video{}, err
@@ -558,10 +558,10 @@ func (s *Service) ConcluirUpload(ctx context.Context, m contas.Membro, id uuid.U
 		if Status(atual.Status) != StatusEnviando {
 			return ErrUploadEncerrado
 		}
-		if _, err := q.SomarUso(ctx, midiadb.SomarUsoParams{WorkspaceID: d.WorkspaceID, Delta: info.Tamanho - atual.TamanhoBytes}); err != nil {
+		if _, err := q.SomarUso(ctx, midiadb.SomarUsoParams{WorkspaceID: d.WorkspaceID, Delta: info.Size - atual.TamanhoBytes}); err != nil {
 			return err
 		}
-		return q.ConcluirUpload(ctx, midiadb.ConcluirUploadParams{ID: id, WorkspaceID: d.WorkspaceID, DonoID: d.UsuarioID, TamanhoBytes: info.Tamanho})
+		return q.ConcluirUpload(ctx, midiadb.ConcluirUploadParams{ID: id, WorkspaceID: d.WorkspaceID, DonoID: d.UsuarioID, TamanhoBytes: info.Size})
 	})
 	if err != nil {
 		return Video{}, err
@@ -617,11 +617,11 @@ func (s *Service) apagar(ctx context.Context, d Dono, id uuid.UUID) error {
 			return ErrUploadsIndisponiveis
 		}
 		if row.UploadID != nil {
-			if err := s.objetos.AbortarMultipart(ctx, chaveOriginal(row), *row.UploadID); err != nil {
+			if err := s.objetos.AbortMultipart(ctx, chaveOriginal(row), *row.UploadID); err != nil {
 				return err
 			}
 		}
-		return s.objetos.ApagarPrefixo(ctx, *row.StorageKey)
+		return s.objetos.DeletePrefix(ctx, *row.StorageKey)
 	})
 }
 
@@ -684,7 +684,7 @@ func (s *Service) Download(ctx context.Context, m contas.Membro, id uuid.UUID) (
 	if row.NomeArquivo != nil && *row.NomeArquivo != "" {
 		nome = *row.NomeArquivo
 	}
-	return s.objetos.AssinarGet(ctx, chaveOriginal(row), validadeDownload, nome)
+	return s.objetos.SignGet(ctx, chaveOriginal(row), validadeDownload, nome)
 }
 
 // VincularProduto liga um vídeo do usuário a um produto do catálogo.
@@ -831,11 +831,11 @@ func (s *Service) montar(ctx context.Context, d Dono, rows []midiadb.Video) ([]V
 			v.PlayerURL = opcional(PlayerURL(r.Plataforma, *r.EmbedID))
 		}
 		if r.Tipo == midiadb.VideoTipoUpload && r.Status == midiadb.VideoStatusPronto && s.objetos != nil {
-			thumb, err := s.objetos.AssinarGet(ctx, chaveThumb(r), validadeLeitura, "")
+			thumb, err := s.objetos.SignGet(ctx, chaveThumb(r), validadeLeitura, "")
 			if err != nil {
 				return nil, err
 			}
-			previa, err := s.objetos.AssinarGet(ctx, chavePrevia(r), validadeLeitura, "")
+			previa, err := s.objetos.SignGet(ctx, chavePrevia(r), validadeLeitura, "")
 			if err != nil {
 				return nil, err
 			}

@@ -27,7 +27,7 @@ import (
 	"github.com/rafixcs/app-parceiros/backend/internal/colecoes/colecoesdb"
 	"github.com/rafixcs/app-parceiros/backend/internal/fontes"
 	"github.com/rafixcs/app-parceiros/backend/internal/fontes/shopee"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/postgres"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/database"
 	"github.com/rafixcs/app-parceiros/backend/internal/produtos"
 )
 
@@ -96,8 +96,8 @@ type Dono struct {
 	UsuarioID   uuid.UUID
 }
 
-func (d Dono) escopo() postgres.Escopo {
-	return postgres.Escopo{UsuarioID: d.UsuarioID.String(), WorkspaceID: d.WorkspaceID.String()}
+func (d Dono) escopo() database.Scope {
+	return database.Scope{UserID: d.UsuarioID.String(), WorkspaceID: d.WorkspaceID.String()}
 }
 
 type ProdutoResumo struct {
@@ -245,7 +245,7 @@ func NewService(pool *pgxpool.Pool, p *produtos.Service, catalogo fontes.Catalog
 }
 
 func (s *Service) tx(ctx context.Context, d Dono, fn func(*colecoesdb.Queries) error) error {
-	return postgres.InTx(ctx, s.pool, d.escopo(), func(tx pgx.Tx) error { return fn(colecoesdb.New(tx)) })
+	return database.InTx(ctx, s.pool, d.escopo(), func(tx pgx.Tx) error { return fn(colecoesdb.New(tx)) })
 }
 
 // Salvar guarda um produto na coleção: pelo id do catálogo ou pelo link da

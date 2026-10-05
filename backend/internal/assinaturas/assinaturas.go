@@ -27,8 +27,8 @@ import (
 
 	"github.com/rafixcs/app-parceiros/backend/internal/assinaturas/assinaturasdb"
 	"github.com/rafixcs/app-parceiros/backend/internal/contas"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/database"
 	"github.com/rafixcs/app-parceiros/backend/internal/notificacoes"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/postgres"
 )
 
 const (
@@ -152,12 +152,12 @@ func NewService(pool *pgxpool.Pool, gw Gateway, c Contas, n Notificador, log *sl
 	return &Service{pool: pool, gw: gw, contas: c, notificador: n, log: log, agora: time.Now}
 }
 
-func (s *Service) tx(ctx context.Context, e postgres.Escopo, fn func(*assinaturasdb.Queries) error) error {
-	return postgres.InTx(ctx, s.pool, e, func(tx pgx.Tx) error { return fn(assinaturasdb.New(tx)) })
+func (s *Service) tx(ctx context.Context, e database.Scope, fn func(*assinaturasdb.Queries) error) error {
+	return database.InTx(ctx, s.pool, e, func(tx pgx.Tx) error { return fn(assinaturasdb.New(tx)) })
 }
 
-func escopoDe(m contas.Membro) postgres.Escopo {
-	return postgres.Escopo{UsuarioID: m.UsuarioID.String(), WorkspaceID: m.WorkspaceID.String()}
+func escopoDe(m contas.Membro) database.Scope {
+	return database.Scope{UserID: m.UsuarioID.String(), WorkspaceID: m.WorkspaceID.String()}
 }
 
 // Ver devolve a assinatura e os números do plano. Dono e mentor veem.
@@ -214,7 +214,7 @@ func (s *Service) Ver(ctx context.Context, m contas.Membro) (Assinatura, error) 
 	return out, nil
 }
 
-func (s *Service) assinatura(ctx context.Context, e postgres.Escopo, workspaceID uuid.UUID) (assinaturasdb.Assinatura, error) {
+func (s *Service) assinatura(ctx context.Context, e database.Scope, workspaceID uuid.UUID) (assinaturasdb.Assinatura, error) {
 	var a assinaturasdb.Assinatura
 	err := s.tx(ctx, e, func(q *assinaturasdb.Queries) error {
 		var err error
@@ -433,7 +433,7 @@ func (s *Service) Processar(ctx context.Context, e Evento) error {
 	// O aviso não tem usuário nem workspace: a assinatura é achada pelo id
 	// externo (app.assinatura_externa).
 	var a assinaturasdb.Assinatura
-	err := s.tx(ctx, postgres.Escopo{AssinaturaExterna: e.AssinaturaExterna}, func(q *assinaturasdb.Queries) error {
+	err := s.tx(ctx, database.Scope{ExternalSubscriptionID: e.AssinaturaExterna}, func(q *assinaturasdb.Queries) error {
 		var err error
 		a, err = q.AssinaturaPorExterno(ctx, assinaturasdb.AssinaturaPorExternoParams{
 			Provedor: e.Provedor, ExternoID: e.AssinaturaExterna,
@@ -447,7 +447,7 @@ func (s *Service) Processar(ctx context.Context, e Evento) error {
 		return err
 	}
 
-	escopo := postgres.Escopo{WorkspaceID: a.WorkspaceID.String(), AssinaturaExterna: e.AssinaturaExterna}
+	escopo := database.Scope{WorkspaceID: a.WorkspaceID.String(), ExternalSubscriptionID: e.AssinaturaExterna}
 	var novo bool
 	err = s.tx(ctx, escopo, func(q *assinaturasdb.Queries) error {
 		n, err := q.RegistrarEvento(ctx, assinaturasdb.RegistrarEventoParams{

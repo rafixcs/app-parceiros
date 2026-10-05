@@ -1,13 +1,21 @@
 import { UserManager, WebStorageStateStore } from "oidc-client-ts";
 
-// Modo "dev": a API (AUTH_MODE=dev) aceita "Bearer dev:<nome>", sem senha.
-// Modo "oidc": login no Zitadel com PKCE; o token de acesso vai para a API.
-export const modoAuth: "dev" | "oidc" = import.meta.env.VITE_AUTH_MODE === "oidc" ? "oidc" : "dev";
+// The identity provider is chosen at build time and must match the API's
+// AUTH_PROVIDER:
+// - "dev": the API accepts "Bearer dev:<name>", without a password.
+// - "oidc": sign-in at Zitadel with PKCE; the access token goes to the API.
+// - "internal": email and password in the app itself; the API returns an
+//   opaque session token.
+export type AuthProvider = "dev" | "oidc" | "internal";
 
-const chaveDev = "parceiros.token-dev";
+const configured = import.meta.env.VITE_AUTH_PROVIDER;
+export const authProvider: AuthProvider = configured === "oidc" || configured === "internal" ? configured : "dev";
+
+const devKey = "parceiros.token-dev";
+const sessionKey = "parceiros.session";
 
 const oidc =
-  modoAuth === "oidc"
+  authProvider === "oidc"
     ? new UserManager({
         authority: import.meta.env.VITE_OIDC_ISSUER,
         client_id: import.meta.env.VITE_OIDC_CLIENT_ID,
@@ -19,30 +27,66 @@ const oidc =
       })
     : null;
 
-export async function token(): Promise<string | null> {
-  if (oidc) {
-    const u = await oidc.getUser();
-    return u && !u.expired ? u.access_token : null;
-  }
+function read(key: string): string | null {
   try {
-    return localStorage.getItem(chaveDev);
+    return localStorage.getItem(key);
   } catch {
     return null;
   }
 }
 
-export async function entrar(nomeDev?: string): Promise<void> {
-  if (oidc) return oidc.signinRedirect();
-  const nome = (nomeDev ?? "").trim().toLowerCase().replace(/[^a-z0-9._-]/g, "");
-  if (!nome) throw new Error("Informe um nome para entrar.");
-  localStorage.setItem(chaveDev, `dev:${nome}`);
+function write(key: string, value: string | null) {
+  try {
+    if (value) localStorage.setItem(key, value);
+    else localStorage.removeItem(key);
+  } catch {
+    // Without localStorage the session lasts until the page reloads.
+  }
 }
 
-export async function concluirLogin(): Promise<void> {
+/** Returns the access token of the signed-in user, or null. */
+export async function token(): Promise<string | null> {
+  if (oidc) {
+    const u = await oidc.getUser();
+    return u && !u.expired ? u.access_token : null;
+  }
+  return read(authProvider === "internal" ? sessionKey : devKey);
+}
+
+/** Starts the sign-in at the external provider (redirect). */
+export async function signInWithProvider(): Promise<void> {
+  if (oidc) await oidc.signinRedirect();
+}
+
+/** Signs in locally as `name` (dev provider). */
+export function signInDev(name: string) {
+  const clean = name.trim().toLowerCase().replace(/[^a-z0-9._-]/g, "");
+  if (!clean) throw new Error("Informe um nome para entrar.");
+  write(devKey, `dev:${clean}`);
+}
+
+/** Keeps the session token returned by the internal provider. */
+export function storeSession(sessionToken: string) {
+  write(sessionKey, sessionToken);
+}
+
+export async function completeSignIn(): Promise<void> {
   if (oidc) await oidc.signinRedirectCallback();
 }
 
-export async function sair(): Promise<void> {
+export async function signOut(): Promise<void> {
   if (oidc) return oidc.signoutRedirect();
-  localStorage.removeItem(chaveDev);
+  if (authProvider === "internal") {
+    const t = read(sessionKey);
+    write(sessionKey, null);
+    // Best effort: the session is gone from this browser either way.
+    if (t) await fetch("/v1/auth/logout", { method: "POST", headers: { Authorization: `Bearer ${t}` } }).catch(() => {});
+    return;
+  }
+  write(devKey, null);
+}
+
+/** Forgets an internal session the API no longer accepts. */
+export function dropSession() {
+  if (authProvider === "internal") write(sessionKey, null);
 }

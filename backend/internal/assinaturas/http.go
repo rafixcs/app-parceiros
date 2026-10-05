@@ -9,7 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/rafixcs/app-parceiros/backend/internal/contas"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/httpserver"
+	"github.com/rafixcs/app-parceiros/backend/pkg/httputil"
 )
 
 type Handler struct {
@@ -93,14 +93,14 @@ func (h *Handler) webhook(w http.ResponseWriter, r *http.Request) {
 	case err == nil, errors.Is(err, ErrEventoIgnorado):
 		w.WriteHeader(http.StatusNoContent)
 	case errors.Is(err, ErrWebhookInvalido):
-		httpserver.JSONErro(w, http.StatusUnauthorized, "nao_autenticado", "Aviso de cobrança não reconhecido.")
+		httputil.Error(w, http.StatusUnauthorized, "nao_autenticado", "Aviso de cobrança não reconhecido.")
 	case errors.Is(err, ErrAssinaturaDesconhecida):
 		// Nada a fazer, e o gateway não deve ficar reenviando.
 		h.log.WarnContext(r.Context(), "aviso de cobrança de assinatura desconhecida")
 		w.WriteHeader(http.StatusNoContent)
 	default:
 		h.log.ErrorContext(r.Context(), "falha ao processar aviso de cobrança", "err", err)
-		httpserver.JSONErro(w, http.StatusInternalServerError, "erro_interno", "Não foi possível processar o aviso agora.")
+		httputil.Error(w, http.StatusInternalServerError, "erro_interno", "Não foi possível processar o aviso agora.")
 	}
 }
 
@@ -110,7 +110,7 @@ func (h *Handler) ler(w http.ResponseWriter, r *http.Request, v any) bool {
 	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxCorpo))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(v); err != nil {
-		httpserver.JSONErro(w, http.StatusBadRequest, "json_invalido", "O corpo da requisição não é um JSON válido.")
+		httputil.Error(w, http.StatusBadRequest, "json_invalido", "O corpo da requisição não é um JSON válido.")
 		return false
 	}
 	return true
@@ -121,21 +121,21 @@ func (h *Handler) responder(w http.ResponseWriter, r *http.Request, status int, 
 		h.erro(w, r, err)
 		return
 	}
-	httpserver.JSON(w, status, v)
+	httputil.JSON(w, status, v)
 }
 
 // erro devolve os erros de negócio da assinatura e os de contas (assentos).
 func (h *Handler) erro(w http.ResponseWriter, r *http.Request, err error) {
 	var e *Erro
 	if errors.As(err, &e) {
-		httpserver.JSONErro(w, e.Status, e.Codigo, e.Mensagem)
+		httputil.Error(w, e.Status, e.Codigo, e.Mensagem)
 		return
 	}
 	var ec *contas.Erro
 	if errors.As(err, &ec) {
-		httpserver.JSONErro(w, ec.Status, ec.Codigo, ec.Mensagem)
+		httputil.Error(w, ec.Status, ec.Codigo, ec.Mensagem)
 		return
 	}
 	h.log.ErrorContext(r.Context(), "erro interno na assinatura", "err", err)
-	httpserver.JSONErro(w, http.StatusInternalServerError, "erro_interno", "Algo deu errado. Tente de novo em instantes.")
+	httputil.Error(w, http.StatusInternalServerError, "erro_interno", "Algo deu errado. Tente de novo em instantes.")
 }

@@ -5,7 +5,7 @@
 #
 # O Terraform só grava o valor de DATABASE_URL e REDIS_URL, que ele conhece. Os
 # outros nascem vazios e recebem o valor à mão, fora do repositório:
-#   printf '%s' "$VALOR" | gcloud secrets versions add prod-ASAAS_CHAVE --data-file=-
+#   printf '%s' "$VALOR" | gcloud secrets versions add prod-ASAAS_API_KEY --data-file=-
 
 locals {
   segredos_manuais = [
@@ -14,11 +14,11 @@ locals {
     "SHOPEE_APP_SECRET",
     "S3_ACCESS_KEY", # token de API do R2 com acesso ao bucket
     "S3_SECRET_KEY",
-    "SMTP_USUARIO", # provedor de e-mail transacional
-    "SMTP_SENHA",
-    "ASAAS_CHAVE",           # chave de API de produção do Asaas
-    "ASAAS_WEBHOOK_SEGREDO", # token configurado no webhook do Asaas
-    "VAPID_PRIVADA",         # parceiros vapid
+    "SMTP_USERNAME", # provedor de e-mail transacional
+    "SMTP_PASSWORD",
+    "ASAAS_API_KEY",           # chave de API de produção do Asaas
+    "ASAAS_WEBHOOK_SECRET", # token configurado no webhook do Asaas
+    "VAPID_PRIVATE_KEY",         # parceiros vapid
   ]
 
   segredos_gerados = {

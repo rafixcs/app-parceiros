@@ -16,19 +16,21 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/rafixcs/app-parceiros/backend/internal/contas"
+	"github.com/rafixcs/app-parceiros/backend/internal/domain"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/auth"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/database/dbtest"
+	httpapi "github.com/rafixcs/app-parceiros/backend/internal/infrastructure/http"
 	"github.com/rafixcs/app-parceiros/backend/internal/notificacoes"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/auth"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/httpserver"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/postgres/pgtest"
+	"github.com/rafixcs/app-parceiros/backend/pkg/httputil"
 )
 
 type remetente struct {
 	mu     sync.Mutex
-	emails []notificacoes.Email
+	emails []domain.Email
 	falhar bool
 }
 
-func (r *remetente) Enviar(_ context.Context, e notificacoes.Email) error {
+func (r *remetente) Send(_ context.Context, e domain.Email) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.falhar {
@@ -63,18 +65,18 @@ type ambiente struct {
 
 func novoAmbiente(t *testing.T, comCanais bool) *ambiente {
 	t.Helper()
-	pool := pgtest.New(t)
+	pool := dbtest.New(t)
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	a := &ambiente{t: t, rem: &remetente{}, push: &push{expiradas: map[string]bool{}}}
 	contasSvc := contas.NewService(pool, auth.Dev{}, "https://app.teste")
-	var rem notificacoes.Remetente
+	var rem domain.Mailer
 	var ps notificacoes.Push
 	if comCanais {
 		rem, ps = a.rem, a.push
 	}
 	a.svc = notificacoes.NewService(pool, nil, contasSvc, rem, ps, "https://app.teste", log)
 	contasSvc.EnviarConvitesCom(a.svc.EnviarConvite)
-	r := httpserver.NewRouter(log, nil)
+	r := httpapi.NewRouter(log, nil)
 	contas.NewHandler(contasSvc, log).Rotas(r, auth.Dev{}, notificacoes.NewHandler(a.svc, log).Modulo())
 	a.router = r
 	return a
@@ -108,9 +110,9 @@ func (a *ambiente) exigir(sub, metodo, caminho string, corpo, out any, status in
 
 func (a *ambiente) exigirErro(sub, metodo, caminho string, corpo any, status int, codigo string) {
 	a.t.Helper()
-	var e httpserver.Erro
-	if got := a.chamar(sub, metodo, caminho, corpo, &e); got != status || e.Codigo != codigo {
-		a.t.Fatalf("%s %s: %d %q, quer %d %q", metodo, caminho, got, e.Codigo, status, codigo)
+	var e httputil.ErrorBody
+	if got := a.chamar(sub, metodo, caminho, corpo, &e); got != status || e.Code != codigo {
+		a.t.Fatalf("%s %s: %d %q, quer %d %q", metodo, caminho, got, e.Code, status, codigo)
 	}
 }
 
@@ -169,7 +171,7 @@ func TestPreferenciasEPush(t *testing.T) {
 	if err := a.svc.Entregar(ctx, args); err != nil {
 		t.Fatal(err)
 	}
-	if len(a.rem.emails) != 1 || a.rem.emails[0].Para != "ana@dev.local" || len(a.push.enviados) != 2 {
+	if len(a.rem.emails) != 1 || a.rem.emails[0].To != "ana@dev.local" || len(a.push.enviados) != 2 {
 		t.Fatalf("segunda entrega: e-mails %+v, push %+v", a.rem.emails, a.push.enviados)
 	}
 
@@ -191,7 +193,7 @@ func TestConvitePorEmail(t *testing.T) {
 		t.Fatalf("convite: %+v, e-mails %+v", c, a.rem.emails)
 	}
 	e := a.rem.emails[0]
-	if e.Para != "nova@exemplo.com" || !strings.Contains(e.Assunto, "Turma Top") || !strings.Contains(e.Texto, c.URL) {
+	if e.To != "nova@exemplo.com" || !strings.Contains(e.Subject, "Turma Top") || !strings.Contains(e.Text, c.URL) {
 		t.Fatalf("e-mail do convite: %+v", e)
 	}
 	// Sem e-mail no convite, nada é enviado e o campo não aparece.

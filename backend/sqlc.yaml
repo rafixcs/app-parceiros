@@ -1,5 +1,5 @@
 version: "2"
-# Nomes que a singularização em inglês do sqlc estraga.
+# Names that sqlc's English singularization breaks.
 overrides:
   go:
     rename:
@@ -12,6 +12,40 @@ overrides:
       video_vinculo: VideoVinculo
       sincronizaco: Sincronizacao
 sql:
+  # Code of the refactored modules: one package for every query file.
+  - engine: postgresql
+    schema: db/migrations
+    queries:
+      - db/queries/auth.sql
+    gen:
+      go:
+        package: dbgen
+        out: internal/infrastructure/database/dbgen
+        sql_package: pgx/v5
+        emit_pointers_for_null_types: true
+        overrides:
+          - db_type: uuid
+            go_type: github.com/google/uuid.UUID
+          - db_type: uuid
+            nullable: true
+            go_type:
+              import: github.com/google/uuid
+              type: UUID
+              pointer: true
+          - db_type: timestamptz
+            go_type: time.Time
+          - db_type: timestamptz
+            nullable: true
+            go_type:
+              type: time.Time
+              pointer: true
+          - db_type: pg_catalog.numeric
+            go_type: float64
+          - db_type: pg_catalog.numeric
+            nullable: true
+            go_type:
+              type: float64
+              pointer: true
   - engine: postgresql
     schema: db/migrations
     queries: db/queries/contas.sql

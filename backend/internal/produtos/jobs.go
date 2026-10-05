@@ -13,8 +13,8 @@ import (
 	"github.com/riverqueue/river"
 
 	"github.com/rafixcs/app-parceiros/backend/internal/fontes"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/jobs"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/storage"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/queue"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/storage"
 )
 
 // IntervaloSnapshot é a frequência do snapshot de cada categoria.
@@ -31,7 +31,7 @@ func (SnapshotCatalogoArgs) Kind() string { return "snapshot_catalogo" }
 
 func (SnapshotCatalogoArgs) InsertOpts() river.InsertOpts {
 	return river.InsertOpts{
-		Queue:       jobs.FilaShopee,
+		Queue:       queue.QueueShopee,
 		MaxAttempts: 5,
 		// Uma coleta por categoria por hora, mesmo se o agendador repetir.
 		UniqueOpts: river.UniqueOpts{ByArgs: true, ByPeriod: time.Hour},
@@ -118,7 +118,7 @@ func (w *SnapshotCatalogoWorker) guardarBruto(ctx context.Context, chave string,
 	if err := zw.Close(); err != nil {
 		return err
 	}
-	return w.Storage.Guardar(ctx, chave, buf.Bytes(), "application/gzip")
+	return w.Storage.Put(ctx, chave, buf.Bytes(), "application/gzip")
 }
 
 // AgendarSnapshotsArgs é o job periódico que enfileira um snapshot por

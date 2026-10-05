@@ -42,12 +42,165 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Prontidao"
+  /v1/auth/register:
+    post:
+      summary: Cria uma conta com e-mail e senha (provedor interno)
+      description: >
+        Só existe com AUTH_PROVIDER=internal. Cria a conta, manda o link de
+        confirmação do e-mail e já abre uma sessão. O usuário e o workspace
+        pessoal são criados no primeiro GET /v1/eu, como em qualquer provedor.
+      operationId: authRegister
+      tags: [auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AuthRegister" }
+      responses:
+        "201":
+          description: Conta criada e sessão aberta
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthSession" }
+        "400": { $ref: "#/components/responses/Erro" }
+        "409":
+          description: "`email_taken`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "422":
+          description: "`invalid_email`, `invalid_name` ou `weak_password`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "429": { $ref: "#/components/responses/Erro" }
+  /v1/auth/login:
+    post:
+      summary: Entra com e-mail e senha (provedor interno)
+      operationId: authLogin
+      tags: [auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AuthLogin" }
+      responses:
+        "200":
+          description: Sessão aberta. Use o token como Bearer.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthSession" }
+        "400": { $ref: "#/components/responses/Erro" }
+        "401":
+          description: "`invalid_credentials`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "429":
+          description: "`too_many_attempts`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+  /v1/auth/logout:
+    post:
+      summary: Encerra a sessão do token (provedor interno)
+      operationId: authLogout
+      tags: [auth]
+      security: [{ bearer: [] }]
+      responses:
+        "204": { description: Sessão encerrada }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+  /v1/auth/email/verify:
+    post:
+      summary: Confirma o e-mail com o token do link enviado (provedor interno)
+      operationId: authVerifyEmail
+      tags: [auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AuthToken" }
+      responses:
+        "204": { description: E-mail confirmado }
+        "400": { $ref: "#/components/responses/Erro" }
+        "410":
+          description: "`invalid_auth_token`: o link expirou ou já foi usado"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+  /v1/auth/email/resend:
+    post:
+      summary: Manda de novo o link de confirmação do e-mail (provedor interno)
+      operationId: authResendVerification
+      tags: [auth]
+      security: [{ bearer: [] }]
+      responses:
+        "204": { description: Link enviado, ou e-mail já confirmado }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "429": { $ref: "#/components/responses/Erro" }
+  /v1/auth/password/forgot:
+    post:
+      summary: Pede o link para redefinir a senha (provedor interno)
+      description: >
+        Responde 202 mesmo quando o e-mail não tem conta, para não revelar
+        quem está cadastrado.
+      operationId: authForgotPassword
+      tags: [auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              additionalProperties: false
+              properties:
+                email: { type: string, format: email }
+      responses:
+        "202": { description: Pedido recebido }
+        "400": { $ref: "#/components/responses/Erro" }
+        "429": { $ref: "#/components/responses/Erro" }
+  /v1/auth/password/reset:
+    post:
+      summary: Define uma nova senha com o token do link enviado (provedor interno)
+      description: Encerra todas as sessões abertas da conta.
+      operationId: authResetPassword
+      tags: [auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password]
+              additionalProperties: false
+              properties:
+                token: { type: string }
+                password: { type: string, minLength: 8, maxLength: 128 }
+      responses:
+        "204": { description: Senha trocada }
+        "400": { $ref: "#/components/responses/Erro" }
+        "410":
+          description: "`invalid_auth_token`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "422":
+          description: "`weak_password`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
   /v1/eu:
     get:
       summary: Usuário autenticado
       description: >
-        No primeiro acesso, cria o usuário a partir do perfil do Zitadel e o
-        seu workspace pessoal.
+        No primeiro acesso, cria o usuário a partir do perfil do provedor de
+        identidade (Zitadel ou o provedor interno) e o seu workspace pessoal.
       operationId: eu
       tags: [contas]
       security: [{ bearer: [] }]
@@ -2013,7 +2166,9 @@ components:
         codigo:
           type: string
           description: >
-            Código estável para o front. Em contas: nao_autenticado,
+            Código estável para o front. Em auth (provedor interno):
+            invalid_credentials, email_taken, invalid_email, invalid_name,
+            weak_password, invalid_auth_token, too_many_attempts. Em contas: nao_autenticado,
             dados_invalidos, json_invalido, sem_permissao,
             workspace_nao_encontrado, membro_nao_encontrado,
             convite_nao_encontrado, so_mentoria, dono_nao_sai, sem_assentos,
@@ -2092,12 +2247,48 @@ components:
         o resto devolve 402 `workspace_suspenso`.
     Usuario:
       type: object
-      required: [id, nome, email, criado_em]
+      required: [id, nome, email, email_verificado, criado_em]
       properties:
         id: { type: string, format: uuid }
         nome: { type: string }
         email: { type: string, format: email }
+        email_verificado:
+          type: boolean
+          description: >
+            Convites por e-mail e avisos por e-mail exigem o e-mail confirmado.
         criado_em: { type: string, format: date-time }
+    AuthRegister:
+      type: object
+      required: [name, email, password]
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+        email: { type: string, format: email }
+        password: { type: string, minLength: 8, maxLength: 128 }
+    AuthLogin:
+      type: object
+      required: [email, password]
+      additionalProperties: false
+      properties:
+        email: { type: string, format: email }
+        password: { type: string }
+    AuthToken:
+      type: object
+      required: [token]
+      additionalProperties: false
+      properties:
+        token: { type: string }
+    AuthSession:
+      type: object
+      required: [token, expires_at]
+      properties:
+        token:
+          type: string
+          description: Token opaco da sessão, enviado como Bearer.
+        expires_at:
+          type: string
+          format: date-time
+          description: A validade é renovada a cada uso.
     Papel:
       type: string
       enum: [dono, mentor, afiliado]
@@ -2590,4 +2781,4 @@ components:
       type: object
       additionalProperties:
         type: string
-        enum: [ok, falhou]
+        enum: [ok, failed]

@@ -30,15 +30,16 @@ import (
 	"github.com/rafixcs/app-parceiros/backend/internal/curadoria"
 	"github.com/rafixcs/app-parceiros/backend/internal/fontes"
 	"github.com/rafixcs/app-parceiros/backend/internal/fontes/shopee"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/auth"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/database"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/database/dbtest"
+	httpapi "github.com/rafixcs/app-parceiros/backend/internal/infrastructure/http"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/queue"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/storage"
 	"github.com/rafixcs/app-parceiros/backend/internal/midia"
 	"github.com/rafixcs/app-parceiros/backend/internal/notificacoes"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/auth"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/httpserver"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/jobs"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/postgres"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/postgres/pgtest"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/storage"
 	"github.com/rafixcs/app-parceiros/backend/internal/produtos"
+	"github.com/rafixcs/app-parceiros/backend/pkg/httputil"
 )
 
 const (
@@ -69,7 +70,7 @@ func novoBucket(t *testing.T) *bucket {
 
 func etag(dados []byte) string { return fmt.Sprintf(`"%x"`, len(dados)*31+int(dados[0])) }
 
-func (b *bucket) IniciarMultipart(_ context.Context, chave, _ string) (string, error) {
+func (b *bucket) StartMultipart(_ context.Context, chave, _ string) (string, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.seq++
@@ -78,11 +79,11 @@ func (b *bucket) IniciarMultipart(_ context.Context, chave, _ string) (string, e
 	return id, nil
 }
 
-func (b *bucket) AssinarParte(_ context.Context, chave, uploadID string, numero int, _ time.Duration) (string, error) {
+func (b *bucket) SignPart(_ context.Context, chave, uploadID string, numero int, _ time.Duration) (string, error) {
 	return fmt.Sprintf("https://s3.teste/%s?partNumber=%d&uploadId=%s", chave, numero, uploadID), nil
 }
 
-func (b *bucket) receber(t *testing.T, urlParte string, dados []byte) storage.Parte {
+func (b *bucket) receber(t *testing.T, urlParte string, dados []byte) storage.Part {
 	t.Helper()
 	u, err := url.Parse(urlParte)
 	if err != nil {
@@ -97,36 +98,36 @@ func (b *bucket) receber(t *testing.T, urlParte string, dados []byte) storage.Pa
 	var n int
 	_, _ = fmt.Sscan(u.Query().Get("partNumber"), &n)
 	up.partes[n] = dados
-	return storage.Parte{Numero: n, ETag: etag(dados)}
+	return storage.Part{Number: n, ETag: etag(dados)}
 }
 
-func (b *bucket) Partes(_ context.Context, _, uploadID string) ([]storage.Parte, error) {
+func (b *bucket) Parts(_ context.Context, _, uploadID string) ([]storage.Part, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	up, ok := b.uploads[uploadID]
 	if !ok {
-		return nil, storage.ErrNaoEncontrado
+		return nil, storage.ErrNotFound
 	}
-	var out []storage.Parte
+	var out []storage.Part
 	for n, d := range up.partes {
-		out = append(out, storage.Parte{Numero: n, ETag: etag(d), Tamanho: int64(len(d))})
+		out = append(out, storage.Part{Number: n, ETag: etag(d), Size: int64(len(d))})
 	}
-	slices.SortFunc(out, func(a, b storage.Parte) int { return a.Numero - b.Numero })
+	slices.SortFunc(out, func(a, b storage.Part) int { return a.Number - b.Number })
 	return out, nil
 }
 
-func (b *bucket) ConcluirMultipart(_ context.Context, chave, uploadID string, partes []storage.Parte) error {
+func (b *bucket) CompleteMultipart(_ context.Context, chave, uploadID string, partes []storage.Part) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	up, ok := b.uploads[uploadID]
 	if !ok {
-		return storage.ErrNaoEncontrado
+		return storage.ErrNotFound
 	}
 	var tudo []byte
 	for _, p := range partes {
-		d, ok := up.partes[p.Numero]
+		d, ok := up.partes[p.Number]
 		if !ok || etag(d) != p.ETag {
-			return fmt.Errorf("InvalidPart %d", p.Numero)
+			return fmt.Errorf("InvalidPart %d", p.Number)
 		}
 		tudo = append(tudo, d...)
 	}
@@ -135,24 +136,24 @@ func (b *bucket) ConcluirMultipart(_ context.Context, chave, uploadID string, pa
 	return nil
 }
 
-func (b *bucket) AbortarMultipart(_ context.Context, _, uploadID string) error {
+func (b *bucket) AbortMultipart(_ context.Context, _, uploadID string) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	delete(b.uploads, uploadID)
 	return nil
 }
 
-func (b *bucket) Info(_ context.Context, chave string) (storage.Objeto, error) {
+func (b *bucket) Info(_ context.Context, chave string) (storage.Object, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	d, ok := b.objetos[chave]
 	if !ok {
-		return storage.Objeto{}, storage.ErrNaoEncontrado
+		return storage.Object{}, storage.ErrNotFound
 	}
-	return storage.Objeto{Tamanho: int64(len(d))}, nil
+	return storage.Object{Size: int64(len(d))}, nil
 }
 
-func (b *bucket) AssinarGet(_ context.Context, chave string, _ time.Duration, baixarComo string) (string, error) {
+func (b *bucket) SignGet(_ context.Context, chave string, _ time.Duration, baixarComo string) (string, error) {
 	u := "https://s3.teste/" + chave
 	if baixarComo != "" {
 		u += "?baixar=" + url.QueryEscape(baixarComo)
@@ -160,14 +161,14 @@ func (b *bucket) AssinarGet(_ context.Context, chave string, _ time.Duration, ba
 	return u, nil
 }
 
-func (b *bucket) URLInterna(_ context.Context, chave string, _ time.Duration) (string, error) {
+func (b *bucket) InternalURL(_ context.Context, chave string, _ time.Duration) (string, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	f := filepath.Join(b.dir, strings.ReplaceAll(chave, "/", "_"))
 	return f, os.WriteFile(f, b.objetos[chave], 0o600)
 }
 
-func (b *bucket) EnviarArquivo(_ context.Context, chave, caminho, _ string) error {
+func (b *bucket) UploadFile(_ context.Context, chave, caminho, _ string) error {
 	d, err := os.ReadFile(caminho)
 	if err != nil {
 		return err
@@ -178,7 +179,7 @@ func (b *bucket) EnviarArquivo(_ context.Context, chave, caminho, _ string) erro
 	return nil
 }
 
-func (b *bucket) ApagarPrefixo(_ context.Context, prefixo string) error {
+func (b *bucket) DeletePrefix(_ context.Context, prefixo string) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	for k := range b.objetos {
@@ -300,7 +301,7 @@ type ambiente struct {
 func novoAmbiente(t *testing.T) *ambiente {
 	t.Helper()
 	ctx := context.Background()
-	pool := pgtest.New(t)
+	pool := dbtest.New(t)
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 
 	cliente := shopee.NovoMock(&shopee.Mock{}, shopee.Config{})
@@ -327,7 +328,7 @@ func novoAmbiente(t *testing.T) *ambiente {
 	notificacoesSvc := notificacoes.NewService(pool, filaAvisos{}, contasSvc, nil, nil, "https://app.teste", log)
 	curadoriaSvc := curadoria.NewService(pool, produtosSvc, colecoesSvc, contasSvc, notificacoesSvc, midiaSvc, log)
 
-	r := httpserver.NewRouter(log, nil)
+	r := httpapi.NewRouter(log, nil)
 	contas.NewHandler(contasSvc, log).Rotas(r, auth.Dev{},
 		midia.NewHandler(midiaSvc, log).Modulo(),
 		curadoria.NewHandler(curadoriaSvc, log).Modulo(),
@@ -382,9 +383,9 @@ func (a *ambiente) exigir(sub, metodo, caminho string, corpo any, out any, statu
 
 func (a *ambiente) exigirErro(sub, metodo, caminho string, corpo any, status int, codigo string) {
 	a.t.Helper()
-	var e httpserver.Erro
-	if got := a.chamar(sub, metodo, caminho, corpo, &e); got != status || e.Codigo != codigo {
-		a.t.Fatalf("%s %s como %q: %d %q, quer %d %q (%s)", metodo, caminho, sub, got, e.Codigo, status, codigo, e.Mensagem)
+	var e httputil.ErrorBody
+	if got := a.chamar(sub, metodo, caminho, corpo, &e); got != status || e.Code != codigo {
+		a.t.Fatalf("%s %s como %q: %d %q, quer %d %q (%s)", metodo, caminho, sub, got, e.Code, status, codigo, e.Message)
 	}
 }
 
@@ -417,7 +418,7 @@ func (a *ambiente) mentoria(mestre string, afiliados ...string) string {
 
 func (a *ambiente) produtoID(i int) uuid.UUID {
 	a.t.Helper()
-	p, err := a.produtos.PorItem(context.Background(), postgres.Escopo{}, fontes.Shopee, a.ofertas[i].ItemID)
+	p, err := a.produtos.PorItem(context.Background(), database.Scope{}, fontes.Shopee, a.ofertas[i].ItemID)
 	if err != nil {
 		a.t.Fatal(err)
 	}
@@ -435,7 +436,7 @@ func (a *ambiente) enviar(sub, base string, nome string, dados []byte, produtoID
 	}
 	a.exigir(sub, http.MethodPost, base+"/videos/uploads", corpo, &u, 201)
 	video := base + "/videos/" + u.Video.ID.String()
-	var partes []storage.Parte
+	var partes []storage.Part
 	for i, pedaco := range [][]byte{dados[:len(dados)/2], dados[len(dados)/2:]} {
 		var assinada struct{ URL string }
 		a.exigir(sub, http.MethodPost, video+"/partes", map[string]any{"numero": i + 1}, &assinada, 200)
@@ -444,7 +445,7 @@ func (a *ambiente) enviar(sub, base string, nome string, dados []byte, produtoID
 	}
 	var v midia.Video
 	a.exigir(sub, http.MethodPost, video+"/concluir", map[string]any{"partes": []map[string]any{
-		{"numero": partes[0].Numero, "etag": partes[0].ETag}, {"numero": partes[1].Numero, "etag": partes[1].ETag},
+		{"numero": partes[0].Number, "etag": partes[0].ETag}, {"numero": partes[1].Number, "etag": partes[1].ETag},
 	}}, &v, 200)
 	return v
 }
@@ -773,7 +774,7 @@ func TestCompartilharEListas(t *testing.T) {
 	a.exigirErro("ana", http.MethodPatch, pessoal+"/videos/"+noPessoal.ID.String(), map[string]any{"compartilhado": true}, 403, "sem_permissao")
 	// Nem pela RLS, mesmo sem passar pelo serviço.
 	anaID := a.usuarioID("ana")
-	err := postgres.InTx(context.Background(), a.pool, postgres.Escopo{UsuarioID: anaID.String(), WorkspaceID: strings.TrimPrefix(ws, "/v1/workspaces/")}, func(tx pgx.Tx) error {
+	err := database.InTx(context.Background(), a.pool, database.Scope{UserID: anaID.String(), WorkspaceID: strings.TrimPrefix(ws, "/v1/workspaces/")}, func(tx pgx.Tx) error {
 		_, err := tx.Exec(context.Background(), "UPDATE videos SET compartilhado = true WHERE id = $1", dela.ID)
 		return err
 	})
@@ -870,7 +871,7 @@ func TestVazamento(t *testing.T) {
 
 	// Direto no banco, com o escopo do workspace B: nada de A.
 	betoID := a.usuarioID("beto")
-	err := postgres.InTx(context.Background(), a.pool, postgres.Escopo{UsuarioID: betoID.String(), WorkspaceID: strings.TrimPrefix(wsB, "/v1/workspaces/")}, func(tx pgx.Tx) error {
+	err := database.InTx(context.Background(), a.pool, database.Scope{UserID: betoID.String(), WorkspaceID: strings.TrimPrefix(wsB, "/v1/workspaces/")}, func(tx pgx.Tx) error {
 		for _, q := range []string{"SELECT count(*) FROM videos", "SELECT count(*) FROM video_vinculos", "SELECT count(*) FROM uso_videos"} {
 			var n int
 			if err := tx.QueryRow(context.Background(), q).Scan(&n); err != nil {
@@ -892,11 +893,11 @@ func TestVazamento(t *testing.T) {
 // pode agendar a próxima rodada de si mesma.
 func TestFilaRiver(t *testing.T) {
 	ctx := context.Background()
-	pool := pgtest.New(t)
-	if err := jobs.Migrate(ctx, pool); err != nil {
+	pool := dbtest.New(t)
+	if err := queue.Migrate(ctx, pool); err != nil {
 		t.Fatal(err)
 	}
-	client, err := jobs.NewInsertClient(pool, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	client, err := queue.NewInsertClient(pool, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	if err != nil {
 		t.Fatal(err)
 	}

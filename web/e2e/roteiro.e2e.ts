@@ -11,6 +11,8 @@ const afiliada = `ana-${sufixo}`;
 const mentoria = `Turma ${sufixo}`;
 const lista = `Achados ${sufixo}`;
 
+test.skip((process.env.E2E_AUTH_PROVIDER ?? "dev") !== "dev", "roteiro do MVP roda com AUTH_PROVIDER=dev");
+
 async function entrarComo(browser: Browser, nome: string): Promise<Page> {
   const page = await (await browser.newContext()).newPage();
   await page.goto("/entrar");

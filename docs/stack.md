@@ -123,7 +123,7 @@ app-parceiros/
 │   │   ├── resultados/
 │   │   ├── assinaturas/
 │   │   ├── notificacoes/
-│   │   └── platform/             # db, http, auth, jobs, storage, crypto, observabilidade
+│   │   └── ...                   # camadas domain, service, infrastructure e server (docs/arquitetura.md)
 │   ├── db/migrations/
 │   ├── db/queries/
 │   └── Dockerfile                # inclui ffmpeg

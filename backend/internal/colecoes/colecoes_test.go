@@ -26,13 +26,14 @@ import (
 	"github.com/rafixcs/app-parceiros/backend/internal/contas"
 	"github.com/rafixcs/app-parceiros/backend/internal/fontes"
 	"github.com/rafixcs/app-parceiros/backend/internal/fontes/shopee"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/auth"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/crypto"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/httpserver"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/jobs"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/postgres"
-	"github.com/rafixcs/app-parceiros/backend/internal/platform/postgres/pgtest"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/auth"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/crypto"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/database"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/database/dbtest"
+	httpapi "github.com/rafixcs/app-parceiros/backend/internal/infrastructure/http"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/queue"
 	"github.com/rafixcs/app-parceiros/backend/internal/produtos"
+	"github.com/rafixcs/app-parceiros/backend/pkg/httputil"
 )
 
 const (
@@ -79,18 +80,18 @@ type ambiente struct {
 func novoAmbiente(t *testing.T, comCatalogo bool) *ambiente {
 	t.Helper()
 	ctx := context.Background()
-	pool := pgtest.New(t)
+	pool := dbtest.New(t)
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 
 	chave := make([]byte, 32)
 	_, _ = rand.Read(chave)
-	kek, err := crypto.NovaKEKLocal("teste-1", base64.StdEncoding.EncodeToString(chave))
+	kek, err := crypto.NewLocalKEK("teste-1", base64.StdEncoding.EncodeToString(chave))
 	if err != nil {
 		t.Fatal(err)
 	}
 	mock := &shopee.Mock{Segredos: map[string]string{appIDUsuario: secretUsuario}}
 	cliente := shopee.NovoMock(mock, shopee.Config{})
-	credenciais := shopee.NovasCredenciais(pool, crypto.NovoCofre(kek), cliente)
+	credenciais := shopee.NovasCredenciais(pool, crypto.NewVault(kek), cliente)
 	app := shopee.CatalogoDoApp{Cliente: cliente, Credencial: shopee.Credencial{AppID: "1", Secret: "x"}}
 
 	// Catálogo: os primeiros produtos do mock entram no banco.
@@ -118,7 +119,7 @@ func novoAmbiente(t *testing.T, comCatalogo bool) *ambiente {
 	fila := &filaFalsa{}
 	svc := colecoes.NewService(pool, produtosSvc, catalogo, afiliador, fila, log)
 
-	r := httpserver.NewRouter(log, nil)
+	r := httpapi.NewRouter(log, nil)
 	contas.NewHandler(contas.NewService(pool, auth.Dev{}, "https://app.teste"), log).Rotas(r, auth.Dev{},
 		colecoes.NewHandler(svc, log).Modulo())
 
@@ -164,9 +165,9 @@ func (a *ambiente) exigir(sub, metodo, caminho string, corpo any, out any, statu
 
 func (a *ambiente) exigirErro(sub, metodo, caminho string, corpo any, status int, codigo string) {
 	a.t.Helper()
-	var e httpserver.Erro
-	if got := a.chamar(sub, metodo, caminho, corpo, &e); got != status || e.Codigo != codigo {
-		a.t.Fatalf("%s %s como %q: %d %q, quer %d %q (%s)", metodo, caminho, sub, got, e.Codigo, status, codigo, e.Mensagem)
+	var e httputil.ErrorBody
+	if got := a.chamar(sub, metodo, caminho, corpo, &e); got != status || e.Code != codigo {
+		a.t.Fatalf("%s %s como %q: %d %q, quer %d %q (%s)", metodo, caminho, sub, got, e.Code, status, codigo, e.Message)
 	}
 }
 
@@ -193,7 +194,7 @@ func (a *ambiente) conectar(sub string) {
 
 func (a *ambiente) produtoID(i int) uuid.UUID {
 	a.t.Helper()
-	p, err := a.produtos.PorItem(context.Background(), postgres.Escopo{}, fontes.Shopee, a.ofertas[i].ItemID)
+	p, err := a.produtos.PorItem(context.Background(), database.Scope{}, fontes.Shopee, a.ofertas[i].ItemID)
 	if err != nil {
 		a.t.Fatal(err)
 	}
@@ -329,7 +330,7 @@ func TestColarLink(t *testing.T) {
 	if it.Produto.Nome != fora.Nome || it.Produto.ComissaoBP != fora.ComissaoBP {
 		t.Fatalf("produto importado: %+v", it.Produto)
 	}
-	if _, err := a.produtos.PorItem(context.Background(), postgres.Escopo{}, fontes.Shopee, fora.ItemID); err != nil {
+	if _, err := a.produtos.PorItem(context.Background(), database.Scope{}, fontes.Shopee, fora.ItemID); err != nil {
 		t.Fatalf("produto importado não está no catálogo: %v", err)
 	}
 
@@ -544,10 +545,10 @@ func TestVazamento(t *testing.T) {
 
 	// Direto no banco, com o papel da aplicação: as políticas escondem tudo de
 	// outro usuário ou de outro workspace, e impedem gravar em nome da ana.
-	contar := func(e postgres.Escopo) int {
+	contar := func(e database.Scope) int {
 		t.Helper()
 		total := 0
-		err := postgres.InTx(ctx, a.pool, e, func(tx pgx.Tx) error {
+		err := database.InTx(ctx, a.pool, e, func(tx pgx.Tx) error {
 			for _, tabela := range []string{"itens_colecao", "colecoes", "colecao_itens", "links_canal"} {
 				var n int
 				if err := tx.QueryRow(ctx, "SELECT count(*) FROM "+tabela).Scan(&n); err != nil {
@@ -563,20 +564,20 @@ func TestVazamento(t *testing.T) {
 		return total
 	}
 	ana := a.usuario("ana").ID.String()
-	if n := contar(postgres.Escopo{UsuarioID: ana, WorkspaceID: ws}); n != 1+1+1+len(colecoes.Canais) {
+	if n := contar(database.Scope{UserID: ana, WorkspaceID: ws}); n != 1+1+1+len(colecoes.Canais) {
 		t.Fatalf("a ana vê %d linhas", n)
 	}
-	for nome, e := range map[string]postgres.Escopo{
-		"mentor":          {UsuarioID: a.usuario("mestre").ID.String(), WorkspaceID: ws},
-		"outro afiliado":  {UsuarioID: a.usuario("beto").ID.String(), WorkspaceID: ws},
-		"outro workspace": {UsuarioID: ana, WorkspaceID: pessoal},
-		"sem workspace":   {UsuarioID: ana},
+	for nome, e := range map[string]database.Scope{
+		"mentor":          {UserID: a.usuario("mestre").ID.String(), WorkspaceID: ws},
+		"outro afiliado":  {UserID: a.usuario("beto").ID.String(), WorkspaceID: ws},
+		"outro workspace": {UserID: ana, WorkspaceID: pessoal},
+		"sem workspace":   {UserID: ana},
 	} {
 		if n := contar(e); n != 0 {
 			t.Fatalf("%s vê %d linhas da ana", nome, n)
 		}
 	}
-	err := postgres.InTx(ctx, a.pool, postgres.Escopo{UsuarioID: a.usuario("beto").ID.String(), WorkspaceID: ws}, func(tx pgx.Tx) error {
+	err := database.InTx(ctx, a.pool, database.Scope{UserID: a.usuario("beto").ID.String(), WorkspaceID: ws}, func(tx pgx.Tx) error {
 		_, err := tx.Exec(ctx, "INSERT INTO colecoes (workspace_id, usuario_id, nome) VALUES ($1, $2, 'invasão')", ws, ana)
 		return err
 	})
@@ -591,11 +592,11 @@ func itoa(n int64) string { return strconv.FormatInt(n, 10) }
 // vezes enquanto o job está na fila.
 func TestFilaRiver(t *testing.T) {
 	ctx := context.Background()
-	pool := pgtest.New(t)
-	if err := jobs.Migrate(ctx, pool); err != nil {
+	pool := dbtest.New(t)
+	if err := queue.Migrate(ctx, pool); err != nil {
 		t.Fatal(err)
 	}
-	client, err := jobs.NewInsertClient(pool, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	client, err := queue.NewInsertClient(pool, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	if err != nil {
 		t.Fatal(err)
 	}
