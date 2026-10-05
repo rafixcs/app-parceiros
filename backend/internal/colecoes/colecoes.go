@@ -58,8 +58,27 @@ var Canais = []Canal{CanalInstagram, CanalTikTok, CanalWhatsApp, CanalOutro}
 // SubIDs marca o link com o canal e o workspace, para o relatório de
 // conversões separar os resultados (E7).
 func SubIDs(c Canal, workspaceID uuid.UUID) []string {
+	return []string{string(c), MarcaWorkspace(workspaceID)}
+}
+
+// MarcaWorkspace é o subId que identifica o workspace: "w" e os 12 primeiros
+// dígitos hexadecimais do ID.
+func MarcaWorkspace(workspaceID uuid.UUID) string {
 	ws := strings.ReplaceAll(workspaceID.String(), "-", "")
-	return []string{string(c), "w" + ws[:12]}
+	return "w" + ws[:12]
+}
+
+// EhMarcaWorkspace diz se o subId tem o formato de MarcaWorkspace.
+func EhMarcaWorkspace(s string) bool {
+	if len(s) != 13 || s[0] != 'w' {
+		return false
+	}
+	for _, r := range s[1:] {
+		if (r < '0' || r > '9') && (r < 'a' || r > 'f') {
+			return false
+		}
+	}
+	return true
 }
 
 type LinkStatus string

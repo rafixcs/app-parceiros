@@ -8,6 +8,7 @@ import { Layout } from "./layout";
 import { Listas } from "./listas";
 import { Notificacoes } from "./notificacoes";
 import { Radar, validarBusca } from "./radar";
+import { validarBuscaResultados } from "./resultados-api";
 import { ConexaoShopee } from "./shopee";
 import { Turma } from "./turma";
 
@@ -78,6 +79,21 @@ export const rotaVideos = createRoute({
   component: lazyRouteComponent(() => import("./videos"), "Videos"),
 });
 
+// Os gráficos (recharts) só carregam quando alguém abre os resultados.
+export const rotaResultados = createRoute({
+  getParentRoute: () => app,
+  path: "/w/$workspaceId/resultados",
+  validateSearch: validarBuscaResultados,
+  component: lazyRouteComponent(() => import("./resultados"), "Resultados"),
+});
+
+export const rotaResultadosTurma = createRoute({
+  getParentRoute: () => app,
+  path: "/w/$workspaceId/resultados/turma",
+  validateSearch: validarBuscaResultados,
+  component: lazyRouteComponent(() => import("./resultados"), "ResultadosTurma"),
+});
+
 export const rotaNotificacoes = createRoute({
   getParentRoute: () => app,
   path: "/w/$workspaceId/notificacoes",
@@ -101,6 +117,8 @@ export const router = createRouter({
       rotaLista,
       rotaTurma,
       rotaVideos,
+      rotaResultados,
+      rotaResultadosTurma,
       rotaNotificacoes,
       shopee,
     ]),

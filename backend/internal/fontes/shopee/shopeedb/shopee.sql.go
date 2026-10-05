@@ -107,3 +107,28 @@ func (q *Queries) SalvarCredencial(ctx context.Context, arg SalvarCredencialPara
 	)
 	return i, err
 }
+
+const usuariosConectados = `-- name: UsuariosConectados :many
+SELECT usuario_id FROM credenciais_shopee WHERE status = 'conectado' ORDER BY usuario_id
+`
+
+// Só o worker (papel dono das tabelas) usa, para agendar a sincronização.
+func (q *Queries) UsuariosConectados(ctx context.Context) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, usuariosConectados)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var usuario_id uuid.UUID
+		if err := rows.Scan(&usuario_id); err != nil {
+			return nil, err
+		}
+		items = append(items, usuario_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

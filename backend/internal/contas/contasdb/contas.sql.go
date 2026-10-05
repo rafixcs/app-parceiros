@@ -211,6 +211,25 @@ func (q *Queries) CriarWorkspace(ctx context.Context, arg CriarWorkspaceParams) 
 	return i, err
 }
 
+const definirConsentimento = `-- name: DefinirConsentimento :execrows
+UPDATE membros SET consente_resultados = $1
+WHERE workspace_id = $2 AND usuario_id = $3
+`
+
+type DefinirConsentimentoParams struct {
+	Consente    bool
+	WorkspaceID uuid.UUID
+	UsuarioID   uuid.UUID
+}
+
+func (q *Queries) DefinirConsentimento(ctx context.Context, arg DefinirConsentimentoParams) (int64, error) {
+	result, err := q.db.Exec(ctx, definirConsentimento, arg.Consente, arg.WorkspaceID, arg.UsuarioID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const inserirMembro = `-- name: InserirMembro :exec
 INSERT INTO membros (workspace_id, usuario_id, papel)
 VALUES ($1, $2, $3)
@@ -280,7 +299,7 @@ func (q *Queries) Membro(ctx context.Context, arg MembroParams) (Membro, error) 
 }
 
 const membrosDoWorkspace = `-- name: MembrosDoWorkspace :many
-SELECT m.usuario_id, u.nome, u.email, m.papel, m.entrou_em
+SELECT m.usuario_id, u.nome, u.email, m.papel, m.entrou_em, m.consente_resultados
 FROM membros m
 JOIN usuarios u ON u.id = m.usuario_id
 WHERE m.workspace_id = $1
@@ -288,11 +307,12 @@ ORDER BY m.papel, m.entrou_em
 `
 
 type MembrosDoWorkspaceRow struct {
-	UsuarioID uuid.UUID
-	Nome      string
-	Email     string
-	Papel     MembroPapel
-	EntrouEm  time.Time
+	UsuarioID          uuid.UUID
+	Nome               string
+	Email              string
+	Papel              MembroPapel
+	EntrouEm           time.Time
+	ConsenteResultados bool
 }
 
 func (q *Queries) MembrosDoWorkspace(ctx context.Context, workspaceID uuid.UUID) ([]MembrosDoWorkspaceRow, error) {
@@ -310,6 +330,7 @@ func (q *Queries) MembrosDoWorkspace(ctx context.Context, workspaceID uuid.UUID)
 			&i.Email,
 			&i.Papel,
 			&i.EntrouEm,
+			&i.ConsenteResultados,
 		); err != nil {
 			return nil, err
 		}

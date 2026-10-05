@@ -184,6 +184,46 @@ func (q *Queries) ImportacoesPorProduto(ctx context.Context, arg ImportacoesPorP
 	return items, nil
 }
 
+const importacoesPublicadas = `-- name: ImportacoesPublicadas :many
+SELECT i.lista_id, i.usuario_id, i.produto_id, i.importado_em
+FROM importacoes i
+JOIN listas_curadoria l ON l.id = i.lista_id AND l.workspace_id = i.workspace_id
+WHERE i.workspace_id = $1 AND l.publicada_em IS NOT NULL
+`
+
+type ImportacoesPublicadasRow struct {
+	ListaID     uuid.UUID
+	UsuarioID   uuid.UUID
+	ProdutoID   uuid.UUID
+	ImportadoEm time.Time
+}
+
+// Todas as importações das listas publicadas, para os resultados por lista.
+func (q *Queries) ImportacoesPublicadas(ctx context.Context, workspaceID uuid.UUID) ([]ImportacoesPublicadasRow, error) {
+	rows, err := q.db.Query(ctx, importacoesPublicadas, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ImportacoesPublicadasRow
+	for rows.Next() {
+		var i ImportacoesPublicadasRow
+		if err := rows.Scan(
+			&i.ListaID,
+			&i.UsuarioID,
+			&i.ProdutoID,
+			&i.ImportadoEm,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const importadores = `-- name: Importadores :many
 SELECT usuario_id, count(*) AS produtos, max(importado_em)::timestamptz AS ultima_em FROM importacoes
 WHERE lista_id = $1 AND workspace_id = $2

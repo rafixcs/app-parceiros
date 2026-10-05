@@ -195,6 +195,11 @@ function Membros({ workspaceId }: { workspaceId: string }) {
               <span className="block truncate">{m.nome}</span>
               <span className="block truncate text-xs text-suave">{m.email}</span>
             </span>
+            {m.consente_resultados && (
+              <Badge className="bg-emerald-50 text-emerald-700" title="Autoriza somar os resultados no painel da turma">
+                Mostra resultados
+              </Badge>
+            )}
             <Badge className="bg-zinc-100 text-zinc-700">{papeis[m.papel]}</Badge>
             {m.papel === "afiliado" && (
               <Button

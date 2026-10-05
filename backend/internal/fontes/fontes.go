@@ -6,6 +6,7 @@ package fontes
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -60,6 +61,42 @@ type Afiliador interface {
 	// GerarLink devolve o link curto de afiliado para a página `origem`, com
 	// os subIds informados. Devolve ErrSemCredencial sem credencial.
 	GerarLink(ctx context.Context, usuarioID uuid.UUID, origem string, subIDs []string) (string, error)
+}
+
+// StatusPedido é a situação de um pedido no relatório de conversões.
+type StatusPedido string
+
+const (
+	PedidoNaoPago   StatusPedido = "nao_pago"
+	PedidoPendente  StatusPedido = "pendente"
+	PedidoConcluido StatusPedido = "concluido"
+	PedidoCancelado StatusPedido = "cancelado"
+)
+
+// Conversao é um item de um pedido atribuído a um link do afiliado. Dinheiro
+// em centavos.
+type Conversao struct {
+	ConversaoID      int64
+	PedidoID         string
+	ItemID           int64
+	ModeloID         int64
+	ItemNome         string
+	LojaNome         string
+	Quantidade       int32
+	PrecoCentavos    int64 // preço unitário
+	ComissaoCentavos int64 // comissão total do item no pedido
+	Status           StatusPedido
+	// SubID são os subIds do link, como a fonte os devolve (unidos por hífen).
+	SubID      string
+	CompradoEm time.Time
+	ClicadoEm  *time.Time
+}
+
+// Relatorio lê as conversões de cada usuário com a credencial dele.
+type Relatorio interface {
+	// Conversoes devolve as conversões com compra em [de, ate). Devolve
+	// ErrSemCredencial sem credencial conectada.
+	Conversoes(ctx context.Context, usuarioID uuid.UUID, de, ate time.Time) ([]Conversao, error)
 }
 
 var (

@@ -1661,6 +1661,126 @@ paths:
       responses:
         "204": { description: Cancelado }
         "401": { $ref: "#/components/responses/NaoAutenticado" }
+  /v1/eu/resultados/sincronizacao:
+    get:
+      summary: Situação da sincronização de conversões do usuário
+      operationId: verSincronizacao
+      tags: [resultados]
+      security: [{ bearer: [] }]
+      responses:
+        "200":
+          description: Situação
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Sincronizacao" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+  /v1/eu/resultados/sincronizar:
+    post:
+      summary: Sincronizar as conversões agora
+      description: >
+        Enfileira a leitura do conversionReport da Shopee (últimos 89 dias) com
+        a credencial do usuário. A sincronização também roda uma vez por dia.
+        Se uma já está em andamento, devolve a situação dela.
+      operationId: sincronizarResultados
+      tags: [resultados]
+      security: [{ bearer: [] }]
+      responses:
+        "202":
+          description: Sincronização pedida
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Sincronizacao" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "409":
+          description: "`sem_credencial`: a Shopee não está conectada"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "429":
+          description: "`sincronizado_agora`: a última terminou há menos de 10 minutos"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+  /v1/workspaces/{workspaceId}/resultados:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceId"
+      - $ref: "#/components/parameters/De"
+      - $ref: "#/components/parameters/Ate"
+    get:
+      summary: Os resultados do próprio usuário no workspace
+      description: >
+        Pedidos e comissão das vendas pelos links do usuário marcados com este
+        workspace (no workspace pessoal, também as vendas por links de fora
+        do app). A Open API da Shopee não informa cliques.
+      operationId: meusResultados
+      tags: [resultados]
+      security: [{ bearer: [] }]
+      responses:
+        "200":
+          description: Resultados
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MeusResultados" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "404": { $ref: "#/components/responses/Erro" }
+        "422": { $ref: "#/components/responses/Erro" }
+  /v1/workspaces/{workspaceId}/resultados/turma:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceId"
+      - $ref: "#/components/parameters/De"
+      - $ref: "#/components/parameters/Ate"
+    get:
+      summary: Resultados agregados da turma (dono e mentor)
+      description: >
+        Somas dos membros que consentiram, no total, por dia, por lista da
+        curadoria e por produto. Nunca há números por afiliado. Por lista,
+        contam as vendas dos produtos importados da lista, por quem os
+        importou, depois da importação.
+      operationId: resultadosTurma
+      tags: [resultados]
+      security: [{ bearer: [] }]
+      responses:
+        "200":
+          description: Resultados da turma
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ResultadosTurma" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Erro" }
+        "404": { $ref: "#/components/responses/Erro" }
+        "409":
+          description: "`so_mentoria`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "422": { $ref: "#/components/responses/Erro" }
+  /v1/workspaces/{workspaceId}/resultados/consentimento:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceId"
+    put:
+      summary: Autorizar ou não o mentor a ver os meus resultados agregados
+      operationId: definirConsentimento
+      tags: [resultados]
+      security: [{ bearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Consentimento" }
+      responses:
+        "200":
+          description: Consentimento gravado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Consentimento" }
+        "400": { $ref: "#/components/responses/Erro" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "404": { $ref: "#/components/responses/Erro" }
+        "409":
+          description: "`so_mentoria`: o consentimento vale só em mentorias"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
 components:
   securitySchemes:
     bearer:
@@ -1694,6 +1814,16 @@ components:
       in: path
       required: true
       schema: { type: string }
+    De:
+      name: de
+      in: query
+      description: Primeiro dia (AAAA-MM-DD, fuso de Brasília). Padrão, 29 dias antes de `ate`.
+      schema: { type: string, format: date }
+    Ate:
+      name: ate
+      in: query
+      description: Último dia, inclusive (AAAA-MM-DD). Padrão, hoje. O período tem até 366 dias.
+      schema: { type: string, format: date }
   responses:
     NaoAutenticado:
       description: Sem token ou token inválido (`nao_autenticado`)
@@ -1757,13 +1887,16 @@ components:
         criado_em: { type: string, format: date-time }
     Membro:
       type: object
-      required: [usuario_id, nome, email, papel, entrou_em]
+      required: [usuario_id, nome, email, papel, entrou_em, consente_resultados]
       properties:
         usuario_id: { type: string, format: uuid }
         nome: { type: string }
         email: { type: string, format: email }
         papel: { $ref: "#/components/schemas/Papel" }
         entrou_em: { type: string, format: date-time }
+        consente_resultados:
+          type: boolean
+          description: Se o membro autoriza ver os seus resultados agregados no painel da turma.
     Convite:
       type: object
       required: [id, email, expira_em, criado_em]
@@ -2110,6 +2243,117 @@ components:
       properties:
         usados_bytes: { type: integer, format: int64 }
         limite_bytes: { type: integer, format: int64 }
+    Sincronizacao:
+      type: object
+      required: [status, pedida_em, atualizado_em, conversoes, erro]
+      properties:
+        status: { type: string, enum: [nunca, sincronizando, ok, erro, sem_credencial] }
+        pedida_em: { type: [string, "null"], format: date-time }
+        atualizado_em:
+          type: [string, "null"]
+          format: date-time
+          description: Fim da última sincronização que deu certo.
+        conversoes: { type: integer, description: Itens de pedido lidos na última sincronização. }
+        erro: { type: [string, "null"] }
+    Consentimento:
+      type: object
+      required: [consente]
+      additionalProperties: false
+      properties:
+        consente: { type: boolean }
+    Periodo:
+      type: object
+      required: [de, ate]
+      properties:
+        de: { type: string, format: date }
+        ate: { type: string, format: date }
+    TotaisResultados:
+      type: object
+      description: >
+        Dinheiro em centavos. Pedidos e itens não contam os cancelados.
+        Comissão estimada soma os pedidos não cancelados; validada, os
+        concluídos.
+      required: [pedidos, cancelados, itens, vendas_centavos, comissao_estimada_centavos, comissao_validada_centavos]
+      properties:
+        pedidos: { type: integer, format: int64 }
+        cancelados: { type: integer, format: int64 }
+        itens: { type: integer, format: int64 }
+        vendas_centavos: { type: integer, format: int64 }
+        comissao_estimada_centavos: { type: integer, format: int64 }
+        comissao_validada_centavos: { type: integer, format: int64 }
+    ResultadoDia:
+      type: object
+      required: [dia, pedidos, comissao_estimada_centavos, comissao_validada_centavos]
+      properties:
+        dia: { type: string, format: date }
+        pedidos: { type: integer, format: int64 }
+        comissao_estimada_centavos: { type: integer, format: int64 }
+        comissao_validada_centavos: { type: integer, format: int64 }
+    ResultadoProduto:
+      type: object
+      required: [item_id, produto_id, nome, loja_nome, imagem_url, pedidos, itens, vendas_centavos, comissao_estimada_centavos, comissao_validada_centavos]
+      properties:
+        item_id: { type: integer, format: int64 }
+        produto_id:
+          type: [string, "null"]
+          format: uuid
+          description: Produto do catálogo, quando o item está nele.
+        nome: { type: string }
+        loja_nome: { type: string }
+        imagem_url: { type: [string, "null"] }
+        pedidos: { type: integer, format: int64 }
+        itens: { type: integer, format: int64 }
+        vendas_centavos: { type: integer, format: int64 }
+        comissao_estimada_centavos: { type: integer, format: int64 }
+        comissao_validada_centavos: { type: integer, format: int64 }
+    ResultadoCanal:
+      type: object
+      required: [canal, pedidos, comissao_estimada_centavos, comissao_validada_centavos]
+      properties:
+        canal:
+          type: string
+          enum: [instagram, tiktok, whatsapp, outro, ""]
+          description: Vazio quando a venda veio de um link criado fora do app.
+        pedidos: { type: integer, format: int64 }
+        comissao_estimada_centavos: { type: integer, format: int64 }
+        comissao_validada_centavos: { type: integer, format: int64 }
+    ResultadoLista:
+      type: object
+      required: [id, titulo, publicada_em, importadores, pedidos, vendas_centavos, comissao_estimada_centavos, comissao_validada_centavos]
+      properties:
+        id: { type: string, format: uuid }
+        titulo: { type: string }
+        publicada_em: { type: string, format: date-time }
+        importadores: { type: integer, description: Quem da turma importou a lista (consentindo ou não). }
+        pedidos: { type: integer, format: int64 }
+        vendas_centavos: { type: integer, format: int64 }
+        comissao_estimada_centavos: { type: integer, format: int64 }
+        comissao_validada_centavos: { type: integer, format: int64 }
+    MeusResultados:
+      type: object
+      required: [periodo, sincronizacao, consente, totais, por_dia, por_produto, por_canal]
+      properties:
+        periodo: { $ref: "#/components/schemas/Periodo" }
+        sincronizacao: { $ref: "#/components/schemas/Sincronizacao" }
+        consente:
+          type: [boolean, "null"]
+          description: Só em mentorias. Se o usuário mostra os resultados ao mentor.
+        totais: { $ref: "#/components/schemas/TotaisResultados" }
+        por_dia: { type: array, items: { $ref: "#/components/schemas/ResultadoDia" } }
+        por_produto: { type: array, items: { $ref: "#/components/schemas/ResultadoProduto" } }
+        por_canal: { type: array, items: { $ref: "#/components/schemas/ResultadoCanal" } }
+    ResultadosTurma:
+      type: object
+      required: [periodo, afiliados, consentem, ativos, totais, por_dia, por_lista, por_produto]
+      properties:
+        periodo: { $ref: "#/components/schemas/Periodo" }
+        afiliados: { type: integer, description: Afiliados do workspace. }
+        consentem: { type: integer, description: Membros que autorizam ver os resultados. }
+        ativos: { type: integer, format: int64, description: Dos que autorizam, quantos venderam no período. }
+        totais: { $ref: "#/components/schemas/TotaisResultados" }
+        por_dia: { type: array, items: { $ref: "#/components/schemas/ResultadoDia" } }
+        por_lista: { type: array, items: { $ref: "#/components/schemas/ResultadoLista" } }
+        por_produto: { type: array, items: { $ref: "#/components/schemas/ResultadoProduto" } }
     Prontidao:
       type: object
       additionalProperties:

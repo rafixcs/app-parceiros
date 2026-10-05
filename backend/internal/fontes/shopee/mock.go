@@ -39,6 +39,14 @@ type Mock struct {
 
 	mu       sync.Mutex
 	chamadas int
+	// links guarda, por AppID, os links gerados (produto e subIds), para o
+	// conversionReport simular vendas por eles.
+	links map[string][]linkGerado
+}
+
+type linkGerado struct {
+	itemID int64
+	subID  string
 }
 
 // Data da gravação de testdata/product_offer_v2.json.
@@ -122,6 +130,8 @@ func (m *Mock) RoundTrip(req *http.Request) (*http.Response, error) {
 	switch {
 	case err == nil && strings.Contains(corpo.Query, "generateShortLink"):
 		return m.link(appID, corpo.Query)
+	case err == nil && strings.Contains(corpo.Query, "conversionReport"):
+		return m.conversoes(appID, corpo.Query)
 	case err == nil && strings.Contains(corpo.Query, "productOfferV2"):
 		return m.ofertas(corpo.Query)
 	}
@@ -145,6 +155,7 @@ func (m *Mock) link(appID, query string) (*http.Response, error) {
 		!strings.Contains(origem, "shopee.com.br") {
 		return resposta(http.StatusOK, []byte(`{"errors":[{"message":"error [11001]: invalid originUrl","extensions":{"code":11001,"message":"invalid originUrl"}}]}`))
 	}
+	m.registrarLink(appID, origem, subIDs)
 	h := fnv.New64a()
 	_, _ = h.Write([]byte(appID + "|" + origem + "|" + strings.Join(subIDs, ",")))
 	codigo := strconv.FormatUint(h.Sum64(), 36)
@@ -281,4 +292,161 @@ func resposta(status int, corpo []byte) (*http.Response, error) {
 		Header:     http.Header{"Content-Type": []string{"application/json"}},
 		Body:       io.NopCloser(bytes.NewReader(corpo)),
 	}, nil
+}
+
+var reItemURL = regexp.MustCompile(`(?:-i\.\d+\.|/product/\d+/)(\d+)`)
+
+func (m *Mock) registrarLink(appID, origem string, subIDs []string) {
+	a := reItemURL.FindStringSubmatch(origem)
+	if a == nil {
+		return
+	}
+	item, _ := strconv.ParseInt(a[1], 10, 64)
+	l := linkGerado{itemID: item, subID: strings.Join(subIDs, "-")}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.links == nil {
+		m.links = map[string][]linkGerado{}
+	}
+	if !slices.Contains(m.links[appID], l) {
+		m.links[appID] = append(m.links[appID], l)
+	}
+}
+
+var (
+	reArgRelatorio = regexp.MustCompile(`(purchaseTimeStart|purchaseTimeEnd|limit):(\d+)`)
+	reScrollID     = regexp.MustCompile(`scrollId:"mock-(\d+)"`)
+)
+
+// conversoes imita o conversionReport: de 0 a 3 conversões por dia, sempre as
+// mesmas para o mesmo AppID e dia. A maioria vem dos links que o AppID gerou
+// (com os subIds deles); o resto, de produtos do catálogo sem subId. A
+// situação do pedido avança com a idade: não pago, pendente e concluído, com
+// alguns cancelados.
+func (m *Mock) conversoes(appID, query string) (*http.Response, error) {
+	args := map[string]int64{"limit": LimiteRelatorio}
+	for _, a := range reArgRelatorio.FindAllStringSubmatch(query, -1) {
+		args[a[1]], _ = strconv.ParseInt(a[2], 10, 64)
+	}
+	inicio := int64(0)
+	if a := reScrollID.FindStringSubmatch(query); a != nil {
+		inicio, _ = strconv.ParseInt(a[1], 10, 64)
+	}
+
+	var gravacao struct {
+		Data struct {
+			ProductOfferV2 struct {
+				Nodes []struct {
+					ItemID         json.Number `json:"itemId"`
+					ProductName    string      `json:"productName"`
+					ShopName       string      `json:"shopName"`
+					PriceMin       string      `json:"priceMin"`
+					CommissionRate string      `json:"commissionRate"`
+				} `json:"nodes"`
+			} `json:"productOfferV2"`
+		} `json:"data"`
+	}
+	b, err := testdata.ReadFile("testdata/product_offer_v2.json")
+	if err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal(b, &gravacao); err != nil {
+		return nil, err
+	}
+	nos := gravacao.Data.ProductOfferV2.Nodes
+	porItem := map[string]int{}
+	for i, n := range nos {
+		porItem[n.ItemID.String()] = i
+	}
+	m.mu.Lock()
+	links := slices.Clone(m.links[appID])
+	m.mu.Unlock()
+
+	agora := m.Agora().Unix()
+	de, ate := args["purchaseTimeStart"], min(args["purchaseTimeEnd"], agora)
+	var todas []map[string]any
+	for dia := de - de%86400; dia <= ate; dia += 86400 {
+		for j := range int(hash(appID, dia, -1) % 4) {
+			h := hash(appID, dia, j)
+			compra := dia + int64(h%86400)
+			if compra < de || compra > ate {
+				continue
+			}
+			idx, sub := int((h>>8)%uint64(len(nos))), ""
+			if len(links) > 0 && h%10 < 7 {
+				l := links[int((h>>16)%uint64(len(links)))]
+				if i, ok := porItem[strconv.FormatInt(l.itemID, 10)]; ok {
+					idx, sub = i, l.subID
+				}
+			}
+			n := nos[idx]
+			qtd := int64(1)
+			if h%5 == 0 {
+				qtd = 2
+			}
+			preco, _ := decimal(n.PriceMin).escalar(2)
+			taxa, _ := decimal(n.CommissionRate).escalar(4)
+			comissao := (preco*qtd*taxa + 5000) / 10000
+
+			idade := agora - compra
+			status := "COMPLETED"
+			switch {
+			case h%11 == 0:
+				status = "CANCELLED"
+			case idade < 2*86400:
+				status = "UNPAID"
+			case idade < 15*86400:
+				status = "PENDING"
+			}
+			if status == "CANCELLED" {
+				comissao = 0
+			}
+			id := int64(h>>1) & (1<<52 - 1)
+			todas = append(todas, map[string]any{
+				"purchaseTime": compra,
+				"clickTime":    compra - int64(h%7200),
+				"conversionId": id,
+				"utmContent":   sub,
+				"orders": []any{map[string]any{
+					"orderId":     strconv.FormatInt(id%1_000_000_000_000, 10),
+					"orderStatus": status,
+					"items": []any{map[string]any{
+						"itemId":              n.ItemID,
+						"itemName":            n.ProductName,
+						"shopName":            n.ShopName,
+						"modelId":             0,
+						"itemPrice":           n.PriceMin,
+						"qty":                 qtd,
+						"itemTotalCommission": strconv.FormatFloat(float64(comissao)/100, 'f', 2, 64),
+					}},
+				}},
+			})
+		}
+	}
+
+	limite := min(max(args["limit"], 1), LimiteRelatorio)
+	inicio = min(inicio, int64(len(todas)))
+	fim := min(inicio+limite, int64(len(todas)))
+	pagina := todas[inicio:fim]
+	if pagina == nil {
+		pagina = []map[string]any{}
+	}
+	scroll := ""
+	if fim < int64(len(todas)) {
+		scroll = "mock-" + strconv.FormatInt(fim, 10)
+	}
+	out, err := json.Marshal(map[string]any{"data": map[string]any{"conversionReport": map[string]any{
+		"nodes":    pagina,
+		"pageInfo": map[string]any{"limit": limite, "hasNextPage": scroll != "", "scrollId": scroll},
+	}}})
+	if err != nil {
+		return nil, err
+	}
+	return resposta(http.StatusOK, out)
+}
+
+func hash(appID string, dia int64, j int) uint64 {
+	h := fnv.New64a()
+	_, _ = h.Write([]byte(appID + "|" + strconv.FormatInt(dia, 10) + "|" + strconv.Itoa(j)))
+	return h.Sum64()
 }

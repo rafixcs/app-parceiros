@@ -52,7 +52,7 @@ VALUES ($1, $2, $3);
 SELECT * FROM membros WHERE workspace_id = $1 AND usuario_id = $2;
 
 -- name: MembrosDoWorkspace :many
-SELECT m.usuario_id, u.nome, u.email, m.papel, m.entrou_em
+SELECT m.usuario_id, u.nome, u.email, m.papel, m.entrou_em, m.consente_resultados
 FROM membros m
 JOIN usuarios u ON u.id = m.usuario_id
 WHERE m.workspace_id = $1
@@ -102,3 +102,7 @@ WHERE id = $1
   AND workspace_id = $2
   AND usado_por IS NULL
   AND revogado_em IS NULL;
+
+-- name: DefinirConsentimento :execrows
+UPDATE membros SET consente_resultados = @consente
+WHERE workspace_id = @workspace_id AND usuario_id = @usuario_id;
