@@ -168,3 +168,6 @@ O rate limit é por credencial (token bucket no Redis).
 2. Asaas ou Mercado Pago: o M7 saiu com Asaas, a confirmar. Trocar é escrever outra implementação de `assinaturas.Gateway`.
 3. No plano Mentoria, quem paga: o M7 saiu com o mentor pagando por assento (o afiliado avulso paga o próprio plano), a confirmar.
 4. Preços: R$ 29,90 por mês no avulso e R$ 14,90 por assento na mentoria, provisórios na tabela `limites`.
+5. **Cobrança da mentoria e do aluno (a revisitar).** Decisão provisória do Rafael (05/10/2026): o Asaas é o gateway; nesse primeiro momento o mentor paga a mentoria por assento e o **workspace pessoal do aluno é grátis** enquanto ele for afiliado de uma mentoria em dia (situação `gratuito`). No futuro o workspace do aluno pode passar a ser pago. Falta definir:
+   - como cobrar os workspaces dos mentores (modelo e valores);
+   - quanto o aluno paga por cadeira, e se é o aluno ou o mentor quem paga por ela.

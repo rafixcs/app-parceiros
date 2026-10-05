@@ -174,12 +174,16 @@ func (s *Service) Workspaces(ctx context.Context, usuarioID uuid.UUID) ([]Worksp
 		if err != nil {
 			return err
 		}
+		aluno, err := q.AlunoDeMentoriaAtiva(ctx, usuarioID)
+		if err != nil {
+			return err
+		}
 		out = make([]Workspace, 0, len(rows))
 		for _, r := range rows {
 			out = append(out, workspaceDe(contasdb.Workspace{
 				ID: r.ID, Tipo: r.Tipo, Nome: r.Nome, FotoUrl: r.FotoUrl, DonoID: r.DonoID,
 				Plano: r.Plano, CriadoEm: r.CriadoEm, AcessoAte: r.AcessoAte, PagoEm: r.PagoEm, Assentos: r.Assentos,
-			}, Papel(r.Papel)))
+			}, Papel(r.Papel), aluno))
 		}
 		return nil
 	})
@@ -203,7 +207,16 @@ func (s *Service) CriarMentoria(ctx context.Context, usuarioID uuid.UUID, nome s
 	if err != nil {
 		return Workspace{}, err
 	}
-	return workspaceDe(w, PapelDono), nil
+	return workspaceDe(w, PapelDono, false), nil
+}
+
+// alunoSe diz se o workspace é o pessoal de um aluno de mentoria em dia (que
+// não é cobrado). Só consulta no workspace pessoal.
+func alunoSe(ctx context.Context, q *contasdb.Queries, w contasdb.Workspace, usuarioID uuid.UUID) (bool, error) {
+	if TipoWorkspace(w.Tipo) != TipoPessoal {
+		return false, nil
+	}
+	return q.AlunoDeMentoriaAtiva(ctx, usuarioID)
 }
 
 // Membro devolve a participação do usuário no workspace, ou
@@ -220,10 +233,14 @@ func (s *Service) Membro(ctx context.Context, usuarioID, workspaceID uuid.UUID) 
 		if err != nil {
 			return err
 		}
+		aluno, err := alunoSe(ctx, q, w, usuarioID)
+		if err != nil {
+			return err
+		}
 		m = Membro{
 			WorkspaceID: workspaceID, UsuarioID: usuarioID, Papel: Papel(mb.Papel),
 			TipoWorkspace: TipoWorkspace(w.Tipo), ConsenteResultados: mb.ConsenteResultados,
-			Suspenso: situacaoDe(w, time.Now()) == SituacaoSuspenso,
+			Suspenso: situacaoDe(w, time.Now(), aluno) == SituacaoSuspenso,
 		}
 		return nil
 	})
@@ -239,15 +256,19 @@ func escopoDe(m Membro) postgres.Escopo {
 
 func (s *Service) Workspace(ctx context.Context, m Membro) (Workspace, error) {
 	var w contasdb.Workspace
+	var aluno bool
 	err := s.tx(ctx, escopoDe(m), func(q *contasdb.Queries, _ pgx.Tx) error {
 		var err error
-		w, err = q.Workspace(ctx, m.WorkspaceID)
+		if w, err = q.Workspace(ctx, m.WorkspaceID); err != nil {
+			return err
+		}
+		aluno, err = alunoSe(ctx, q, w, m.UsuarioID)
 		return err
 	})
 	if err != nil {
 		return Workspace{}, err
 	}
-	return workspaceDe(w, m.Papel), nil
+	return workspaceDe(w, m.Papel, aluno), nil
 }
 
 // AtualizarWorkspace muda nome e foto. Só o dono pode. Foto vazia remove a foto.
@@ -275,15 +296,19 @@ func (s *Service) AtualizarWorkspace(ctx context.Context, m Membro, nome, foto *
 		}
 	}
 	var w contasdb.Workspace
+	var aluno bool
 	err := s.tx(ctx, escopoDe(m), func(q *contasdb.Queries, _ pgx.Tx) error {
 		var err error
-		w, err = q.AtualizarWorkspace(ctx, p)
+		if w, err = q.AtualizarWorkspace(ctx, p); err != nil {
+			return err
+		}
+		aluno, err = alunoSe(ctx, q, w, m.UsuarioID)
 		return err
 	})
 	if err != nil {
 		return Workspace{}, err
 	}
-	return workspaceDe(w, m.Papel), nil
+	return workspaceDe(w, m.Papel, aluno), nil
 }
 
 // Membros lista a turma. Só dono e mentor veem.
@@ -691,7 +716,7 @@ func (s *Service) AceitarConvite(ctx context.Context, usuarioID uuid.UUID, token
 	if err != nil {
 		return Workspace{}, err
 	}
-	return workspaceDe(w, PapelAfiliado), nil
+	return workspaceDe(w, PapelAfiliado, false), nil
 }
 
 func statusDe(c contasdb.Convite) StatusConvite {

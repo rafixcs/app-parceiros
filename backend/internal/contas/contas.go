@@ -33,23 +33,34 @@ const (
 	TipoMentoria TipoWorkspace = "mentoria"
 )
 
-// Situacao do workspace na assinatura. Teste e ativo dão acesso; suspenso, não.
+// Situacao do workspace na assinatura. Teste, ativo e gratuito dão acesso;
+// suspenso, não.
 type Situacao string
 
 const (
 	SituacaoTeste    Situacao = "teste"
 	SituacaoAtivo    Situacao = "ativo"
 	SituacaoSuspenso Situacao = "suspenso"
+	// SituacaoGratuito é o workspace pessoal de quem é aluno (afiliado) de uma
+	// mentoria em dia: por decisão provisória do Rafael (2026-10-05), ele não é
+	// cobrado. A regra pode mudar para o aluno pagar por assento; veja
+	// docs/mvp.md §8.
+	SituacaoGratuito Situacao = "gratuito"
 )
 
 // situacaoDe calcula a situação: o acesso vale até acesso_ate (fim do teste ou
-// do ciclo pago, mais a tolerância); pago_em diz se já houve pagamento.
-func situacaoDe(w contasdb.Workspace, agora time.Time) Situacao {
+// do ciclo pago, mais a tolerância); pago_em diz se já houve pagamento. aluno
+// diz se o usuário é afiliado de uma mentoria em dia, o que libera o
+// workspace pessoal sem cobrança.
+func situacaoDe(w contasdb.Workspace, agora time.Time, aluno bool) Situacao {
+	vigente := agora.Before(w.AcessoAte)
 	switch {
-	case !agora.Before(w.AcessoAte):
-		return SituacaoSuspenso
-	case w.PagoEm != nil:
+	case vigente && w.PagoEm != nil:
 		return SituacaoAtivo
+	case aluno && TipoWorkspace(w.Tipo) == TipoPessoal:
+		return SituacaoGratuito
+	case !vigente:
+		return SituacaoSuspenso
 	default:
 		return SituacaoTeste
 	}
@@ -171,14 +182,14 @@ func erroValidacao(msg string) *Erro {
 	return &Erro{http.StatusUnprocessableEntity, "dados_invalidos", msg}
 }
 
-func workspaceDe(w contasdb.Workspace, p Papel) Workspace {
+func workspaceDe(w contasdb.Workspace, p Papel, aluno bool) Workspace {
 	return Workspace{
 		ID:        w.ID,
 		Tipo:      TipoWorkspace(w.Tipo),
 		Nome:      w.Nome,
 		FotoURL:   w.FotoUrl,
 		Plano:     w.Plano,
-		Status:    situacaoDe(w, time.Now()),
+		Status:    situacaoDe(w, time.Now(), aluno),
 		AcessoAte: w.AcessoAte,
 		Assentos:  w.Assentos,
 		Papel:     p,

@@ -532,3 +532,55 @@ func TestVazamentoEntreWorkspacesRLS(t *testing.T) {
 func contemRLS(err error) bool {
 	return err != nil && bytes.Contains([]byte(err.Error()), []byte("row-level security"))
 }
+
+// TestPessoalGratuitoParaAluno: o workspace pessoal de quem é aluno de uma
+// mentoria em dia não é cobrado (decisão provisória, docs/mvp.md §8).
+func TestPessoalGratuitoParaAluno(t *testing.T) {
+	a := novoAmbiente(t)
+	ws := a.mentoria("mentor", "Turma")
+	c := a.convite("mentor", ws.ID, nil)
+	a.exigir("bia", http.MethodPost, "/v1/convites/"+c.Token+"/aceitar", nil, nil, http.StatusOK)
+	bia := a.usuario("bia")
+
+	pessoal := func() contas.Workspace {
+		var ws []contas.Workspace
+		a.exigir("bia", http.MethodGet, "/v1/workspaces", nil, &ws, http.StatusOK)
+		for _, w := range ws {
+			if w.Tipo == contas.TipoPessoal {
+				return w
+			}
+		}
+		t.Fatal("sem workspace pessoal")
+		return contas.Workspace{}
+	}
+	p := pessoal()
+	if p.Status != contas.SituacaoGratuito {
+		t.Fatalf("pessoal do aluno = %q", p.Status)
+	}
+	// Mesmo com o teste do pessoal vencido, o aluno segue usando.
+	a.admin("UPDATE workspaces SET acesso_ate = now() - interval '1 day' WHERE id = $1", p.ID)
+	var membros []contas.MembroDetalhe
+	if got := a.chamar("bia", http.MethodGet, "/v1/workspaces/"+p.ID.String()+"/membros", nil, &membros); got == http.StatusPaymentRequired {
+		t.Fatal("pessoal do aluno ficou suspenso")
+	}
+	// A mentoria do mentor não ganha nada com isso: o pessoal dele segue cobrado.
+	var dele []contas.Workspace
+	a.exigir("mentor", http.MethodGet, "/v1/workspaces", nil, &dele, http.StatusOK)
+	for _, w := range dele {
+		if w.Status == contas.SituacaoGratuito {
+			t.Fatalf("workspace do mentor gratuito: %+v", w)
+		}
+	}
+
+	// Mentoria suspensa: o pessoal do aluno volta a depender do próprio acesso.
+	a.admin("UPDATE workspaces SET acesso_ate = now() - interval '1 minute' WHERE id = $1", ws.ID)
+	if p := pessoal(); p.Status != contas.SituacaoSuspenso {
+		t.Fatalf("com a mentoria suspensa, pessoal = %q", p.Status)
+	}
+	// E quem sai da mentoria também.
+	a.admin("UPDATE workspaces SET acesso_ate = now() + interval '1 day' WHERE id = $1", ws.ID)
+	a.exigir("bia", http.MethodDelete, "/v1/workspaces/"+ws.ID.String()+"/membros/"+bia.ID.String(), nil, nil, http.StatusNoContent)
+	if p := pessoal(); p.Status != contas.SituacaoSuspenso {
+		t.Fatalf("fora da mentoria, pessoal = %q", p.Status)
+	}
+}
