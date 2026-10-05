@@ -1,0 +1,15 @@
+# Aplicado a todo Deployment e Job do app: a configuração não secreta do
+# ambiente (ConfigMap parceiros-config, gerado no overlay) junto do Secret, e
+# contêineres sem root nem privilégios extras.
+- op: add
+  path: /spec/template/spec/securityContext
+  value:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+- op: add
+  path: /spec/template/spec/containers/0/securityContext
+  value:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: ["ALL"]

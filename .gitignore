@@ -5,3 +5,7 @@ node_modules/
 dist/
 *.tsbuildinfo
 dev-dist/
+.terraform/
+.terraform.lock.hcl
+*.tfvars
+*.tfstate*

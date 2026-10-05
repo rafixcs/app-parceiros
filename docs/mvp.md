@@ -164,7 +164,7 @@ O rate limit é por credencial (token bucket no Redis).
 
 ## 8. Decisões em aberto
 
-1. Cloud de produção (sugestão: GCP).
+1. Cloud de produção: a infraestrutura saiu em GCP (`deploy/terraform/gcp`), a confirmar. Pendências do lançamento em `docs/lancamento.md`.
 2. Asaas ou Mercado Pago: o M7 saiu com Asaas, a confirmar. Trocar é escrever outra implementação de `assinaturas.Gateway`.
 3. No plano Mentoria, quem paga: o M7 saiu com o mentor pagando por assento (o afiliado avulso paga o próprio plano), a confirmar.
 4. Preços: R$ 29,90 por mês no avulso e R$ 14,90 por assento na mentoria, provisórios na tabela `limites`.

@@ -5,6 +5,7 @@ App para afiliados da Shopee descobrirem produtos em alta, organizarem o que vã
 - Especificação do MVP: `docs/mvp.md`. **Leia antes de começar qualquer funcionalidade.**
 - Stack aprovada e justificativas: `docs/stack.md`
 - Pesquisa de mercado e viabilidade: `docs/pesquisa.md`
+- Lançamento (pendências, infraestrutura e passo a passo do deploy): `docs/lancamento.md`
 
 ## Idioma
 - Documentação, mensagens de commit, descrições de PR e textos da interface em **português do Brasil**.
@@ -18,7 +19,7 @@ App para afiliados da Shopee descobrirem produtos em alta, organizarem o que vã
   - Redis para cache e rate limit por credencial.
 - **Contrato:** `api/openapi.yaml` é a fonte da verdade. Altere o contrato primeiro e depois gere o código.
 - **Frontend:** `web/`, React + TypeScript + Vite (PWA), TanStack Query/Router, Tailwind + shadcn/ui, Uppy.
-- **Infra:** Docker, Kubernetes, Kustomize (`deploy/`), Tilt para dev local (kind/k3d), SeaweedFS (S3) no lugar do R2.
+- **Infra:** Docker, Kubernetes, Kustomize (`deploy/`), Tilt para dev local (kind/k3d), SeaweedFS (S3) no lugar do R2. Produção: GCP por Terraform (`deploy/terraform/gcp`), segredos no Secret Manager via External Secrets, deploy pelo Argo CD. Nada de criar recursos pagos ou fazer deploy sem ok do Rafael.
 
 ## Estrutura
 ```
@@ -29,7 +30,9 @@ backend/internal/<módulo>/    # contas, fontes/shopee, produtos, tendencias, co
 backend/internal/platform/    # db, http, auth, jobs, storage, crypto, observabilidade
 backend/db/{migrations,queries}/
 web/
-deploy/{base,overlays/*}/
+deploy/{base,components/gcp,overlays/*}/
+deploy/terraform/gcp/          # infraestrutura de produção (GKE, Cloud SQL, Memorystore)
+deploy/argocd/
 Tiltfile
 ```
 Os módulos não acessam as tabelas uns dos outros. Quando precisam, um módulo chama a interface pública do outro.

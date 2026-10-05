@@ -35,6 +35,7 @@ import (
 	"github.com/rafixcs/app-parceiros/backend/internal/platform/crypto"
 	"github.com/rafixcs/app-parceiros/backend/internal/platform/httpserver"
 	"github.com/rafixcs/app-parceiros/backend/internal/platform/jobs"
+	"github.com/rafixcs/app-parceiros/backend/internal/platform/logs"
 	"github.com/rafixcs/app-parceiros/backend/internal/platform/postgres"
 	"github.com/rafixcs/app-parceiros/backend/internal/platform/ratelimit"
 	"github.com/rafixcs/app-parceiros/backend/internal/platform/storage"
@@ -44,7 +45,7 @@ import (
 )
 
 func main() {
-	log := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	log := logs.New(os.Stdout)
 	if err := run(log, os.Args[1:]); err != nil {
 		log.Error("encerrando com erro", "err", err)
 		os.Exit(1)

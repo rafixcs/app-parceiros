@@ -1,11 +1,36 @@
-# Ambiente prod: Postgres e Redis gerenciados. O secret parceiros-env é criado
-# fora do repositório (External Secrets / secret manager da cloud).
+# Produção na GCP (GKE Autopilot + Cloud SQL + Memorystore), criada pelo
+# Terraform em deploy/terraform/gcp. Antes do primeiro deploy, troque os valores
+# marcados com TROCAR aqui e em ambiente/ (domínio, projeto, Zitadel, R2, SMTP,
+# VAPID). O passo a passo está em docs/lancamento.md.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: parceiros-prod
 resources:
   - ../../base
+components:
+  - ../../components/gcp
 images:
   - name: parceiros
-    newName: ghcr.io/rafixcs/app-parceiros
-    newTag: latest # o CI substitui pela tag do commit
+    newName: southamerica-east1-docker.pkg.dev/TROCAR-projeto/parceiros/parceiros
+    newTag: latest # o deploy troca pela tag do commit (sha)
+  - name: parceiros-web
+    newName: southamerica-east1-docker.pkg.dev/TROCAR-projeto/parceiros/parceiros-web
+    newTag: latest
+patches:
+  - target:
+      kind: Ingress
+      name: parceiros
+    patch: |-
+      - op: replace
+        path: /metadata/annotations/kubernetes.io~1ingress.global-static-ip-name
+        value: parceiros-prod-ingress
+      - op: replace
+        path: /spec/rules/0/host
+        value: TROCAR.dominio
+  - target:
+      kind: ManagedCertificate
+      name: parceiros
+    patch: |-
+      - op: replace
+        path: /spec/domains/0
+        value: TROCAR.dominio

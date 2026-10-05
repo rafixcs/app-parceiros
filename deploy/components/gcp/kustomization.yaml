@@ -1,0 +1,16 @@
+# Peças de um ambiente na GCP (GKE Autopilot), em comum entre staging e prod:
+# o front (nginx), o Ingress com certificado gerenciado, a configuração não
+# secreta e o endurecimento dos pods. Os valores de cada ambiente (domínio, IP,
+# configuração) ficam no overlay.
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+resources:
+  - web.yaml
+  - ingress.yaml
+  - api-hpa.yaml
+patches:
+  - path: config-e-seguranca.yaml
+    target:
+      kind: (Deployment|Job)
+      labelSelector: app.kubernetes.io/part-of=app-parceiros
+  - path: recursos.yaml
