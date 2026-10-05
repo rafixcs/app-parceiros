@@ -1,5 +1,6 @@
 import { createRootRoute, createRoute, createRouter, lazyRouteComponent, redirect } from "@tanstack/react-router";
 import { token } from "@/lib/auth";
+import { Assinatura } from "./assinatura";
 import { Colecao, validarBuscaColecao } from "./colecao";
 import { Convite } from "./convite";
 import { Callback, Entrar } from "./entrar";
@@ -94,6 +95,12 @@ export const rotaResultadosTurma = createRoute({
   component: lazyRouteComponent(() => import("./resultados"), "ResultadosTurma"),
 });
 
+export const rotaAssinatura = createRoute({
+  getParentRoute: () => app,
+  path: "/w/$workspaceId/assinatura",
+  component: Assinatura,
+});
+
 export const rotaNotificacoes = createRoute({
   getParentRoute: () => app,
   path: "/w/$workspaceId/notificacoes",
@@ -119,6 +126,7 @@ export const router = createRouter({
       rotaVideos,
       rotaResultados,
       rotaResultadosTurma,
+      rotaAssinatura,
       rotaNotificacoes,
       shopee,
     ]),

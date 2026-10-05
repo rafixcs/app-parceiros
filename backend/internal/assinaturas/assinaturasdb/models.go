@@ -2,7 +2,7 @@
 // versions:
 //   sqlc v1.31.1
 
-package midiadb
+package assinaturasdb
 
 import (
 	"database/sql/driver"

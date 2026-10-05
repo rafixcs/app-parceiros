@@ -89,9 +89,13 @@ O critério de aceite vem abaixo de cada história.
 3. **Consentimento:** o afiliado autoriza, ou não, que o mentor veja seus resultados agregados naquele workspace.
 
 ### E8. Assinatura
-1. Planos `avulso` e `mentoria` (por assento), com limites em tabela (`limites`): assentos, cota de vídeo e número de listas.
-2. Checkout com Asaas ou Mercado Pago (PIX recorrente, cartão e boleto), com webhook que ativa ou suspende o workspace.
-3. Período de teste de 7 dias.
+1. Planos `avulso` e `mentoria` (por assento), com limites e preços em tabela (`limites`): assentos, assentos do teste, cota de vídeo, número de listas e preço.
+2. Checkout no gateway (Asaas, atrás da interface `assinaturas.Gateway`), com a fatura paga em PIX, boleto ou cartão, e webhook que ativa ou suspende o workspace.
+   - O acesso é a data `workspaces.acesso_ate`: cada pagamento confirmado a estende até o fim do ciclo, mais 3 dias de tolerância; passada a data, o workspace fica suspenso sem depender de job nem de webhook.
+   - Um estorno suspende na hora. Cancelar mantém o acesso até o fim do período já pago.
+   - Suspenso, o workspace só deixa ver a si mesmo, sair dele, mexer no consentimento e cuidar da assinatura; o resto responde 402.
+3. Período de teste de 7 dias, com assentos de teste (5 na mentoria).
+4. Assentos: um por afiliado da turma (convite pendente já ocupa). Diminuir vale na hora, nunca abaixo dos em uso; aumentar vale no próximo pagamento confirmado.
 
 ## 5. Modelo de dados (inicial)
 
@@ -122,7 +126,9 @@ links_canal(item_id, canal, sub_id, url)
 conversoes(id, usuario_id, workspace_id?, produto_id?, sub_id, pedido_id, status, valor_centavos, comissao_centavos, ocorrido_em)
 
 limites(plano, chave, valor)
-assinaturas(workspace_id, provedor, externo_id, status, proximo_ciclo)
+workspaces.acesso_ate, workspaces.pago_em, workspaces.assentos  -- acesso e assentos contratados
+assinaturas(workspace_id, provedor, cliente_externo_id, externo_id, status, assentos, valor_centavos, proximo_ciclo, url_pagamento, criado_por, cancelada_em)
+eventos_cobranca(provedor, evento_id, workspace_id, tipo, recebido_em)  -- reenvios do webhook
 ```
 
 Toda tabela com `workspace_id` tem RLS. Valores em dinheiro ficam em centavos (`bigint`) e comissões em basis points (`comissao_bp`, 1% = 100).
@@ -159,5 +165,6 @@ O rate limit é por credencial (token bucket no Redis).
 ## 8. Decisões em aberto
 
 1. Cloud de produção (sugestão: GCP).
-2. Asaas ou Mercado Pago.
-3. No plano Mentoria, quem paga: o mentor pela turma ou cada aluno.
+2. Asaas ou Mercado Pago: o M7 saiu com Asaas, a confirmar. Trocar é escrever outra implementação de `assinaturas.Gateway`.
+3. No plano Mentoria, quem paga: o M7 saiu com o mentor pagando por assento (o afiliado avulso paga o próprio plano), a confirmar.
+4. Preços: R$ 29,90 por mês no avulso e R$ 14,90 por assento na mentoria, provisórios na tabela `limites`.

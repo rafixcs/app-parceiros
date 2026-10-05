@@ -59,6 +59,14 @@ type Config struct {
 	SMTPSenha     string
 	SMTPRemetente string
 
+	// Cobrança. CobrancaModo "asaas" fala com o Asaas; "mock" não cobra nada
+	// e é o padrão em dev. ASAAS_URL aponta para o sandbox quando quiser
+	// testar com a API de verdade.
+	CobrancaModo string
+	AsaasURL     string
+	AsaasChave   string
+	AsaasWebhook string
+
 	// Web Push: par de chaves VAPID (gere com `parceiros vapid`) e o e-mail de
 	// contato que vai no token. Sem as chaves, o push fica desligado.
 	VAPIDPublica string
@@ -95,6 +103,10 @@ func Load() (Config, error) {
 		SMTPUsuario:       os.Getenv("SMTP_USUARIO"),
 		SMTPSenha:         os.Getenv("SMTP_SENHA"),
 		SMTPRemetente:     getenv("SMTP_REMETENTE", "App Parceiros <nao-responda@parceiros.local>"),
+		CobrancaModo:      os.Getenv("COBRANCA_MODO"),
+		AsaasURL:          os.Getenv("ASAAS_URL"),
+		AsaasChave:        os.Getenv("ASAAS_CHAVE"),
+		AsaasWebhook:      os.Getenv("ASAAS_WEBHOOK_SEGREDO"),
 		VAPIDPublica:      os.Getenv("VAPID_PUBLICA"),
 		VAPIDPrivada:      os.Getenv("VAPID_PRIVADA"),
 		VAPIDContato:      getenv("VAPID_CONTATO", "contato@parceiros.local"),
@@ -117,6 +129,20 @@ func Load() (Config, error) {
 		return c, fmt.Errorf("SHOPEE_MODO deve ser api ou mock")
 	case c.ShopeeModo == "mock" && c.Env != "dev":
 		return c, fmt.Errorf("SHOPEE_MODO=mock só é aceito com APP_ENV=dev")
+	}
+	if c.CobrancaModo == "" {
+		c.CobrancaModo = "asaas"
+		if c.Env == "dev" && c.AsaasChave == "" {
+			c.CobrancaModo = "mock"
+		}
+	}
+	switch {
+	case c.CobrancaModo != "asaas" && c.CobrancaModo != "mock":
+		return c, fmt.Errorf("COBRANCA_MODO deve ser asaas ou mock")
+	case c.CobrancaModo == "mock" && c.Env != "dev":
+		return c, fmt.Errorf("COBRANCA_MODO=mock só é aceito com APP_ENV=dev")
+	case c.CobrancaModo == "asaas" && c.AsaasChave == "":
+		return c, fmt.Errorf("ASAAS_CHAVE é obrigatória com COBRANCA_MODO=asaas")
 	}
 	if (c.VAPIDPublica == "") != (c.VAPIDPrivada == "") {
 		return c, fmt.Errorf("defina VAPID_PUBLICA e VAPID_PRIVADA juntas")

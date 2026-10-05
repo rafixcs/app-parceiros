@@ -28,6 +28,7 @@ const (
 	planoAvulso       = "avulso"
 	planoMentoria     = "mentoria"
 	limiteAssentos    = "assentos"
+	limiteTeste       = "assentos_teste"
 	ValidadePadrao    = 7 * 24 * time.Hour
 	ValidadeMaxima    = 30 * 24 * time.Hour
 	tamanhoNomeMax    = 80
@@ -177,7 +178,7 @@ func (s *Service) Workspaces(ctx context.Context, usuarioID uuid.UUID) ([]Worksp
 		for _, r := range rows {
 			out = append(out, workspaceDe(contasdb.Workspace{
 				ID: r.ID, Tipo: r.Tipo, Nome: r.Nome, FotoUrl: r.FotoUrl, DonoID: r.DonoID,
-				Plano: r.Plano, Status: r.Status, CriadoEm: r.CriadoEm,
+				Plano: r.Plano, CriadoEm: r.CriadoEm, AcessoAte: r.AcessoAte, PagoEm: r.PagoEm, Assentos: r.Assentos,
 			}, Papel(r.Papel)))
 		}
 		return nil
@@ -222,6 +223,7 @@ func (s *Service) Membro(ctx context.Context, usuarioID, workspaceID uuid.UUID) 
 		m = Membro{
 			WorkspaceID: workspaceID, UsuarioID: usuarioID, Papel: Papel(mb.Papel),
 			TipoWorkspace: TipoWorkspace(w.Tipo), ConsenteResultados: mb.ConsenteResultados,
+			Suspenso: situacaoDe(w, time.Now()) == SituacaoSuspenso,
 		}
 		return nil
 	})
@@ -389,19 +391,15 @@ func (s *Service) CriarConvite(ctx context.Context, m Membro, email *string, val
 		if err != nil {
 			return err
 		}
-		limite, err := s.limite(ctx, q, w.Plano)
+		limite, err := assentosDe(ctx, q, w)
 		if err != nil {
 			return err
 		}
-		afiliados, err := q.ContarAfiliados(ctx, m.WorkspaceID)
+		emUso, err := assentosEmUso(ctx, q, m.WorkspaceID)
 		if err != nil {
 			return err
 		}
-		pendentes, err := q.ContarConvitesPendentes(ctx, m.WorkspaceID)
-		if err != nil {
-			return err
-		}
-		if afiliados+pendentes >= limite {
+		if emUso >= limite {
 			return ErrSemAssentos
 		}
 		c, err = q.CriarConvite(ctx, contasdb.CriarConviteParams{
@@ -445,12 +443,114 @@ func (s *Service) Limite(ctx context.Context, m Membro, chave string) (int64, er
 	return v, err
 }
 
-func (s *Service) limite(ctx context.Context, q *contasdb.Queries, plano string) (int64, error) {
-	v, err := q.Limite(ctx, contasdb.LimiteParams{Plano: plano, Chave: limiteAssentos})
+func limiteDoPlano(ctx context.Context, q *contasdb.Queries, plano, chave string) (int64, error) {
+	v, err := q.Limite(ctx, contasdb.LimiteParams{Plano: plano, Chave: chave})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, nil
 	}
 	return v, err
+}
+
+// assentosDe devolve os assentos do workspace: os contratados ou, sem
+// pagamento, o limite de teste do plano.
+func assentosDe(ctx context.Context, q *contasdb.Queries, w contasdb.Workspace) (int64, error) {
+	if w.Assentos != nil {
+		return int64(*w.Assentos), nil
+	}
+	return limiteDoPlano(ctx, q, w.Plano, limiteTeste)
+}
+
+// assentosEmUso conta os afiliados e os convites pendentes, que já reservam
+// um assento.
+func assentosEmUso(ctx context.Context, q *contasdb.Queries, workspaceID uuid.UUID) (int64, error) {
+	afiliados, err := q.ContarAfiliados(ctx, workspaceID)
+	if err != nil {
+		return 0, err
+	}
+	pendentes, err := q.ContarConvitesPendentes(ctx, workspaceID)
+	return afiliados + pendentes, err
+}
+
+// AssentosEmUso conta os afiliados e os convites pendentes do workspace.
+func (s *Service) AssentosEmUso(ctx context.Context, m Membro) (int64, error) {
+	var n int64
+	err := s.tx(ctx, escopoDe(m), func(q *contasdb.Queries, _ pgx.Tx) error {
+		var err error
+		n, err = assentosEmUso(ctx, q, m.WorkspaceID)
+		return err
+	})
+	return n, err
+}
+
+// DefinirAssentos muda os assentos contratados da mentoria (módulo
+// assinaturas). Não deixa ficar abaixo dos em uso nem acima do máximo do
+// plano. Só o dono pode.
+func (s *Service) DefinirAssentos(ctx context.Context, m Membro, n int32) error {
+	if m.Papel != PapelDono {
+		return ErrSemPermissao
+	}
+	return s.tx(ctx, escopoDe(m), func(q *contasdb.Queries, _ pgx.Tx) error {
+		w, err := q.TravarWorkspace(ctx, m.WorkspaceID)
+		if err != nil {
+			return err
+		}
+		if err := validarAssentos(ctx, q, w, int64(n)); err != nil {
+			return err
+		}
+		return q.DefinirAssentos(ctx, contasdb.DefinirAssentosParams{ID: m.WorkspaceID, Assentos: &n})
+	})
+}
+
+// ValidarAssentos confere se a mentoria pode contratar n assentos: não menos
+// que os em uso nem mais que o máximo do plano.
+func (s *Service) ValidarAssentos(ctx context.Context, m Membro, n int64) error {
+	return s.tx(ctx, escopoDe(m), func(q *contasdb.Queries, _ pgx.Tx) error {
+		w, err := q.Workspace(ctx, m.WorkspaceID)
+		if err != nil {
+			return err
+		}
+		return validarAssentos(ctx, q, w, n)
+	})
+}
+
+func validarAssentos(ctx context.Context, q *contasdb.Queries, w contasdb.Workspace, n int64) error {
+	maximo, err := limiteDoPlano(ctx, q, w.Plano, limiteAssentos)
+	if err != nil {
+		return err
+	}
+	if n > maximo {
+		return ErrAssentosAcimaDoPlano
+	}
+	emUso, err := assentosEmUso(ctx, q, w.ID)
+	if err != nil {
+		return err
+	}
+	if n < emUso {
+		return ErrAssentosEmUso
+	}
+	return nil
+}
+
+// LiberarAcesso registra um pagamento: estende o acesso do workspace até
+// `ate` (nunca encurta) e, se informado, fixa os assentos contratados. Chamado
+// pelo webhook de cobrança, que não tem usuário; é idempotente.
+func (s *Service) LiberarAcesso(ctx context.Context, workspaceID uuid.UUID, ate time.Time, assentos *int32) error {
+	return s.tx(ctx, postgres.Escopo{WorkspaceID: workspaceID.String()}, func(q *contasdb.Queries, _ pgx.Tx) error {
+		_, err := q.LiberarAcesso(ctx, contasdb.LiberarAcessoParams{ID: workspaceID, Ate: ate, Assentos: assentos})
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrWorkspaceNaoEncontrado
+		}
+		return err
+	})
+}
+
+// BloquearAcesso suspende o workspace agora (estorno ou contestação de um
+// pagamento). É idempotente.
+func (s *Service) BloquearAcesso(ctx context.Context, workspaceID uuid.UUID) error {
+	return s.tx(ctx, postgres.Escopo{WorkspaceID: workspaceID.String()}, func(q *contasdb.Queries, _ pgx.Tx) error {
+		_, err := q.BloquearAcesso(ctx, workspaceID)
+		return err
+	})
 }
 
 // Convites lista os convites pendentes (sem o token).
@@ -569,7 +669,7 @@ func (s *Service) AceitarConvite(ctx context.Context, usuarioID uuid.UUID, token
 		if err != nil {
 			return err
 		}
-		limite, err := s.limite(ctx, q, w.Plano)
+		limite, err := assentosDe(ctx, q, w)
 		if err != nil {
 			return err
 		}

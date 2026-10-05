@@ -18,7 +18,7 @@ SET nome = coalesce($1, nome),
     foto_url = CASE WHEN $2::boolean THEN NULL
                     ELSE coalesce($3, foto_url) END
 WHERE id = $4
-RETURNING id, tipo, nome, foto_url, dono_id, plano, status, criado_em
+RETURNING id, tipo, nome, foto_url, dono_id, plano, criado_em, acesso_ate, pago_em, assentos
 `
 
 type AtualizarWorkspaceParams struct {
@@ -43,10 +43,24 @@ func (q *Queries) AtualizarWorkspace(ctx context.Context, arg AtualizarWorkspace
 		&i.FotoUrl,
 		&i.DonoID,
 		&i.Plano,
-		&i.Status,
 		&i.CriadoEm,
+		&i.AcessoAte,
+		&i.PagoEm,
+		&i.Assentos,
 	)
 	return i, err
+}
+
+const bloquearAcesso = `-- name: BloquearAcesso :execrows
+UPDATE workspaces SET acesso_ate = least(acesso_ate, now()) WHERE id = $1
+`
+
+func (q *Queries) BloquearAcesso(ctx context.Context, id uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, bloquearAcesso, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const contarAfiliados = `-- name: ContarAfiliados :one
@@ -178,7 +192,7 @@ func (q *Queries) CriarConvite(ctx context.Context, arg CriarConviteParams) (Con
 const criarWorkspace = `-- name: CriarWorkspace :one
 INSERT INTO workspaces (tipo, nome, foto_url, dono_id, plano)
 VALUES ($1, $2, $3, $4, $5)
-RETURNING id, tipo, nome, foto_url, dono_id, plano, status, criado_em
+RETURNING id, tipo, nome, foto_url, dono_id, plano, criado_em, acesso_ate, pago_em, assentos
 `
 
 type CriarWorkspaceParams struct {
@@ -205,10 +219,26 @@ func (q *Queries) CriarWorkspace(ctx context.Context, arg CriarWorkspaceParams) 
 		&i.FotoUrl,
 		&i.DonoID,
 		&i.Plano,
-		&i.Status,
 		&i.CriadoEm,
+		&i.AcessoAte,
+		&i.PagoEm,
+		&i.Assentos,
 	)
 	return i, err
+}
+
+const definirAssentos = `-- name: DefinirAssentos :exec
+UPDATE workspaces SET assentos = $2 WHERE id = $1
+`
+
+type DefinirAssentosParams struct {
+	ID       uuid.UUID
+	Assentos *int32
+}
+
+func (q *Queries) DefinirAssentos(ctx context.Context, arg DefinirAssentosParams) error {
+	_, err := q.db.Exec(ctx, definirAssentos, arg.ID, arg.Assentos)
+	return err
 }
 
 const definirConsentimento = `-- name: DefinirConsentimento :execrows
@@ -244,6 +274,41 @@ type InserirMembroParams struct {
 func (q *Queries) InserirMembro(ctx context.Context, arg InserirMembroParams) error {
 	_, err := q.db.Exec(ctx, inserirMembro, arg.WorkspaceID, arg.UsuarioID, arg.Papel)
 	return err
+}
+
+const liberarAcesso = `-- name: LiberarAcesso :one
+UPDATE workspaces
+SET acesso_ate = greatest(acesso_ate, $1::timestamptz),
+    pago_em = now(),
+    assentos = coalesce($2, assentos)
+WHERE id = $3
+RETURNING id, tipo, nome, foto_url, dono_id, plano, criado_em, acesso_ate, pago_em, assentos
+`
+
+type LiberarAcessoParams struct {
+	Ate      time.Time
+	Assentos *int32
+	ID       uuid.UUID
+}
+
+// Estende o acesso até `ate` (nunca encurta) e marca o pagamento. Assentos
+// nulos mantêm os contratados.
+func (q *Queries) LiberarAcesso(ctx context.Context, arg LiberarAcessoParams) (Workspace, error) {
+	row := q.db.QueryRow(ctx, liberarAcesso, arg.Ate, arg.Assentos, arg.ID)
+	var i Workspace
+	err := row.Scan(
+		&i.ID,
+		&i.Tipo,
+		&i.Nome,
+		&i.FotoUrl,
+		&i.DonoID,
+		&i.Plano,
+		&i.CriadoEm,
+		&i.AcessoAte,
+		&i.PagoEm,
+		&i.Assentos,
+	)
+	return i, err
 }
 
 const limite = `-- name: Limite :one
@@ -403,7 +468,7 @@ func (q *Queries) TravarConvitePorHash(ctx context.Context, tokenHash []byte) (C
 }
 
 const travarWorkspace = `-- name: TravarWorkspace :one
-SELECT id, tipo, nome, foto_url, dono_id, plano, status, criado_em FROM workspaces WHERE id = $1 FOR UPDATE
+SELECT id, tipo, nome, foto_url, dono_id, plano, criado_em, acesso_ate, pago_em, assentos FROM workspaces WHERE id = $1 FOR UPDATE
 `
 
 // Trava a linha do workspace para serializar a contagem de assentos.
@@ -417,8 +482,10 @@ func (q *Queries) TravarWorkspace(ctx context.Context, id uuid.UUID) (Workspace,
 		&i.FotoUrl,
 		&i.DonoID,
 		&i.Plano,
-		&i.Status,
 		&i.CriadoEm,
+		&i.AcessoAte,
+		&i.PagoEm,
+		&i.Assentos,
 	)
 	return i, err
 }
@@ -498,7 +565,7 @@ func (q *Queries) UsuarioPorSub(ctx context.Context, zitadelSub string) (Usuario
 }
 
 const workspace = `-- name: Workspace :one
-SELECT id, tipo, nome, foto_url, dono_id, plano, status, criado_em FROM workspaces WHERE id = $1
+SELECT id, tipo, nome, foto_url, dono_id, plano, criado_em, acesso_ate, pago_em, assentos FROM workspaces WHERE id = $1
 `
 
 func (q *Queries) Workspace(ctx context.Context, id uuid.UUID) (Workspace, error) {
@@ -511,14 +578,16 @@ func (q *Queries) Workspace(ctx context.Context, id uuid.UUID) (Workspace, error
 		&i.FotoUrl,
 		&i.DonoID,
 		&i.Plano,
-		&i.Status,
 		&i.CriadoEm,
+		&i.AcessoAte,
+		&i.PagoEm,
+		&i.Assentos,
 	)
 	return i, err
 }
 
 const workspacesDoUsuario = `-- name: WorkspacesDoUsuario :many
-SELECT w.id, w.tipo, w.nome, w.foto_url, w.dono_id, w.plano, w.status, w.criado_em, m.papel
+SELECT w.id, w.tipo, w.nome, w.foto_url, w.dono_id, w.plano, w.criado_em, w.acesso_ate, w.pago_em, w.assentos, m.papel
 FROM membros m
 JOIN workspaces w ON w.id = m.workspace_id
 WHERE m.usuario_id = $1
@@ -526,15 +595,17 @@ ORDER BY w.tipo, w.criado_em
 `
 
 type WorkspacesDoUsuarioRow struct {
-	ID       uuid.UUID
-	Tipo     WorkspaceTipo
-	Nome     string
-	FotoUrl  *string
-	DonoID   uuid.UUID
-	Plano    string
-	Status   string
-	CriadoEm time.Time
-	Papel    MembroPapel
+	ID        uuid.UUID
+	Tipo      WorkspaceTipo
+	Nome      string
+	FotoUrl   *string
+	DonoID    uuid.UUID
+	Plano     string
+	CriadoEm  time.Time
+	AcessoAte time.Time
+	PagoEm    *time.Time
+	Assentos  *int32
+	Papel     MembroPapel
 }
 
 func (q *Queries) WorkspacesDoUsuario(ctx context.Context, usuarioID uuid.UUID) ([]WorkspacesDoUsuarioRow, error) {
@@ -553,8 +624,10 @@ func (q *Queries) WorkspacesDoUsuario(ctx context.Context, usuarioID uuid.UUID) 
 			&i.FotoUrl,
 			&i.DonoID,
 			&i.Plano,
-			&i.Status,
 			&i.CriadoEm,
+			&i.AcessoAte,
+			&i.PagoEm,
+			&i.Assentos,
 			&i.Papel,
 		); err != nil {
 			return nil, err

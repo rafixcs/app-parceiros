@@ -10,7 +10,52 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
+
+type AssinaturaStatus string
+
+const (
+	AssinaturaStatusAguardando AssinaturaStatus = "aguardando"
+	AssinaturaStatusAtiva      AssinaturaStatus = "ativa"
+	AssinaturaStatusAtrasada   AssinaturaStatus = "atrasada"
+	AssinaturaStatusCancelada  AssinaturaStatus = "cancelada"
+)
+
+func (e *AssinaturaStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = AssinaturaStatus(s)
+	case string:
+		*e = AssinaturaStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for AssinaturaStatus: %T", src)
+	}
+	return nil
+}
+
+type NullAssinaturaStatus struct {
+	AssinaturaStatus AssinaturaStatus
+	Valid            bool // Valid is true if AssinaturaStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullAssinaturaStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.AssinaturaStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.AssinaturaStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullAssinaturaStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.AssinaturaStatus), nil
+}
 
 type Canal string
 
@@ -527,6 +572,22 @@ func (ns NullWorkspaceTipo) Value() (driver.Value, error) {
 	return string(ns.WorkspaceTipo), nil
 }
 
+type Assinatura struct {
+	WorkspaceID      uuid.UUID
+	Provedor         string
+	ClienteExternoID string
+	ExternoID        string
+	Status           AssinaturaStatus
+	Assentos         int32
+	ValorCentavos    int64
+	ProximoCiclo     pgtype.Date
+	UrlPagamento     *string
+	CriadoPor        uuid.UUID
+	CriadaEm         time.Time
+	AtualizadaEm     time.Time
+	CanceladaEm      *time.Time
+}
+
 type Categoria struct {
 	Fonte     Fonte
 	ID        int64
@@ -596,6 +657,14 @@ type CredenciaisShopee struct {
 	VerificadoEm  time.Time
 	CriadoEm      time.Time
 	AtualizadoEm  time.Time
+}
+
+type EventosCobranca struct {
+	Provedor    string
+	EventoID    string
+	WorkspaceID uuid.UUID
+	Tipo        string
+	RecebidoEm  time.Time
 }
 
 type Importacao struct {
@@ -817,12 +886,14 @@ type VideoVinculo struct {
 }
 
 type Workspace struct {
-	ID       uuid.UUID
-	Tipo     WorkspaceTipo
-	Nome     string
-	FotoUrl  *string
-	DonoID   uuid.UUID
-	Plano    string
-	Status   string
-	CriadoEm time.Time
+	ID        uuid.UUID
+	Tipo      WorkspaceTipo
+	Nome      string
+	FotoUrl   *string
+	DonoID    uuid.UUID
+	Plano     string
+	CriadoEm  time.Time
+	AcessoAte time.Time
+	PagoEm    *time.Time
+	Assentos  *int32
 }

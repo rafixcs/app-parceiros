@@ -31,6 +31,9 @@ secretGenerator:
       - SHOPEE_MODO=mock
       # E-mails vão para o Mailpit (caixa em http://localhost:8025).
       - SMTP_ADDR=mailpit:1025
+      # Sem conta no Asaas, a cobrança roda em modo mock: nada é cobrado e o
+      # pagamento é confirmado pelo botão "Simular pagamento".
+      - COBRANCA_MODO=mock
       # Chaves VAPID só do ambiente local (Web Push). Em staging e prod, gere
       # outras com `parceiros vapid` e guarde no secret manager.
       - VAPID_PUBLICA=BLXbTU9Hzbxo91E8FSaKzDJtrgJCEYeNfdym2p605AvtmKxHIc4pOEbSoRF3VCj6hqk1fp_UxTtgbLcwXxeBKns

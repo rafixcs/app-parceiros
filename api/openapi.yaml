@@ -1781,6 +1781,176 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Erro" }
+  /v1/webhooks/cobranca:
+    post:
+      summary: Aviso de cobrança do gateway (webhook)
+      description: >
+        Recebe os avisos do gateway de cobrança (Asaas em produção). Não usa o
+        token do app: a autenticidade vem do segredo do provedor, no cabeçalho
+        que ele manda. Um pagamento confirmado estende o acesso do workspace;
+        um estorno o suspende na hora. Reenvios do mesmo aviso não fazem nada.
+      operationId: webhookCobranca
+      tags: [assinatura]
+      security: []
+      requestBody:
+        required: true
+        description: Corpo no formato do provedor.
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        "204": { description: Aviso processado (ou sem efeito) }
+        "401":
+          description: "`nao_autenticado`: o aviso não veio do gateway"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "500": { $ref: "#/components/responses/Erro" }
+  /v1/workspaces/{workspaceId}/assinatura:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceId"
+    get:
+      summary: A assinatura do workspace (dono e mentor)
+      description: >
+        Plano, preço, assentos e situação do acesso. Continua acessível com o
+        workspace suspenso: é por aqui que ele volta.
+      operationId: verAssinatura
+      tags: [assinatura]
+      security: [{ bearer: [] }]
+      responses:
+        "200":
+          description: Assinatura
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Assinatura" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Erro" }
+        "404": { $ref: "#/components/responses/Erro" }
+    post:
+      summary: Contratar o plano (só o dono)
+      description: >
+        Abre a assinatura mensal no gateway e devolve a fatura em aberto, que
+        quem paga quita por PIX, boleto ou cartão. O acesso só é liberado
+        quando o pagamento é confirmado.
+      operationId: assinar
+      tags: [assinatura]
+      security: [{ bearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/NovaAssinatura" }
+      responses:
+        "201":
+          description: Assinatura criada, aguardando pagamento
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Assinatura" }
+        "400": { $ref: "#/components/responses/Erro" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Erro" }
+        "404": { $ref: "#/components/responses/Erro" }
+        "409":
+          description: "`ja_assinada`, `assentos_em_uso`, `sem_preco`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "422": { $ref: "#/components/responses/Erro" }
+        "502":
+          description: "`cobranca_indisponivel`: o gateway não respondeu"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+    patch:
+      summary: Mudar os assentos da mentoria (só o dono)
+      description: >
+        Diminuir vale na hora, e nunca abaixo dos assentos em uso (afiliados
+        mais convites pendentes). Aumentar vale quando o próximo pagamento for
+        confirmado; a cobrança em aberto já sai com o novo valor.
+      operationId: mudarAssentos
+      tags: [assinatura]
+      security: [{ bearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [assentos]
+              properties:
+                assentos: { type: integer, minimum: 1 }
+      responses:
+        "200":
+          description: Assinatura atualizada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Assinatura" }
+        "400": { $ref: "#/components/responses/Erro" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Erro" }
+        "404":
+          description: "`sem_assinatura`, `workspace_nao_encontrado`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "409":
+          description: "`assentos_em_uso`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "422": { $ref: "#/components/responses/Erro" }
+        "502":
+          description: "`cobranca_indisponivel`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+    delete:
+      summary: Cancelar a assinatura (só o dono)
+      description: >
+        Encerra a cobrança no gateway. O acesso continua até o fim do período
+        já pago.
+      operationId: cancelarAssinatura
+      tags: [assinatura]
+      security: [{ bearer: [] }]
+      responses:
+        "200":
+          description: Assinatura cancelada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Assinatura" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Erro" }
+        "404":
+          description: "`sem_assinatura`, `workspace_nao_encontrado`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "502":
+          description: "`cobranca_indisponivel`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+  /v1/workspaces/{workspaceId}/assinatura/simular-pagamento:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceId"
+    post:
+      summary: Simular o pagamento (só no ambiente local)
+      description: >
+        Confirma a cobrança em aberto sem gateway de verdade. Existe apenas
+        quando a cobrança está em modo mock (`simulavel` na assinatura); fora
+        dele devolve 404.
+      operationId: simularPagamento
+      tags: [assinatura]
+      security: [{ bearer: [] }]
+      responses:
+        "200":
+          description: Pagamento aplicado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Assinatura" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Erro" }
+        "404": { $ref: "#/components/responses/Erro" }
 components:
   securitySchemes:
     bearer:
@@ -1848,7 +2018,9 @@ components:
             workspace_nao_encontrado, membro_nao_encontrado,
             convite_nao_encontrado, so_mentoria, dono_nao_sai, sem_assentos,
             ja_membro, convite_expirado, convite_usado, convite_revogado,
-            convite_outro_email, erro_interno. Em shopee: credencial_invalida,
+            convite_outro_email, workspace_suspenso, assentos_em_uso,
+            erro_interno. Em assinatura: ja_assinada, sem_assinatura,
+            sem_preco, cobranca_indisponivel. Em shopee: credencial_invalida,
             shopee_limite, shopee_indisponivel. Em radar: produto_nao_encontrado.
             Em coleções: item_nao_encontrado, colecao_nao_encontrada,
             colecao_existente, link_invalido, link_curto, sem_credencial,
@@ -1862,6 +2034,61 @@ components:
             cota_videos, uploads_indisponiveis, upload_encerrado,
             upload_incompleto, video_nao_pronto.
         mensagem: { type: string, description: Texto pronto para mostrar ao usuário }
+    Assinatura:
+      type: object
+      required:
+        [plano, situacao, acesso_ate, status, provedor, preco_centavos,
+         assentos, assentos_em_uso, assentos_maximo, valor_centavos,
+         proximo_ciclo, url_pagamento, simulavel]
+      properties:
+        plano: { type: string, enum: [avulso, mentoria] }
+        situacao: { $ref: "#/components/schemas/SituacaoWorkspace" }
+        acesso_ate:
+          type: string
+          format: date-time
+          description: Até quando o workspace pode ser usado (fim do teste ou do ciclo pago, mais a tolerância).
+        status:
+          type: string
+          enum: [sem_assinatura, aguardando, ativa, atrasada, cancelada]
+        provedor: { type: string, description: "Gateway de cobrança (ex.: asaas); vazio sem assinatura." }
+        preco_centavos:
+          type: integer
+          description: >
+            Preço mensal do plano: do workspace no avulso, de cada assento na
+            mentoria.
+        assentos: { type: integer, description: Assentos contratados (0 sem assinatura). }
+        assentos_em_uso: { type: integer, description: Afiliados mais convites pendentes. }
+        assentos_maximo: { type: integer, description: Teto do plano. }
+        valor_centavos: { type: integer, description: Total mensal da assinatura. }
+        proximo_ciclo:
+          type: [string, "null"]
+          format: date
+          description: Vencimento da cobrança em aberto (ou da próxima).
+        url_pagamento:
+          type: [string, "null"]
+          description: Fatura em aberto no gateway (PIX, boleto ou cartão).
+        simulavel:
+          type: boolean
+          description: >
+            Ambiente local com cobrança em modo mock: a tela pode oferecer
+            simular o pagamento.
+    NovaAssinatura:
+      type: object
+      required: [cpf_cnpj]
+      properties:
+        assentos:
+          type: integer
+          minimum: 1
+          description: Assentos da mentoria. Ignorado no plano avulso.
+        cpf_cnpj: { type: string, description: CPF ou CNPJ de quem paga, exigido pelo gateway. }
+    SituacaoWorkspace:
+      type: string
+      enum: [teste, ativo, suspenso]
+      description: >
+        `teste` no período de avaliação, `ativo` com a assinatura paga e
+        `suspenso` quando o acesso venceu. Suspenso, o workspace só permite ver
+        a si mesmo, sair dele, mexer no consentimento e cuidar da assinatura;
+        o resto devolve 402 `workspace_suspenso`.
     Usuario:
       type: object
       required: [id, nome, email, criado_em]
@@ -1875,14 +2102,18 @@ components:
       enum: [dono, mentor, afiliado]
     Workspace:
       type: object
-      required: [id, tipo, nome, foto_url, plano, status, papel, criado_em]
+      required: [id, tipo, nome, foto_url, plano, status, acesso_ate, assentos, papel, criado_em]
       properties:
         id: { type: string, format: uuid }
         tipo: { type: string, enum: [pessoal, mentoria] }
         nome: { type: string }
         foto_url: { type: [string, "null"] }
         plano: { type: string, enum: [avulso, mentoria] }
-        status: { type: string }
+        status: { $ref: "#/components/schemas/SituacaoWorkspace" }
+        acesso_ate: { type: string, format: date-time }
+        assentos:
+          type: [integer, "null"]
+          description: Assentos contratados na mentoria; nulo enquanto não há pagamento.
         papel: { $ref: "#/components/schemas/Papel" }
         criado_em: { type: string, format: date-time }
     Membro:
