@@ -49,7 +49,7 @@ export interface paths {
         put?: never;
         /**
          * Cria uma conta com e-mail e senha (provedor interno)
-         * @description Só existe com AUTH_PROVIDER=internal. Cria a conta, manda o link de confirmação do e-mail e já abre uma sessão. O usuário e o workspace pessoal são criados no primeiro GET /v1/eu, como em qualquer provedor.
+         * @description Só existe com AUTH_PROVIDER=internal. Cria a conta, manda o link de confirmação do e-mail e já abre uma sessão. O usuário e o workspace pessoal são criados no primeiro acesso autenticado (ex.: GET /v1/me), como em qualquer provedor.
          */
         post: operations["authRegister"];
         delete?: never;
@@ -166,7 +166,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/eu": {
+    "/v1/me": {
         parameters: {
             query?: never;
             header?: never;
@@ -177,7 +177,7 @@ export interface paths {
          * Usuário autenticado
          * @description No primeiro acesso, cria o usuário a partir do perfil do provedor de identidade (Zitadel ou o provedor interno) e o seu workspace pessoal.
          */
-        get: operations["eu"];
+        get: operations["getMe"];
         put?: never;
         post?: never;
         delete?: never;
@@ -194,13 +194,13 @@ export interface paths {
             cookie?: never;
         };
         /** Workspaces de que o usuário participa (seletor do topo) */
-        get: operations["listarWorkspaces"];
+        get: operations["listWorkspaces"];
         put?: never;
         /**
          * Criar mentoria
          * @description Cria um workspace do tipo mentoria com o usuário como dono.
          */
-        post: operations["criarMentoria"];
+        post: operations["createMentorship"];
         delete?: never;
         options?: never;
         head?: never;
@@ -216,18 +216,21 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** Detalhe do workspace */
-        get: operations["verWorkspace"];
+        /**
+         * Detalhe do workspace
+         * @description Continua valendo com o workspace suspenso.
+         */
+        get: operations["getWorkspace"];
         put?: never;
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
         /** Alterar nome e foto (só o dono) */
-        patch: operations["atualizarWorkspace"];
+        patch: operations["updateWorkspace"];
         trace?: never;
     };
-    "/v1/workspaces/{workspaceId}/membros": {
+    "/v1/workspaces/{workspaceId}/members": {
         parameters: {
             query?: never;
             header?: never;
@@ -237,7 +240,7 @@ export interface paths {
             cookie?: never;
         };
         /** Membros do workspace (dono e mentor) */
-        get: operations["listarMembros"];
+        get: operations["listMembers"];
         put?: never;
         post?: never;
         delete?: never;
@@ -246,13 +249,13 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/workspaces/{workspaceId}/membros/{usuarioId}": {
+    "/v1/workspaces/{workspaceId}/members/{userId}": {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 workspaceId: components["parameters"]["WorkspaceId"];
-                usuarioId: string;
+                userId: string;
             };
             cookie?: never;
         };
@@ -261,15 +264,15 @@ export interface paths {
         post?: never;
         /**
          * Sair do workspace ou remover um membro
-         * @description Com o próprio id, o usuário sai do workspace. Dono e mentor removem afiliados; só o dono remove mentores; o dono não sai nem é removido. Os dados pessoais do afiliado (coleção, credencial) continuam dele.
+         * @description Com o próprio id, o usuário sai do workspace. Dono e mentor removem afiliados; só o dono remove mentores; o dono não sai nem é removido. Os dados pessoais do afiliado (coleção, credencial) continuam dele. Continua valendo com o workspace suspenso (para caber em menos assentos).
          */
-        delete: operations["removerMembro"];
+        delete: operations["removeMember"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/workspaces/{workspaceId}/convites": {
+    "/v1/workspaces/{workspaceId}/invites": {
         parameters: {
             query?: never;
             header?: never;
@@ -279,45 +282,45 @@ export interface paths {
             cookie?: never;
         };
         /** Convites pendentes (dono e mentor) */
-        get: operations["listarConvites"];
+        get: operations["listInvites"];
         put?: never;
         /**
-         * Convidar afiliado
-         * @description Gera um convite de uso único para um workspace de mentoria. Com e-mail, só a conta com aquele e-mail verificado pode aceitar, e o link também vai por e-mail (`email_enviado`). Convites pendentes ocupam assento do plano. O token só aparece nesta resposta.
+         * Convidar afiliado (dono e mentor)
+         * @description Gera um convite de uso único para um workspace de mentoria. Com e-mail, só a conta com aquele e-mail verificado pode aceitar, e o link também vai por e-mail (`email_sent`). Convites pendentes ocupam assento do plano. O token só aparece nesta resposta.
          */
-        post: operations["criarConvite"];
+        post: operations["createInvite"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/workspaces/{workspaceId}/convites/{conviteId}": {
+    "/v1/workspaces/{workspaceId}/invites/{inviteId}": {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 workspaceId: components["parameters"]["WorkspaceId"];
-                conviteId: string;
+                inviteId: string;
             };
             cookie?: never;
         };
         get?: never;
         put?: never;
         post?: never;
-        /** Cancelar convite pendente */
-        delete: operations["revogarConvite"];
+        /** Cancelar convite pendente (dono e mentor) */
+        delete: operations["revokeInvite"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/convites/{token}": {
+    "/v1/invites/{token}": {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                token: components["parameters"]["TokenConvite"];
+                token: components["parameters"]["InviteToken"];
             };
             cookie?: never;
         };
@@ -325,7 +328,7 @@ export interface paths {
          * Ver convite (público)
          * @description Mostra o workspace e a situação do convite antes do login.
          */
-        get: operations["verConvite"];
+        get: operations["viewInvite"];
         put?: never;
         post?: never;
         delete?: never;
@@ -334,12 +337,12 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/convites/{token}/aceitar": {
+    "/v1/invites/{token}/accept": {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                token: components["parameters"]["TokenConvite"];
+                token: components["parameters"]["InviteToken"];
             };
             cookie?: never;
         };
@@ -349,14 +352,14 @@ export interface paths {
          * Aceitar convite
          * @description Torna o usuário afiliado do workspace do convite.
          */
-        post: operations["aceitarConvite"];
+        post: operations["acceptInvite"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/eu/shopee": {
+    "/v1/me/shopee": {
         parameters: {
             query?: never;
             header?: never;
@@ -367,15 +370,15 @@ export interface paths {
          * Situação da conexão com a Shopee
          * @description A credencial (AppID e Secret da Open API de afiliados) pertence ao usuário, não ao workspace. O Secret nunca aparece em resposta.
          */
-        get: operations["verConexaoShopee"];
+        get: operations["getShopeeConnection"];
         /**
          * Conectar a conta de afiliado
          * @description Valida o AppID e o Secret com uma chamada de teste à Shopee e guarda a credencial cifrada (envelope encryption). Substitui a credencial anterior, se houver.
          */
-        put: operations["conectarShopee"];
+        put: operations["connectShopee"];
         post?: never;
         /** Desconectar (apaga a credencial) */
-        delete: operations["desconectarShopee"];
+        delete: operations["disconnectShopee"];
         options?: never;
         head?: never;
         patch?: never;
@@ -392,9 +395,9 @@ export interface paths {
         };
         /**
          * Radar de produtos em alta
-         * @description Lista ranqueada do catálogo coletado pelo job `snapshot_catalogo` (credencial do app) com o score do job `calcular_tendencias`. Valores em centavos e comissão em basis points (1% = 100).
+         * @description Lista ranqueada do catálogo coletado pelo job `snapshot_catalog` (credencial do app) com o score do job `compute_trends`. Valores em centavos e comissão em basis points (1% = 100).
          */
-        get: operations["radar"];
+        get: operations["getRadar"];
         put?: never;
         post?: never;
         delete?: never;
@@ -403,7 +406,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/workspaces/{workspaceId}/radar/categorias": {
+    "/v1/workspaces/{workspaceId}/radar/categories": {
         parameters: {
             query?: never;
             header?: never;
@@ -413,7 +416,7 @@ export interface paths {
             cookie?: never;
         };
         /** Categorias presentes no radar (para o filtro) */
-        get: operations["radarCategorias"];
+        get: operations["getRadarCategories"];
         put?: never;
         post?: never;
         delete?: never;
@@ -422,18 +425,18 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/workspaces/{workspaceId}/radar/produtos/{produtoId}": {
+    "/v1/workspaces/{workspaceId}/radar/products/{productId}": {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 workspaceId: components["parameters"]["WorkspaceId"];
-                produtoId: string;
+                productId: components["parameters"]["ProductId"];
             };
             cookie?: never;
         };
         /** Detalhe do produto com histórico */
-        get: operations["radarProduto"];
+        get: operations["getRadarProduct"];
         put?: never;
         post?: never;
         delete?: never;
@@ -442,7 +445,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/workspaces/{workspaceId}/itens": {
+    "/v1/workspaces/{workspaceId}/items": {
         parameters: {
             query?: never;
             header?: never;
@@ -455,20 +458,20 @@ export interface paths {
          * Produtos salvos pelo usuário no workspace
          * @description A coleção é do usuário dentro do workspace. Ninguém mais a vê, nem o mentor. Os mais recentes primeiro.
          */
-        get: operations["listarItens"];
+        get: operations["listItems"];
         put?: never;
         /**
          * Salvar produto
-         * @description Salva um produto do radar (`produto_id`) ou colado como link da Shopee (`url`); informe só um dos dois. Um produto que não está no catálogo é buscado na Shopee com a credencial do app. O link de afiliado é gerado em segundo plano (job `gerar_link`) com a credencial do usuário, um por canal. Sem credencial conectada, o item fica com `link_status` = `pendente`. Salvar de novo o mesmo produto devolve o item existente (200).
+         * @description Salva um produto do radar (`product_id`) ou colado como link da Shopee (`url`); informe só um dos dois. Um produto que não está no catálogo é buscado na Shopee com a credencial do app. O link de afiliado é gerado em segundo plano (job `generate_affiliate_link`) com a credencial do usuário, um por canal. Sem credencial conectada, o item fica com `link_status` = `pending`. Salvar de novo o mesmo produto devolve o item existente (200).
          */
-        post: operations["salvarItem"];
+        post: operations["saveItem"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/workspaces/{workspaceId}/itens/produtos": {
+    "/v1/workspaces/{workspaceId}/items/products": {
         parameters: {
             query?: never;
             header?: never;
@@ -478,7 +481,7 @@ export interface paths {
             cookie?: never;
         };
         /** IDs dos produtos já salvos (para marcar o radar) */
-        get: operations["produtosSalvos"];
+        get: operations["listSavedProducts"];
         put?: never;
         post?: never;
         delete?: never;
@@ -487,7 +490,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/workspaces/{workspaceId}/itens/links-pendentes": {
+    "/v1/workspaces/{workspaceId}/items/pending-links": {
         parameters: {
             query?: never;
             header?: never;
@@ -502,14 +505,14 @@ export interface paths {
          * Gerar os links que ficaram pendentes ou falharam
          * @description Use depois de conectar a conta da Shopee. Itens com link manual não mudam.
          */
-        post: operations["gerarLinksPendentes"];
+        post: operations["generatePendingLinks"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/workspaces/{workspaceId}/itens/{itemId}": {
+    "/v1/workspaces/{workspaceId}/items/{itemId}": {
         parameters: {
             query?: never;
             header?: never;
@@ -520,21 +523,21 @@ export interface paths {
             cookie?: never;
         };
         /** Detalhe do item */
-        get: operations["verItem"];
+        get: operations["getItem"];
         put?: never;
         post?: never;
         /** Remover o item (e os seus links) */
-        delete: operations["removerItem"];
+        delete: operations["removeItem"];
         options?: never;
         head?: never;
         /**
          * Editar título, descrição, notas, tags, status e link
-         * @description Campos ausentes não mudam. Texto vazio apaga o campo. `link_afiliado` com uma URL grava um link manual, que tem prioridade sobre o automático; `null` volta ao link automático e gera de novo.
+         * @description Campos ausentes não mudam. Texto vazio apaga o campo. `affiliate_link` com uma URL grava um link manual, que tem prioridade sobre o automático; `null` volta ao link automático e gera de novo.
          */
-        patch: operations["atualizarItem"];
+        patch: operations["updateItem"];
         trace?: never;
     };
-    "/v1/workspaces/{workspaceId}/itens/{itemId}/link": {
+    "/v1/workspaces/{workspaceId}/items/{itemId}/link": {
         parameters: {
             query?: never;
             header?: never;
@@ -548,16 +551,16 @@ export interface paths {
         put?: never;
         /**
          * Gerar o link automático de novo
-         * @description Descarta o link manual, se houver, e enfileira o job `gerar_link`.
+         * @description Descarta o link manual, se houver, e enfileira o job `generate_affiliate_link`.
          */
-        post: operations["gerarLinkItem"];
+        post: operations["generateItemLink"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/workspaces/{workspaceId}/itens/{itemId}/colecoes": {
+    "/v1/workspaces/{workspaceId}/items/{itemId}/collections": {
         parameters: {
             query?: never;
             header?: never;
@@ -572,7 +575,7 @@ export interface paths {
          * Definir as coleções do item
          * @description Substitui a lista. Um item pode estar em várias coleções.
          */
-        put: operations["definirColecoesItem"];
+        put: operations["setItemCollections"];
         post?: never;
         delete?: never;
         options?: never;
@@ -580,7 +583,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/workspaces/{workspaceId}/colecoes": {
+    "/v1/workspaces/{workspaceId}/collections": {
         parameters: {
             query?: never;
             header?: never;
@@ -590,23 +593,23 @@ export interface paths {
             cookie?: never;
         };
         /** Coleções (pastas) do usuário no workspace */
-        get: operations["listarColecoes"];
+        get: operations["listCollections"];
         put?: never;
         /** Criar coleção */
-        post: operations["criarColecao"];
+        post: operations["createCollection"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/workspaces/{workspaceId}/colecoes/{colecaoId}": {
+    "/v1/workspaces/{workspaceId}/collections/{collectionId}": {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 workspaceId: components["parameters"]["WorkspaceId"];
-                colecaoId: string;
+                collectionId: string;
             };
             cookie?: never;
         };
@@ -617,14 +620,14 @@ export interface paths {
          * Apagar coleção
          * @description Os itens continuam salvos; só saem da coleção.
          */
-        delete: operations["apagarColecao"];
+        delete: operations["deleteCollection"];
         options?: never;
         head?: never;
         /** Renomear coleção */
-        patch: operations["renomearColecao"];
+        patch: operations["renameCollection"];
         trace?: never;
     };
-    "/v1/workspaces/{workspaceId}/listas": {
+    "/v1/workspaces/{workspaceId}/lists": {
         parameters: {
             query?: never;
             header?: never;
@@ -637,54 +640,57 @@ export interface paths {
          * Listas da curadoria
          * @description Dono e mentor veem os rascunhos (primeiro) e as publicadas; os afiliados, só as publicadas. Das mais novas para as mais antigas.
          */
-        get: operations["listarListas"];
+        get: operations["listCuratedLists"];
         put?: never;
         /**
          * Criar lista (dono e mentor)
          * @description Cria um rascunho vazio num workspace de mentoria, dentro do limite de listas do plano.
          */
-        post: operations["criarLista"];
+        post: operations["createCuratedList"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/workspaces/{workspaceId}/listas/{listaId}": {
+    "/v1/workspaces/{workspaceId}/lists/{listId}": {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 workspaceId: components["parameters"]["WorkspaceId"];
-                listaId: components["parameters"]["ListaId"];
+                listId: components["parameters"]["ListId"];
             };
             cookie?: never;
         };
         /**
          * Lista com os produtos
-         * @description Cada produto que quem vê já tem na coleção vem em `meu_item`, com o link de afiliado dele. Rascunhos dão 404 para afiliados.
+         * @description Cada produto que quem vê já tem na coleção vem em `my_item`, com o link de afiliado dele. Rascunhos dão 404 para afiliados.
          */
-        get: operations["verLista"];
+        get: operations["getCuratedList"];
         put?: never;
         post?: never;
         /**
          * Apagar lista (dono e mentor)
          * @description O que os afiliados já importaram continua na coleção deles.
          */
-        delete: operations["apagarLista"];
+        delete: operations["deleteCuratedList"];
         options?: never;
         head?: never;
-        /** Editar título e descrição (dono e mentor) */
-        patch: operations["editarLista"];
+        /**
+         * Editar título e descrição (dono e mentor)
+         * @description Campos ausentes não mudam.
+         */
+        patch: operations["updateCuratedList"];
         trace?: never;
     };
-    "/v1/workspaces/{workspaceId}/listas/{listaId}/itens": {
+    "/v1/workspaces/{workspaceId}/lists/{listId}/items": {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 workspaceId: components["parameters"]["WorkspaceId"];
-                listaId: components["parameters"]["ListaId"];
+                listId: components["parameters"]["ListId"];
             };
             cookie?: never;
         };
@@ -692,23 +698,23 @@ export interface paths {
         put?: never;
         /**
          * Adicionar produto à lista (dono e mentor)
-         * @description Do radar (`produto_id`) ou colado como link da Shopee (`url`), como ao salvar na coleção. Entra no fim da lista. Até 100 produtos.
+         * @description Do radar (`product_id`) ou colado como link da Shopee (`url`), como ao salvar na coleção. Entra no fim da lista. Até 100 produtos.
          */
-        post: operations["adicionarProdutoLista"];
+        post: operations["addCuratedListItem"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/workspaces/{workspaceId}/listas/{listaId}/itens/{produtoId}": {
+    "/v1/workspaces/{workspaceId}/lists/{listId}/items/{productId}": {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 workspaceId: components["parameters"]["WorkspaceId"];
-                listaId: components["parameters"]["ListaId"];
-                produtoId: string;
+                listId: components["parameters"]["ListId"];
+                productId: components["parameters"]["ProductId"];
             };
             cookie?: never;
         };
@@ -716,20 +722,20 @@ export interface paths {
         put?: never;
         post?: never;
         /** Tirar produto da lista (dono e mentor) */
-        delete: operations["removerProdutoLista"];
+        delete: operations["removeCuratedListItem"];
         options?: never;
         head?: never;
         /** Trocar o comentário de um produto (dono e mentor) */
-        patch: operations["comentarProdutoLista"];
+        patch: operations["commentCuratedListItem"];
         trace?: never;
     };
-    "/v1/workspaces/{workspaceId}/listas/{listaId}/ordem": {
+    "/v1/workspaces/{workspaceId}/lists/{listId}/order": {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 workspaceId: components["parameters"]["WorkspaceId"];
-                listaId: components["parameters"]["ListaId"];
+                listId: components["parameters"]["ListId"];
             };
             cookie?: never;
         };
@@ -738,7 +744,7 @@ export interface paths {
          * Reordenar produtos (dono e mentor)
          * @description Envie todos os produtos da lista, cada um uma vez, na nova ordem.
          */
-        put: operations["ordenarLista"];
+        put: operations["reorderCuratedList"];
         post?: never;
         delete?: never;
         options?: never;
@@ -746,13 +752,13 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/workspaces/{workspaceId}/listas/{listaId}/publicar": {
+    "/v1/workspaces/{workspaceId}/lists/{listId}/publish": {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 workspaceId: components["parameters"]["WorkspaceId"];
-                listaId: components["parameters"]["ListaId"];
+                listId: components["parameters"]["ListId"];
             };
             cookie?: never;
         };
@@ -760,22 +766,22 @@ export interface paths {
         put?: never;
         /**
          * Publicar para a turma (dono e mentor)
-         * @description Mostra a lista para todo o workspace e avisa cada membro, menos quem publicou, na caixa de notificações, por e-mail e por Web Push (job `entregar_notificacao`). Publicar de novo não avisa de novo.
+         * @description Mostra a lista para todo o workspace e avisa cada membro, menos quem publicou, na caixa de notificações, por e-mail e por Web Push (job `deliver_notification`). Publicar de novo não avisa de novo.
          */
-        post: operations["publicarLista"];
+        post: operations["publishCuratedList"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/workspaces/{workspaceId}/listas/{listaId}/importar": {
+    "/v1/workspaces/{workspaceId}/lists/{listId}/import": {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 workspaceId: components["parameters"]["WorkspaceId"];
-                listaId: components["parameters"]["ListaId"];
+                listId: components["parameters"]["ListId"];
             };
             cookie?: never;
         };
@@ -783,27 +789,27 @@ export interface paths {
         put?: never;
         /**
          * Importar a lista para a minha coleção
-         * @description Salva os produtos escolhidos (todos, se `produto_ids` vier vazio) na coleção de quem importa, com o comentário do mentor nas notas. Os links saem com a credencial da Shopee do próprio usuário (job `gerar_link`); sem credencial, ficam pendentes. Com `colecao` (padrão), os itens também vão para uma coleção com o nome da lista. Importar de novo só salva o que falta.
+         * @description Salva os produtos escolhidos (todos, se `product_ids` vier vazio) na coleção de quem importa, com o comentário do mentor nas notas. Os links saem com a credencial da Shopee do próprio usuário (job `generate_affiliate_link`); sem credencial, ficam pendentes. Com `collection` (padrão), os itens também vão para uma coleção com o nome da lista. Importar de novo só salva o que falta.
          */
-        post: operations["importarLista"];
+        post: operations["importCuratedList"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/workspaces/{workspaceId}/listas/{listaId}/painel": {
+    "/v1/workspaces/{workspaceId}/lists/{listId}/dashboard": {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 workspaceId: components["parameters"]["WorkspaceId"];
-                listaId: components["parameters"]["ListaId"];
+                listId: components["parameters"]["ListId"];
             };
             cookie?: never;
         };
         /** Quem da turma importou a lista (dono e mentor) */
-        get: operations["painelLista"];
+        get: operations["getCuratedListDashboard"];
         put?: never;
         post?: never;
         delete?: never;
@@ -812,13 +818,13 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/workspaces/{workspaceId}/listas/{listaId}/videos/{videoId}": {
+    "/v1/workspaces/{workspaceId}/lists/{listId}/videos/{videoId}": {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 workspaceId: components["parameters"]["WorkspaceId"];
-                listaId: components["parameters"]["ListaId"];
+                listId: components["parameters"]["ListId"];
                 videoId: components["parameters"]["VideoId"];
             };
             cookie?: never;
@@ -828,13 +834,13 @@ export interface paths {
          * Anexar vídeo à lista (dono e mentor)
          * @description Anexa um vídeo da biblioteca de quem edita a lista. O vídeo passa a ser compartilhado com a turma.
          */
-        put: operations["anexarVideoLista"];
+        put: operations["attachCuratedListVideo"];
         post?: never;
         /**
          * Tirar vídeo da lista (dono e mentor)
          * @description O vídeo continua na biblioteca de quem o enviou, ainda compartilhado.
          */
-        delete: operations["tirarVideoLista"];
+        delete: operations["detachCuratedListVideo"];
         options?: never;
         head?: never;
         patch?: never;
@@ -851,9 +857,9 @@ export interface paths {
         };
         /**
          * Biblioteca de vídeos
-         * @description Os vídeos do usuário no workspace e os que dono e mentores compartilharam com a turma, dos mais novos para os mais antigos (até 500). Com `produto_id`, só os ligados ao produto, na ordem em que foram ligados.
+         * @description Os vídeos do usuário no workspace e os que dono e mentores compartilharam com a turma, dos mais novos para os mais antigos. Com `product_id`, só os ligados ao produto, na ordem em que foram ligados.
          */
-        get: operations["listarVideos"];
+        get: operations["listVideos"];
         put?: never;
         post?: never;
         delete?: never;
@@ -862,7 +868,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/workspaces/{workspaceId}/videos/cota": {
+    "/v1/workspaces/{workspaceId}/videos/quota": {
         parameters: {
             query?: never;
             header?: never;
@@ -875,7 +881,7 @@ export interface paths {
          * Espaço de vídeos do workspace
          * @description Bytes de upload usados (inclui envios em andamento) e o limite do plano.
          */
-        get: operations["cotaVideos"];
+        get: operations["getVideoQuota"];
         put?: never;
         post?: never;
         delete?: never;
@@ -897,9 +903,9 @@ export interface paths {
         put?: never;
         /**
          * Colar link de vídeo de referência
-         * @description Aceita links do YouTube (vídeos e Shorts) e do TikTok, inclusive os curtos. A API resolve pelo oEmbed oficial (com cache de um dia) e guarda só título, autor, miniatura e URL; o vídeo toca no player da plataforma. Colar de novo o mesmo vídeo devolve o existente (200). O job `revalidar_embed` confere o vídeo a cada 7 dias e o marca como `indisponivel` se ele sumir.
+         * @description Aceita links do YouTube (vídeos e Shorts) e do TikTok, inclusive os curtos. A API resolve pelo oEmbed oficial (com cache de um dia) e guarda só título, autor, miniatura e URL; o vídeo toca no player da plataforma. Colar de novo o mesmo vídeo devolve o existente (200). O job `revalidate_embed` confere o vídeo a cada 7 dias e o marca como `unavailable` se ele sumir.
          */
-        post: operations["colarVideo"];
+        post: operations["pasteVideo"];
         delete?: never;
         options?: never;
         head?: never;
@@ -919,9 +925,9 @@ export interface paths {
         put?: never;
         /**
          * Iniciar upload de vídeo próprio
-         * @description Valida o arquivo (MP4, MOV ou WebM, até 1 GB), exige a declaração de direito de uso, reserva o espaço na cota do plano e abre um upload multipart no bucket. O navegador envia as partes direto ao bucket pelas URLs de `POST .../partes` e termina com `POST .../concluir`. Um envio que não termina em 24 h é descartado (job `limpar_upload`).
+         * @description Valida o arquivo (MP4, MOV ou WebM, até 1 GB), exige a declaração de direito de uso, reserva o espaço na cota do plano e abre um upload multipart no bucket. O navegador envia as partes direto ao bucket pelas URLs de `POST .../parts` e termina com `POST .../complete`. Um envio que não termina em 24 h é descartado (job `clean_upload`).
          */
-        post: operations["iniciarUploadVideo"];
+        post: operations["startVideoUpload"];
         delete?: never;
         options?: never;
         head?: never;
@@ -939,24 +945,24 @@ export interface paths {
             cookie?: never;
         };
         /** Ver vídeo */
-        get: operations["verVideo"];
+        get: operations["getVideo"];
         put?: never;
         post?: never;
         /**
          * Apagar vídeo (só quem enviou)
          * @description Apaga os arquivos do bucket (ou cancela o envio em andamento), os vínculos com produtos e listas, e devolve o espaço à cota.
          */
-        delete: operations["apagarVideo"];
+        delete: operations["deleteVideo"];
         options?: never;
         head?: never;
         /**
          * Renomear ou compartilhar (só quem enviou)
-         * @description `compartilhado` mostra o vídeo para todo o workspace; só dono e mentores de uma mentoria compartilham.
+         * @description `shared` mostra o vídeo para todo o workspace; só dono e mentores de uma mentoria compartilham.
          */
-        patch: operations["editarVideo"];
+        patch: operations["updateVideo"];
         trace?: never;
     };
-    "/v1/workspaces/{workspaceId}/videos/{videoId}/partes": {
+    "/v1/workspaces/{workspaceId}/videos/{videoId}/parts": {
         parameters: {
             query?: never;
             header?: never;
@@ -967,20 +973,20 @@ export interface paths {
             cookie?: never;
         };
         /** Partes já enviadas (para retomar o upload) */
-        get: operations["partesUploadVideo"];
+        get: operations["listVideoUploadParts"];
         put?: never;
         /**
          * Assinar a URL de envio de uma parte
          * @description Devolve uma URL pré-assinada (PUT, válida por 1 hora) para o navegador enviar a parte direto ao bucket. As partes têm pelo menos 5 MB, menos a última.
          */
-        post: operations["assinarParteVideo"];
+        post: operations["signVideoUploadPart"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/workspaces/{workspaceId}/videos/{videoId}/concluir": {
+    "/v1/workspaces/{workspaceId}/videos/{videoId}/complete": {
         parameters: {
             query?: never;
             header?: never;
@@ -994,9 +1000,9 @@ export interface paths {
         put?: never;
         /**
          * Concluir upload
-         * @description Junta as partes, confere o tamanho com o que foi reservado e põe o vídeo na fila do `processar_video` (ffmpeg: duração, miniatura e prévia em 720p). Um arquivo maior do que o informado é descartado.
+         * @description Junta as partes, confere o tamanho com o que foi reservado e põe o vídeo na fila do `process_video` (ffmpeg: duração, miniatura e prévia em 720p). Um arquivo maior do que o informado é descartado.
          */
-        post: operations["concluirUploadVideo"];
+        post: operations["completeVideoUpload"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1017,7 +1023,7 @@ export interface paths {
          * Baixar o arquivo original
          * @description URL assinada de 5 minutos que baixa o arquivo enviado (o próprio ou um compartilhado com a turma). Vídeos de referência não são baixados.
          */
-        get: operations["baixarVideo"];
+        get: operations["downloadVideo"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1026,14 +1032,14 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/workspaces/{workspaceId}/videos/{videoId}/produtos/{produtoId}": {
+    "/v1/workspaces/{workspaceId}/videos/{videoId}/products/{productId}": {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 workspaceId: components["parameters"]["WorkspaceId"];
                 videoId: components["parameters"]["VideoId"];
-                produtoId: string;
+                productId: components["parameters"]["ProductId"];
             };
             cookie?: never;
         };
@@ -1042,16 +1048,16 @@ export interface paths {
          * Ligar vídeo a um produto (só quem enviou)
          * @description O vídeo aparece no produto (radar, coleção e listas) para o dono e, se compartilhado, para a turma.
          */
-        put: operations["vincularVideoProduto"];
+        put: operations["linkVideoProduct"];
         post?: never;
         /** Tirar vídeo do produto (só quem enviou) */
-        delete: operations["desvincularVideoProduto"];
+        delete: operations["unlinkVideoProduct"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/workspaces/{workspaceId}/notificacoes": {
+    "/v1/workspaces/{workspaceId}/notifications": {
         parameters: {
             query?: never;
             header?: never;
@@ -1064,7 +1070,7 @@ export interface paths {
          * Caixa de notificações do usuário no workspace
          * @description As 50 mais recentes e o total de não lidas.
          */
-        get: operations["caixaNotificacoes"];
+        get: operations["getInbox"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1073,7 +1079,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/workspaces/{workspaceId}/notificacoes/lidas": {
+    "/v1/workspaces/{workspaceId}/notifications/read": {
         parameters: {
             query?: never;
             header?: never;
@@ -1085,34 +1091,34 @@ export interface paths {
         get?: never;
         put?: never;
         /** Marcar todas como lidas */
-        post: operations["marcarTodasLidas"];
+        post: operations["markAllNotificationsRead"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/workspaces/{workspaceId}/notificacoes/{notificacaoId}/lida": {
+    "/v1/workspaces/{workspaceId}/notifications/{notificationId}/read": {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 workspaceId: components["parameters"]["WorkspaceId"];
-                notificacaoId: string;
+                notificationId: string;
             };
             cookie?: never;
         };
         get?: never;
         put?: never;
         /** Marcar como lida */
-        post: operations["marcarLida"];
+        post: operations["markNotificationRead"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/eu/notificacoes": {
+    "/v1/me/notifications": {
         parameters: {
             query?: never;
             header?: never;
@@ -1120,9 +1126,9 @@ export interface paths {
             cookie?: never;
         };
         /** Preferências de notificação */
-        get: operations["preferenciasNotificacao"];
+        get: operations["getNotificationPreferences"];
         /** Ligar ou desligar os e-mails */
-        put: operations["definirPreferenciasNotificacao"];
+        put: operations["setNotificationPreferences"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1130,7 +1136,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/eu/push": {
+    "/v1/me/push": {
         parameters: {
             query?: never;
             header?: never;
@@ -1143,15 +1149,15 @@ export interface paths {
          * Inscrever este navegador no Web Push
          * @description Recebe o `PushSubscription.toJSON()` do navegador. Só aceita endpoints dos serviços de push dos navegadores (Google, Mozilla, Microsoft e Apple).
          */
-        post: operations["inscreverPush"];
+        post: operations["subscribePush"];
         /** Cancelar o Web Push deste navegador */
-        delete: operations["desinscreverPush"];
+        delete: operations["unsubscribePush"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/eu/resultados/sincronizacao": {
+    "/v1/me/results/sync": {
         parameters: {
             query?: never;
             header?: never;
@@ -1159,42 +1165,26 @@ export interface paths {
             cookie?: never;
         };
         /** Situação da sincronização de conversões do usuário */
-        get: operations["verSincronizacao"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/eu/resultados/sincronizar": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
+        get: operations["getResultsSync"];
         put?: never;
         /**
          * Sincronizar as conversões agora
          * @description Enfileira a leitura do conversionReport da Shopee (últimos 89 dias) com a credencial do usuário. A sincronização também roda uma vez por dia. Se uma já está em andamento, devolve a situação dela.
          */
-        post: operations["sincronizarResultados"];
+        post: operations["requestResultsSync"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/workspaces/{workspaceId}/resultados": {
+    "/v1/workspaces/{workspaceId}/results": {
         parameters: {
             query?: {
-                /** @description Primeiro dia (AAAA-MM-DD, fuso de Brasília). Padrão, 29 dias antes de `ate`. */
-                de?: components["parameters"]["De"];
+                /** @description Primeiro dia (AAAA-MM-DD, fuso de Brasília). Padrão, 29 dias antes de `to`. */
+                from?: components["parameters"]["From"];
                 /** @description Último dia, inclusive (AAAA-MM-DD). Padrão, hoje. O período tem até 366 dias. */
-                ate?: components["parameters"]["Ate"];
+                to?: components["parameters"]["To"];
             };
             header?: never;
             path: {
@@ -1206,7 +1196,7 @@ export interface paths {
          * Os resultados do próprio usuário no workspace
          * @description Pedidos e comissão das vendas pelos links do usuário marcados com este workspace (no workspace pessoal, também as vendas por links de fora do app). A Open API da Shopee não informa cliques.
          */
-        get: operations["meusResultados"];
+        get: operations["getMyResults"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1215,13 +1205,13 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/workspaces/{workspaceId}/resultados/turma": {
+    "/v1/workspaces/{workspaceId}/results/group": {
         parameters: {
             query?: {
-                /** @description Primeiro dia (AAAA-MM-DD, fuso de Brasília). Padrão, 29 dias antes de `ate`. */
-                de?: components["parameters"]["De"];
+                /** @description Primeiro dia (AAAA-MM-DD, fuso de Brasília). Padrão, 29 dias antes de `to`. */
+                from?: components["parameters"]["From"];
                 /** @description Último dia, inclusive (AAAA-MM-DD). Padrão, hoje. O período tem até 366 dias. */
-                ate?: components["parameters"]["Ate"];
+                to?: components["parameters"]["To"];
             };
             header?: never;
             path: {
@@ -1233,7 +1223,7 @@ export interface paths {
          * Resultados agregados da turma (dono e mentor)
          * @description Somas dos membros que consentiram, no total, por dia, por lista da curadoria e por produto. Nunca há números por afiliado. Por lista, contam as vendas dos produtos importados da lista, por quem os importou, depois da importação.
          */
-        get: operations["resultadosTurma"];
+        get: operations["getGroupResults"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1242,7 +1232,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/workspaces/{workspaceId}/resultados/consentimento": {
+    "/v1/workspaces/{workspaceId}/results/consent": {
         parameters: {
             query?: never;
             header?: never;
@@ -1252,8 +1242,11 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Autorizar ou não o mentor a ver os meus resultados agregados */
-        put: operations["definirConsentimento"];
+        /**
+         * Autorizar ou não o mentor a ver os meus resultados agregados
+         * @description Continua valendo com o workspace suspenso.
+         */
+        put: operations["setResultsConsent"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1261,7 +1254,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/webhooks/cobranca": {
+    "/v1/webhooks/billing": {
         parameters: {
             query?: never;
             header?: never;
@@ -1272,16 +1265,16 @@ export interface paths {
         put?: never;
         /**
          * Aviso de cobrança do gateway (webhook)
-         * @description Recebe os avisos do gateway de cobrança (Asaas em produção). Não usa o token do app: a autenticidade vem do segredo do provedor, no cabeçalho que ele manda. Um pagamento confirmado estende o acesso do workspace; um estorno o suspende na hora. Reenvios do mesmo aviso não fazem nada.
+         * @description Recebe os avisos do gateway de cobrança (Asaas em produção). Não usa o token do app: a autenticidade vem do segredo do provedor, no cabeçalho que ele manda (`asaas-access-token` no Asaas). Um pagamento confirmado estende o acesso do workspace; um estorno o suspende na hora. Reenvios do mesmo aviso, eventos ignorados e avisos de assinaturas desconhecidas respondem 204, para o gateway não reenviar. Corpo de até 1 MB.
          */
-        post: operations["webhookCobranca"];
+        post: operations["billingWebhook"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/workspaces/{workspaceId}/assinatura": {
+    "/v1/workspaces/{workspaceId}/subscription": {
         parameters: {
             query?: never;
             header?: never;
@@ -1294,28 +1287,28 @@ export interface paths {
          * A assinatura do workspace (dono e mentor)
          * @description Plano, preço, assentos e situação do acesso. Continua acessível com o workspace suspenso: é por aqui que ele volta.
          */
-        get: operations["verAssinatura"];
+        get: operations["getSubscription"];
         put?: never;
         /**
          * Contratar o plano (só o dono)
          * @description Abre a assinatura mensal no gateway e devolve a fatura em aberto, que quem paga quita por PIX, boleto ou cartão. O acesso só é liberado quando o pagamento é confirmado.
          */
-        post: operations["assinar"];
+        post: operations["subscribe"];
         /**
          * Cancelar a assinatura (só o dono)
          * @description Encerra a cobrança no gateway. O acesso continua até o fim do período já pago.
          */
-        delete: operations["cancelarAssinatura"];
+        delete: operations["cancelSubscription"];
         options?: never;
         head?: never;
         /**
          * Mudar os assentos da mentoria (só o dono)
          * @description Diminuir vale na hora, e nunca abaixo dos assentos em uso (afiliados mais convites pendentes). Aumentar vale quando o próximo pagamento for confirmado; a cobrança em aberto já sai com o novo valor.
          */
-        patch: operations["mudarAssentos"];
+        patch: operations["changeSeats"];
         trace?: never;
     };
-    "/v1/workspaces/{workspaceId}/assinatura/simular-pagamento": {
+    "/v1/workspaces/{workspaceId}/subscription/simulate-payment": {
         parameters: {
             query?: never;
             header?: never;
@@ -1328,9 +1321,9 @@ export interface paths {
         put?: never;
         /**
          * Simular o pagamento (só no ambiente local)
-         * @description Confirma a cobrança em aberto sem gateway de verdade. Existe apenas quando a cobrança está em modo mock (`simulavel` na assinatura); fora dele devolve 404.
+         * @description Confirma a cobrança em aberto sem gateway de verdade. Existe apenas quando a cobrança está em modo mock (`simulated` na assinatura); fora dele devolve 404 `simulation_unavailable`.
          */
-        post: operations["simularPagamento"];
+        post: operations["simulatePayment"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1341,66 +1334,15 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        Erro: {
-            /** @description Código estável para o front. Em auth (provedor interno): invalid_credentials, email_taken, invalid_email, invalid_name, weak_password, invalid_auth_token, too_many_attempts. Em contas: nao_autenticado, dados_invalidos, json_invalido, sem_permissao, workspace_nao_encontrado, membro_nao_encontrado, convite_nao_encontrado, so_mentoria, dono_nao_sai, sem_assentos, ja_membro, convite_expirado, convite_usado, convite_revogado, convite_outro_email, workspace_suspenso, assentos_em_uso, erro_interno. Em assinatura: ja_assinada, sem_assinatura, sem_preco, cobranca_indisponivel. Em shopee: credencial_invalida, shopee_limite, shopee_indisponivel. Em radar: produto_nao_encontrado. Em coleções: item_nao_encontrado, colecao_nao_encontrada, colecao_existente, link_invalido, link_curto, sem_credencial, importacao_indisponivel. Em curadoria: lista_nao_encontrada, item_lista_nao_encontrado, limite_listas, lista_vazia, ja_na_lista, lista_cheia, lista_nao_publicada. Em notificações: notificacao_nao_encontrada, push_indisponivel, inscricao_invalida, inscricoes_demais. Em mídia: video_nao_encontrado, link_video_invalido, video_indisponivel, plataforma_indisponivel, direito_uso_obrigatorio, formato_invalido, arquivo_grande, cota_videos, uploads_indisponiveis, upload_encerrado, upload_incompleto, video_nao_pronto. */
-            codigo: string;
-            /** @description Texto pronto para mostrar ao usuário */
-            mensagem: string;
+        Error: {
+            /** @description Código estável para o front. Genéricos: unauthenticated, internal_error, invalid_json, invalid_request. Auth (provedor interno): invalid_credentials, email_taken, invalid_email, invalid_name, weak_password, invalid_auth_token, too_many_attempts. Contas: workspace_not_found, member_not_found, invite_not_found, forbidden, mentorship_only, consent_mentorship_only, owner_cannot_leave, no_seats, seats_in_use, seats_above_plan, workspace_suspended, workspace_suspended_owner, already_member, invite_expired, invite_used, invite_revoked, invite_other_email, invalid_workspace_name, invalid_photo_url, invalid_invite_email, invalid_invite_validity. Assinatura: billing_owner_only, billing_managers_only, already_subscribed, no_subscription, invalid_tax_id, minimum_seats, no_price, simulation_unavailable, billing_unavailable, invalid_billing_webhook. Shopee: invalid_shopee_credential, shopee_access_denied, shopee_rate_limited, shopee_unavailable, invalid_app_id, invalid_secret. Catálogo e radar: product_not_found, invalid_page, invalid_per_page, negative_price, invalid_min_commission, invalid_min_rating, invalid_sort, query_too_long, invalid_history_days, invalid_product_link, short_link. Coleções: item_not_found, collection_not_found, collection_exists, no_credential, import_unavailable, link_rate_limited, product_lookup_failed, product_or_link_required, invalid_item_title, invalid_item_description, invalid_item_notes, invalid_tag, too_many_tags, invalid_item_status, invalid_affiliate_link, invalid_collection_name, too_many_item_collections, invalid_item_page. Notificações: notification_not_found, push_unavailable, invalid_push_subscription, too_many_push_subscriptions, invalid_notification_preferences. Mídia: video_not_found, invalid_video_link, video_unavailable, platform_unavailable, usage_rights_required, invalid_video_format, invalid_video_size, video_too_large, video_quota_exceeded, uploads_unavailable, upload_closed, upload_incomplete, upload_parts_required, invalid_part_number, video_not_ready, video_owner_only, video_share_managers_only, video_title_too_long, embed_not_downloadable. Curadoria: list_not_found, list_item_not_found, video_not_in_list, list_managers_only, lists_mentorship_only, list_limit, list_empty, already_in_list, list_full, list_not_published, invalid_list_title, invalid_list_description, invalid_list_comment, list_comment_required, invalid_list_order, product_not_in_list. Resultados: group_results_forbidden, group_results_mentorship_only, sync_no_credential, synced_recently, invalid_period, sync_credential_refused, sync_shopee_unavailable. */
+            code: string;
+            /** @description Texto em português pronto para mostrar ao usuário */
+            message: string;
         };
-        Assinatura: {
-            /** @enum {string} */
-            plano: "avulso" | "mentoria";
-            situacao: components["schemas"]["SituacaoWorkspace"];
-            /**
-             * Format: date-time
-             * @description Até quando o workspace pode ser usado (fim do teste ou do ciclo pago, mais a tolerância).
-             */
-            acesso_ate: string;
-            /** @enum {string} */
-            status: "sem_assinatura" | "aguardando" | "ativa" | "atrasada" | "cancelada";
-            /** @description Gateway de cobrança (ex.: asaas); vazio sem assinatura. */
-            provedor: string;
-            /** @description Preço mensal do plano: do workspace no avulso, de cada assento na mentoria. */
-            preco_centavos: number;
-            /** @description Assentos contratados (0 sem assinatura). */
-            assentos: number;
-            /** @description Afiliados mais convites pendentes. */
-            assentos_em_uso: number;
-            /** @description Teto do plano. */
-            assentos_maximo: number;
-            /** @description Total mensal da assinatura. */
-            valor_centavos: number;
-            /**
-             * Format: date
-             * @description Vencimento da cobrança em aberto (ou da próxima).
-             */
-            proximo_ciclo: string | null;
-            /** @description Fatura em aberto no gateway (PIX, boleto ou cartão). */
-            url_pagamento: string | null;
-            /** @description Ambiente local com cobrança em modo mock: a tela pode oferecer simular o pagamento. */
-            simulavel: boolean;
-        };
-        NovaAssinatura: {
-            /** @description Assentos da mentoria. Ignorado no plano avulso. */
-            assentos?: number;
-            /** @description CPF ou CNPJ de quem paga */
-            cpf_cnpj: string;
-        };
-        /**
-         * @description `teste` no período de avaliação, `ativo` com a assinatura paga, `gratuito` no workspace pessoal de quem é aluno de uma mentoria em dia (não é cobrado, por enquanto) e `suspenso` quando o acesso venceu. Suspenso, o workspace só permite ver a si mesmo, sair dele, mexer no consentimento e cuidar da assinatura; o resto devolve 402 `workspace_suspenso`.
-         * @enum {string}
-         */
-        SituacaoWorkspace: "teste" | "ativo" | "gratuito" | "suspenso";
-        Usuario: {
-            /** Format: uuid */
-            id: string;
-            nome: string;
-            /** Format: email */
-            email: string;
-            /** @description Convites por e-mail e avisos por e-mail exigem o e-mail confirmado. */
-            email_verificado: boolean;
-            /** Format: date-time */
-            criado_em: string;
+        /** @description Situação de cada dependência, pelo nome (ex.: postgres, redis) */
+        Readiness: {
+            [key: string]: "ok" | "failed";
         };
         AuthRegister: {
             name: string;
@@ -1416,6 +1358,14 @@ export interface components {
         AuthToken: {
             token: string;
         };
+        AuthForgotPassword: {
+            /** Format: email */
+            email: string;
+        };
+        AuthResetPassword: {
+            token: string;
+            password: string;
+        };
         AuthSession: {
             /** @description Token opaco da sessão, enviado como Bearer. */
             token: string;
@@ -1425,49 +1375,92 @@ export interface components {
              */
             expires_at: string;
         };
+        User: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** Format: email */
+            email: string;
+            /** @description Convites por e-mail e avisos por e-mail exigem o e-mail confirmado. */
+            email_verified: boolean;
+            /** Format: date-time */
+            created_at: string;
+        };
         /** @enum {string} */
-        Papel: "dono" | "mentor" | "afiliado";
+        Role: "owner" | "mentor" | "affiliate";
+        /** @enum {string} */
+        WorkspaceKind: "personal" | "mentorship";
+        /** @enum {string} */
+        Plan: "solo" | "mentorship";
+        /**
+         * @description `trial` no período de avaliação, `active` com a assinatura paga, `free` no workspace pessoal de quem é afiliado de uma mentoria em dia (não é cobrado, por enquanto) e `suspended` quando o acesso venceu. Suspenso, o workspace só permite ver a si mesmo, sair dele (ou remover afiliados) e cuidar da assinatura; o resto devolve 402.
+         * @enum {string}
+         */
+        AccessStatus: "trial" | "active" | "free" | "suspended";
         Workspace: {
             /** Format: uuid */
             id: string;
-            /** @enum {string} */
-            tipo: "pessoal" | "mentoria";
-            nome: string;
-            foto_url: string | null;
-            /** @enum {string} */
-            plano: "avulso" | "mentoria";
-            status: components["schemas"]["SituacaoWorkspace"];
-            /** Format: date-time */
-            acesso_ate: string;
+            kind: components["schemas"]["WorkspaceKind"];
+            name: string;
+            photo_url: string | null;
+            plan: components["schemas"]["Plan"];
+            status: components["schemas"]["AccessStatus"];
+            /**
+             * Format: date-time
+             * @description Até quando o workspace pode ser usado (fim do teste ou do ciclo pago, mais a tolerância).
+             */
+            access_until: string;
             /** @description Assentos contratados na mentoria; nulo enquanto não há pagamento. */
-            assentos: number | null;
-            papel: components["schemas"]["Papel"];
+            seats: number | null;
+            role: components["schemas"]["Role"];
             /** Format: date-time */
-            criado_em: string;
+            created_at: string;
         };
-        Membro: {
+        CreateMentorship: {
+            name: string;
+            /**
+             * Format: uri
+             * @description URL https
+             */
+            photo_url?: string | null;
+        };
+        UpdateWorkspace: {
+            name?: string;
+            /** @description URL https. String vazia remove a foto. */
+            photo_url?: string;
+        };
+        Member: {
             /** Format: uuid */
-            usuario_id: string;
-            nome: string;
+            user_id: string;
+            name: string;
             /** Format: email */
             email: string;
-            papel: components["schemas"]["Papel"];
+            role: components["schemas"]["Role"];
             /** Format: date-time */
-            entrou_em: string;
+            joined_at: string;
             /** @description Se o membro autoriza ver os seus resultados agregados no painel da turma. */
-            consente_resultados: boolean;
+            shares_results: boolean;
         };
-        Convite: {
+        CreateInvite: {
+            /** Format: email */
+            email?: string | null;
+            /**
+             * @description Validade do convite em horas; 0 ou ausente usa o padrão (7 dias).
+             * @default 168
+             */
+            validity_hours: number;
+        };
+        Invite: {
             /** Format: uuid */
             id: string;
             /** Format: email */
             email: string | null;
             /** Format: date-time */
-            expira_em: string;
+            expires_at: string;
             /** Format: date-time */
-            criado_em: string;
+            created_at: string;
         };
-        ConviteCriado: components["schemas"]["Convite"] & {
+        CreatedInvite: components["schemas"]["Invite"] & {
             /** @description Só aparece na criação */
             token: string;
             /**
@@ -1476,126 +1469,149 @@ export interface components {
              */
             url: string;
             /** @description Só em convites com e-mail. Falso quando o e-mail não saiu (o link continua valendo). */
-            email_enviado?: boolean;
+            email_sent?: boolean;
         };
-        ConvitePublico: {
-            workspace_nome: string;
-            workspace_foto_url: string | null;
-            /** @enum {string} */
-            status: "valido" | "expirado" | "usado" | "revogado";
+        /** @enum {string} */
+        InviteStatus: "valid" | "expired" | "used" | "revoked";
+        PublicInvite: {
+            workspace_name: string;
+            workspace_photo_url: string | null;
+            status: components["schemas"]["InviteStatus"];
             /** Format: date-time */
-            expira_em: string;
+            expires_at: string;
         };
-        ConexaoShopee: {
+        ConnectShopee: {
+            app_id: string;
+            secret: string;
+        };
+        ShopeeConnection: {
             /**
-             * @description `invalido`: a Shopee recusou a assinatura (Secret trocado). `expirado`: a Shopee negou acesso à conta (bloqueada, sem permissão).
+             * @description `invalid`: a Shopee recusou a assinatura (Secret trocado). `expired`: a Shopee negou acesso à conta (bloqueada, sem permissão).
              * @enum {string}
              */
-            status: "desconectado" | "conectado" | "invalido" | "expirado";
+            status: "disconnected" | "connected" | "invalid" | "expired";
             /** @description AppID mascarado, ex.: ••••5678 */
             app_id: string | null;
             /** Format: date-time */
-            verificado_em: string | null;
+            verified_at: string | null;
         };
-        Categoria: {
+        /**
+         * @default trend
+         * @enum {string}
+         */
+        RadarSort: "trend" | "commission" | "earnings" | "sales";
+        RadarCategory: {
             /** Format: int64 */
             id: number;
-            nome: string;
-            produtos: number;
+            name: string;
+            /**
+             * Format: int64
+             * @description Produtos do radar na categoria
+             */
+            products: number;
         };
-        RadarItem: {
+        Trend: {
             /** Format: uuid */
-            produto_id: string;
-            nome: string;
-            imagem_url: string | null;
-            loja_nome: string;
+            product_id: string;
+            name: string;
+            image_url: string | null;
+            shop_name: string;
             /** @description Página do produto na Shopee (sem link de afiliado) */
             url: string;
-            categorias: number[];
+            categories: number[];
             /** Format: int64 */
-            preco_min_centavos: number;
+            min_price_cents: number;
             /** Format: int64 */
-            preco_max_centavos: number;
+            max_price_cents: number;
             /** @description Comissão em basis points (1% = 100) */
-            comissao_bp: number;
+            commission_bp: number;
             /**
              * Format: int64
              * @description preço mínimo × comissão
              */
-            ganho_por_venda_centavos: number;
+            earnings_per_sale_cents: number;
             /**
              * Format: int64
              * @description Vendas acumuladas informadas pela Shopee
              */
-            vendas: number;
-            nota: number | null;
-            /** @description Score de tendência de 0 a 100, relativo ao catálogo */
+            sales: number;
+            rating: number | null;
+            /** @description Score de tendência de 0 a 100, relativo ao catálogo (0 para um produto que saiu do radar) */
             score: number;
             /**
              * Format: int64
              * @description Crescimento de vendas estimado para 7 dias. Nulo quando ainda não há um dia de histórico.
              */
-            vendas_7d: number | null;
+            sales_growth_7d: number | null;
             /**
              * Format: date-time
              * @description Coleta mais recente do produto
              */
-            atualizado_em: string;
+            updated_at: string;
         };
-        RadarPagina: {
-            itens: components["schemas"]["RadarItem"][];
+        RadarPage: {
+            items: components["schemas"]["Trend"][];
+            /** Format: int64 */
             total: number;
-            pagina: number;
-            por_pagina: number;
+            page: number;
+            per_page: number;
             /**
              * Format: date-time
              * @description Coleta mais recente do catálogo, para o "atualizado há X"
              */
-            atualizado_em: string | null;
+            updated_at: string | null;
         };
         Snapshot: {
             /** Format: date-time */
-            coletado_em: string;
+            collected_at: string;
             /** Format: int64 */
-            preco_min_centavos: number;
+            min_price_cents: number;
             /** Format: int64 */
-            preco_max_centavos: number;
-            comissao_bp: number;
+            max_price_cents: number;
+            commission_bp: number;
             /** Format: int64 */
-            vendas: number;
-            nota: number | null;
+            sales: number;
+            rating: number | null;
         };
-        RadarDetalhe: {
-            produto: components["schemas"]["RadarItem"];
-            historico: components["schemas"]["Snapshot"][];
+        ProductDetail: {
+            product: components["schemas"]["Trend"];
+            history: components["schemas"]["Snapshot"][];
         };
         /** @enum {string} */
-        StatusItem: "testando" | "campeao" | "descartado";
+        ItemStatus: "testing" | "winner" | "discarded";
         /** @enum {string} */
-        Canal: "instagram" | "tiktok" | "whatsapp" | "outro";
-        ProdutoResumo: {
+        Channel: "instagram" | "tiktok" | "whatsapp" | "other";
+        /** @enum {string} */
+        LinkOrigin: "auto" | "manual";
+        /**
+         * @description `pending`: sem credencial da Shopee conectada. `generating`: o job `generate_affiliate_link` vai rodar. `failed`: a Shopee não gerou o link depois das tentativas.
+         * @enum {string}
+         */
+        LinkStatus: "pending" | "generating" | "ready" | "failed";
+        /** @description Resumo do produto de um item salvo */
+        ItemProduct: {
             /** Format: uuid */
             id: string;
-            nome: string;
-            imagem_url: string | null;
-            loja_nome: string;
+            name: string;
+            image_url: string | null;
+            shop_name: string;
             /** @description Página do produto na Shopee (sem link de afiliado) */
             url: string;
             /** Format: int64 */
-            preco_min_centavos: number;
+            min_price_cents: number;
             /** Format: int64 */
-            preco_max_centavos: number;
-            comissao_bp: number;
+            max_price_cents: number;
+            commission_bp: number;
             /** Format: int64 */
-            ganho_por_venda_centavos: number;
+            earnings_per_sale_cents: number;
             /** Format: int64 */
-            vendas: number;
-            nota: number | null;
+            sales: number;
+            rating: number | null;
             /** Format: date-time */
-            atualizado_em: string;
+            updated_at: string;
         };
-        LinkCanal: {
-            canal: components["schemas"]["Canal"];
+        ChannelLink: {
+            channel: components["schemas"]["Channel"];
             /** @description subIds enviados à Shopee, separados por vírgula */
             sub_id: string;
             url: string;
@@ -1603,374 +1619,661 @@ export interface components {
         Item: {
             /** Format: uuid */
             id: string;
-            produto: components["schemas"]["ProdutoResumo"];
+            product: components["schemas"]["ItemProduct"];
             /** @description Título próprio; vazio usa o nome do produto */
-            titulo: string;
-            descricao: string;
+            title: string;
+            description: string;
             /** @description Notas pessoais; só o próprio usuário vê */
-            notas: string;
+            notes: string;
             tags: string[];
-            status: components["schemas"]["StatusItem"];
-            /** @description Link principal (o manual, ou o automático do canal `outro`) */
-            link_afiliado: string | null;
-            /** @enum {string} */
-            link_origem: "auto" | "manual";
-            /**
-             * @description `pendente`: sem credencial da Shopee conectada. `gerando`: o job `gerar_link` vai rodar. `falhou`: a Shopee não gerou o link depois das tentativas.
-             * @enum {string}
-             */
-            link_status: "pendente" | "gerando" | "pronto" | "falhou";
+            status: components["schemas"]["ItemStatus"];
+            /** @description Link principal (o manual, ou o automático do canal `other`) */
+            affiliate_link: string | null;
+            link_origin: components["schemas"]["LinkOrigin"];
+            link_status: components["schemas"]["LinkStatus"];
             /** @description Links automáticos por canal (subId) */
-            links: components["schemas"]["LinkCanal"][];
-            colecao_ids: string[];
+            links: components["schemas"]["ChannelLink"][];
+            collection_ids: string[];
             /** Format: date-time */
-            criado_em: string;
+            created_at: string;
             /** Format: date-time */
-            atualizado_em: string;
+            updated_at: string;
         };
-        ItensPagina: {
-            itens: components["schemas"]["Item"][];
+        ItemPage: {
+            items: components["schemas"]["Item"][];
+            /** Format: int64 */
             total: number;
-            pagina: number;
-            por_pagina: number;
+            page: number;
+            per_page: number;
         };
-        Colecao: {
+        SaveItem: {
+            /**
+             * Format: uuid
+             * @description Produto do radar
+             */
+            product_id?: string | null;
+            /** @description Link do produto na Shopee, ex.: https://shopee.com.br/Nome-i.123.456 */
+            url?: string;
+        };
+        UpdateItem: {
+            title?: string;
+            description?: string;
+            notes?: string;
+            tags?: string[];
+            status?: components["schemas"]["ItemStatus"];
+            /** @description URL https. Ausente não muda; `null` volta ao link automático. */
+            affiliate_link?: string | null;
+        };
+        SetItemCollections: {
+            collection_ids: string[];
+        };
+        PendingLinks: {
+            /** @description Itens enfileirados */
+            enqueued: number;
+        };
+        Collection: {
             /** Format: uuid */
             id: string;
-            nome: string;
-            /** @description Quantidade de itens */
-            itens: number;
+            name: string;
+            /**
+             * Format: int64
+             * @description Quantidade de itens
+             */
+            items: number;
             /** Format: date-time */
-            criado_em: string;
+            created_at: string;
         };
-        Lista: {
+        CollectionName: {
+            name: string;
+        };
+        CuratedList: {
             /** Format: uuid */
             id: string;
-            titulo: string;
-            descricao: string;
+            title: string;
+            description: string;
             /**
              * Format: date-time
              * @description Nula enquanto é rascunho
              */
-            publicada_em: string | null;
+            published_at: string | null;
             /** Format: date-time */
-            criado_em: string;
+            created_at: string;
             /** Format: date-time */
-            atualizado_em: string;
-            produtos: number;
-            /** @description Membros que importaram algum produto (só para dono e mentor) */
-            importadores?: number;
+            updated_at: string;
+            /** Format: int64 */
+            products: number;
+            /**
+             * Format: int64
+             * @description Membros que importaram algum produto (só para dono e mentor)
+             */
+            importers?: number;
             /** @description Se quem vê já importou algum produto da lista */
-            importei: boolean;
+            imported_by_me: boolean;
         };
         /** @description O produto na coleção de quem vê a lista, com o link de afiliado dele */
-        MeuItem: {
+        MyItem: {
             /** Format: uuid */
             id: string;
-            link_afiliado: string | null;
-            /** @enum {string} */
-            link_origem: "auto" | "manual";
-            /** @enum {string} */
-            link_status: "pendente" | "gerando" | "pronto" | "falhou";
-            links: components["schemas"]["LinkCanal"][];
-            titulo: string;
-            descricao: string;
+            title: string;
+            description: string;
+            affiliate_link: string | null;
+            link_origin: components["schemas"]["LinkOrigin"];
+            link_status: components["schemas"]["LinkStatus"];
+            links: components["schemas"]["ChannelLink"][];
         };
-        ItemLista: {
-            produto: components["schemas"]["ProdutoResumo"];
-            comentario: string;
-            ordem: number;
-            /** @description Membros que importaram este produto (só para dono e mentor) */
-            importadores?: number;
-            meu_item: components["schemas"]["MeuItem"] | null;
+        CuratedListItem: {
+            product: components["schemas"]["ItemProduct"];
+            /** @description Dica do mentor sobre o produto */
+            comment: string;
+            position: number;
+            /**
+             * Format: int64
+             * @description Membros que importaram este produto (só para dono e mentor)
+             */
+            importers?: number;
+            my_item: components["schemas"]["MyItem"] | null;
             /** @description Vídeos do produto que quem vê enxerga (os dele e os compartilhados) */
             videos: components["schemas"]["Video"][];
         };
-        ListaDetalhe: components["schemas"]["Lista"] & {
-            itens: components["schemas"]["ItemLista"][];
+        CuratedListDetail: components["schemas"]["CuratedList"] & {
+            items: components["schemas"]["CuratedListItem"][];
             /** @description Vídeos anexados à lista pelo mentor */
             videos: components["schemas"]["Video"][];
         };
-        ResultadoImportacao: {
-            criados: number;
-            ja_salvos: number;
-            /** Format: uuid */
-            colecao_id: string | null;
-            /**
-             * @description Situação dos links dos itens novos
-             * @enum {string}
-             */
-            link_status: "pendente" | "gerando" | "falhou";
+        CreateCuratedList: {
+            title: string;
+            description?: string;
         };
-        PainelLista: {
+        UpdateCuratedList: {
+            title?: string;
+            description?: string;
+        };
+        AddCuratedListItem: {
+            /**
+             * Format: uuid
+             * @description Produto do radar
+             */
+            product_id?: string | null;
+            /** @description Link do produto na Shopee */
+            url?: string;
+            /** @description Dica do mentor sobre o produto */
+            comment?: string;
+        };
+        CommentCuratedListItem: {
+            comment: string;
+        };
+        ReorderCuratedList: {
+            product_ids: string[];
+        };
+        ImportCuratedList: {
+            /** @description Produtos a importar; vazio ou ausente importa todos. */
+            product_ids?: string[];
+            /**
+             * @description Também põe os itens numa coleção com o nome da lista.
+             * @default true
+             */
+            collection: boolean;
+        };
+        ListImport: {
+            created: number;
+            already_saved: number;
+            /** Format: uuid */
+            collection_id: string | null;
+            /** @description Situação dos links dos itens novos */
+            link_status: components["schemas"]["LinkStatus"];
+        };
+        ListDashboard: {
             /** @description Afiliados no workspace */
-            afiliados: number;
-            importadores: {
+            affiliates: number;
+            importers: {
                 /** Format: uuid */
-                usuario_id: string;
-                nome: string;
-                produtos: number;
+                user_id: string;
+                name: string;
+                /** Format: int64 */
+                products: number;
                 /** Format: date-time */
-                ultima_em: string;
+                last_imported_at: string;
             }[];
         };
-        Notificacao: {
+        /**
+         * @description `embed`: referência de outro criador (só metadados). `upload`: vídeo próprio.
+         * @enum {string}
+         */
+        VideoKind: "embed" | "upload";
+        /** @enum {string} */
+        VideoPlatform: "youtube" | "tiktok" | "upload";
+        /**
+         * @description `uploading`: upload em andamento. `processing`: na fila do ffmpeg. `failed`: o arquivo não pôde ser lido como vídeo. `unavailable`: o vídeo de referência sumiu da plataforma.
+         * @enum {string}
+         */
+        VideoStatus: "uploading" | "processing" | "ready" | "failed" | "unavailable";
+        Video: {
             /** Format: uuid */
             id: string;
-            /** @description ex.: lista_publicada */
-            tipo: string;
-            titulo: string;
-            corpo: string;
-            /** @description Caminho no app, ex.: /w/{workspaceId}/listas/{listaId} */
+            kind: components["schemas"]["VideoKind"];
+            platform: components["schemas"]["VideoPlatform"];
+            status: components["schemas"]["VideoStatus"];
+            title: string;
+            /** @description Autor no YouTube ou no TikTok (embed) */
+            author: string;
+            /** @description Página do vídeo na plataforma (embed) */
+            url: string | null;
+            /** @description Id do vídeo na plataforma (embed) */
+            embed_id: string | null;
+            /** @description Player oficial da plataforma, para iframe (embed) */
+            player_url: string | null;
+            /** @description Miniatura da plataforma (embed) ou gerada pelo worker (upload pronto, URL assinada) */
+            thumbnail_url: string | null;
+            /** @description Prévia em 720p do upload pronto (URL assinada de 6 horas) */
+            preview_url: string | null;
+            duration_s: number | null;
+            /** @description Da prévia, na orientação de exibição */
+            width: number | null;
+            height: number | null;
+            /** Format: int64 */
+            size_bytes: number;
+            file_name: string | null;
+            /** @description Tipo do arquivo enviado (upload) */
+            content_type: string | null;
+            /** @description Visível para todo o workspace */
+            shared: boolean;
+            /** @description Se quem vê é quem enviou */
+            mine: boolean;
+            /** @description Produtos ligados (só nos vídeos do próprio usuário) */
+            product_ids: string[];
+            /** @description Listas da curadoria em que está anexado (só nos vídeos do próprio usuário) */
+            list_ids: string[];
+            /** Format: date-time */
+            created_at: string;
+        };
+        PasteVideo: {
+            url: string;
+            /**
+             * Format: uuid
+             * @description Liga o vídeo a este produto
+             */
+            product_id?: string | null;
+        };
+        StartUpload: {
+            /** @description Nome do arquivo */
+            file_name: string;
+            /** @enum {string} */
+            content_type: "video/mp4" | "video/quicktime" | "video/webm";
+            /** Format: int64 */
+            size_bytes: number;
+            /** @description Declaração "tenho direito de uso" (precisa ser true) */
+            usage_rights: boolean;
+            /**
+             * Format: uuid
+             * @description Liga o vídeo a este produto
+             */
+            product_id?: string | null;
+        };
+        StartedUpload: {
+            video: components["schemas"]["Video"];
+            /** @description Id do upload multipart no bucket */
+            upload_id: string;
+            /** @description Chave do objeto no bucket */
+            key: string;
+        };
+        UpdateVideo: {
+            title?: string;
+            shared?: boolean;
+        };
+        UploadPart: {
+            number: number;
+            /** @description ETag que o bucket devolveu no PUT da parte */
+            etag: string;
+            /**
+             * Format: int64
+             * @description Só nas respostas; ignorado ao concluir
+             */
+            size?: number;
+        };
+        SignPart: {
+            number: number;
+        };
+        CompleteUpload: {
+            parts: components["schemas"]["UploadPart"][];
+        };
+        SignedURL: {
+            url: string;
+        };
+        VideoQuota: {
+            /** Format: int64 */
+            used_bytes: number;
+            /** Format: int64 */
+            limit_bytes: number;
+        };
+        Notification: {
+            /** Format: uuid */
+            id: string;
+            /** @description ex.: list_published, billing */
+            kind: string;
+            title: string;
+            body: string;
+            /** @description Caminho no app, ex.: /w/{workspaceId}/listas/{listId} */
             url: string;
             /** Format: date-time */
-            criado_em: string;
+            created_at: string;
             /** Format: date-time */
-            lida_em: string | null;
+            read_at: string | null;
         };
-        CaixaNotificacoes: {
-            notificacoes: components["schemas"]["Notificacao"][];
-            nao_lidas: number;
+        Inbox: {
+            notifications: components["schemas"]["Notification"][];
+            /** Format: int64 */
+            unread: number;
         };
-        PreferenciasNotificacao: {
+        NotificationPreferences: {
             /** @description Receber as notificações por e-mail */
             email: boolean;
             /** @description Chave VAPID para o navegador se inscrever; nula sem Web Push no servidor */
-            push_chave_publica: string | null;
-            /** @description Navegadores inscritos no Web Push */
-            inscricoes: number;
+            push_public_key: string | null;
+            /**
+             * Format: int64
+             * @description Navegadores inscritos no Web Push
+             */
+            push_subscriptions: number;
         };
-        InscricaoPush: {
+        SetNotificationPreferences: {
+            email: boolean;
+        };
+        PushSubscription: {
             endpoint: string;
             keys: {
                 p256dh: string;
                 auth: string;
             };
         };
-        Video: {
-            /** Format: uuid */
-            id: string;
-            /**
-             * @description `embed`: referência de outro criador (só metadados). `upload`: vídeo próprio.
-             * @enum {string}
-             */
-            tipo: "embed" | "upload";
+        PushUnsubscribe: {
+            endpoint: string;
+        };
+        Consent: {
+            shares_results: boolean;
+        };
+        ConversionSync: {
             /** @enum {string} */
-            plataforma: "youtube" | "tiktok" | "upload";
-            /**
-             * @description `enviando`: upload em andamento. `processando`: na fila do ffmpeg. `falhou`: o arquivo não pôde ser lido como vídeo. `indisponivel`: o vídeo de referência sumiu da plataforma.
-             * @enum {string}
-             */
-            status: "enviando" | "processando" | "pronto" | "falhou" | "indisponivel";
-            titulo: string;
-            /** @description Autor no YouTube ou no TikTok (embed) */
-            autor: string;
-            /** @description Página do vídeo na plataforma (embed) */
-            url: string | null;
-            /** @description Player oficial da plataforma */
-            player_url: string | null;
-            /** @description Miniatura da plataforma (embed) ou gerada pelo worker (upload pronto, URL assinada) */
-            thumb_url: string | null;
-            /** @description Prévia em 720p do upload pronto (URL assinada de 6 horas) */
-            preview_url: string | null;
-            duracao_s: number | null;
-            /** @description Da prévia */
-            largura: number | null;
-            altura: number | null;
-            /** Format: int64 */
-            tamanho_bytes: number;
-            nome_arquivo: string | null;
-            /** @description Visível para todo o workspace */
-            compartilhado: boolean;
-            /** @description Se quem vê é quem enviou */
-            meu: boolean;
-            /** @description Produtos ligados (só nos vídeos do próprio usuário) */
-            produto_ids: string[];
-            /** @description Listas em que está anexado (só nos vídeos do próprio usuário) */
-            lista_ids: string[];
+            status: "never" | "syncing" | "ok" | "error" | "no_credential";
             /** Format: date-time */
-            criado_em: string;
-        };
-        UploadIniciado: {
-            video: components["schemas"]["Video"];
-            /** @description Id do upload multipart no bucket */
-            upload_id: string;
-            /** @description Chave do objeto no bucket */
-            chave: string;
-        };
-        ParteUpload: {
-            numero: number;
-            /** @description ETag que o bucket devolveu no PUT da parte */
-            etag: string;
-            /** Format: int64 */
-            tamanho?: number;
-        };
-        CotaVideos: {
-            /** Format: int64 */
-            usados_bytes: number;
-            /** Format: int64 */
-            limite_bytes: number;
-        };
-        Sincronizacao: {
-            /** @enum {string} */
-            status: "nunca" | "sincronizando" | "ok" | "erro" | "sem_credencial";
-            /** Format: date-time */
-            pedida_em: string | null;
+            requested_at: string | null;
             /**
              * Format: date-time
              * @description Fim da última sincronização que deu certo.
              */
-            atualizado_em: string | null;
-            /** @description Itens de pedido lidos na última sincronização. */
-            conversoes: number;
-            erro: string | null;
+            finished_at: string | null;
+            /** @description Itens de pedido lidos na última sincronização que deu certo. */
+            conversions: number;
+            /** @description Código do erro da última, quando falhou (ex.: sync_credential_refused, sync_shopee_unavailable). */
+            error_code: string | null;
+            /** @description Texto em português de `error_code`. */
+            error: string | null;
         };
-        Consentimento: {
-            consente: boolean;
-        };
-        Periodo: {
+        Period: {
             /** Format: date */
-            de: string;
+            from: string;
             /** Format: date */
-            ate: string;
+            to: string;
         };
         /** @description Dinheiro em centavos. Pedidos e itens não contam os cancelados. Comissão estimada soma os pedidos não cancelados; validada, os concluídos. */
-        TotaisResultados: {
+        ResultTotals: {
             /** Format: int64 */
-            pedidos: number;
+            orders: number;
             /** Format: int64 */
-            cancelados: number;
+            cancelled: number;
             /** Format: int64 */
-            itens: number;
+            items: number;
             /** Format: int64 */
-            vendas_centavos: number;
+            sales_cents: number;
             /** Format: int64 */
-            comissao_estimada_centavos: number;
+            estimated_commission_cents: number;
             /** Format: int64 */
-            comissao_validada_centavos: number;
+            validated_commission_cents: number;
         };
-        ResultadoDia: {
+        DayResult: {
             /** Format: date */
-            dia: string;
+            day: string;
             /** Format: int64 */
-            pedidos: number;
+            orders: number;
             /** Format: int64 */
-            comissao_estimada_centavos: number;
+            estimated_commission_cents: number;
             /** Format: int64 */
-            comissao_validada_centavos: number;
+            validated_commission_cents: number;
         };
-        ResultadoProduto: {
-            /** Format: int64 */
+        ProductResult: {
+            /**
+             * Format: int64
+             * @description Id do item na Shopee
+             */
             item_id: number;
             /**
              * Format: uuid
              * @description Produto do catálogo, quando o item está nele.
              */
-            produto_id: string | null;
-            nome: string;
-            loja_nome: string;
-            imagem_url: string | null;
+            product_id: string | null;
+            name: string;
+            shop_name: string;
+            image_url: string | null;
             /** Format: int64 */
-            pedidos: number;
+            orders: number;
             /** Format: int64 */
-            itens: number;
+            items: number;
             /** Format: int64 */
-            vendas_centavos: number;
+            sales_cents: number;
             /** Format: int64 */
-            comissao_estimada_centavos: number;
+            estimated_commission_cents: number;
             /** Format: int64 */
-            comissao_validada_centavos: number;
+            validated_commission_cents: number;
         };
-        ResultadoCanal: {
+        ChannelResult: {
             /**
              * @description Vazio quando a venda veio de um link criado fora do app.
              * @enum {string}
              */
-            canal: "instagram" | "tiktok" | "whatsapp" | "outro" | "";
+            channel: "instagram" | "tiktok" | "whatsapp" | "other" | "";
             /** Format: int64 */
-            pedidos: number;
+            orders: number;
             /** Format: int64 */
-            comissao_estimada_centavos: number;
+            estimated_commission_cents: number;
             /** Format: int64 */
-            comissao_validada_centavos: number;
+            validated_commission_cents: number;
         };
-        ResultadoLista: {
+        ListResult: {
             /** Format: uuid */
             id: string;
-            titulo: string;
+            title: string;
             /** Format: date-time */
-            publicada_em: string;
+            published_at: string;
             /** @description Quem da turma importou a lista (consentindo ou não). */
-            importadores: number;
+            importers: number;
             /** Format: int64 */
-            pedidos: number;
+            orders: number;
             /** Format: int64 */
-            vendas_centavos: number;
+            sales_cents: number;
             /** Format: int64 */
-            comissao_estimada_centavos: number;
+            estimated_commission_cents: number;
             /** Format: int64 */
-            comissao_validada_centavos: number;
+            validated_commission_cents: number;
         };
-        MeusResultados: {
-            periodo: components["schemas"]["Periodo"];
-            sincronizacao: components["schemas"]["Sincronizacao"];
+        MyResults: {
+            period: components["schemas"]["Period"];
+            sync: components["schemas"]["ConversionSync"];
             /** @description Só em mentorias. Se o usuário mostra os resultados ao mentor. */
-            consente: boolean | null;
-            totais: components["schemas"]["TotaisResultados"];
-            por_dia: components["schemas"]["ResultadoDia"][];
-            por_produto: components["schemas"]["ResultadoProduto"][];
-            por_canal: components["schemas"]["ResultadoCanal"][];
+            shares_results: boolean | null;
+            totals: components["schemas"]["ResultTotals"];
+            by_day: components["schemas"]["DayResult"][];
+            by_product: components["schemas"]["ProductResult"][];
+            by_channel: components["schemas"]["ChannelResult"][];
         };
-        ResultadosTurma: {
-            periodo: components["schemas"]["Periodo"];
+        GroupResults: {
+            period: components["schemas"]["Period"];
             /** @description Afiliados do workspace. */
-            afiliados: number;
+            affiliates: number;
             /** @description Membros que autorizam ver os resultados. */
-            consentem: number;
+            sharing: number;
             /**
              * Format: int64
-             * @description Dos que autorizam
+             * @description Dos que autorizam, quantos venderam no período.
              */
-            ativos: number;
-            totais: components["schemas"]["TotaisResultados"];
-            por_dia: components["schemas"]["ResultadoDia"][];
-            por_lista: components["schemas"]["ResultadoLista"][];
-            por_produto: components["schemas"]["ResultadoProduto"][];
+            active: number;
+            totals: components["schemas"]["ResultTotals"];
+            by_day: components["schemas"]["DayResult"][];
+            by_list: components["schemas"]["ListResult"][];
+            by_product: components["schemas"]["ProductResult"][];
         };
-        Prontidao: {
-            [key: string]: "ok" | "failed";
+        /** @enum {string} */
+        SubscriptionStatus: "none" | "pending" | "active" | "overdue" | "cancelled";
+        Subscription: {
+            plan: components["schemas"]["Plan"];
+            access_status: components["schemas"]["AccessStatus"];
+            /**
+             * Format: date-time
+             * @description Até quando o workspace pode ser usado (fim do teste ou do ciclo pago, mais a tolerância).
+             */
+            access_until: string;
+            status: components["schemas"]["SubscriptionStatus"];
+            /** @description Gateway de cobrança (ex.: asaas); vazio sem assinatura. */
+            provider: string;
+            /**
+             * Format: int64
+             * @description Preço mensal do plano: do workspace no solo, de cada assento na mentoria.
+             */
+            price_cents: number;
+            /**
+             * Format: int64
+             * @description Assentos contratados (0 sem assinatura).
+             */
+            seats: number;
+            /**
+             * Format: int64
+             * @description Afiliados mais convites pendentes.
+             */
+            seats_in_use: number;
+            /**
+             * Format: int64
+             * @description Teto do plano.
+             */
+            max_seats: number;
+            /**
+             * Format: int64
+             * @description Total mensal da assinatura (0 sem assinatura).
+             */
+            amount_cents: number;
+            /**
+             * Format: date
+             * @description Vencimento da cobrança em aberto (ou da próxima), AAAA-MM-DD.
+             */
+            next_due_date: string | null;
+            /** @description Fatura em aberto no gateway (PIX, boleto ou cartão). */
+            payment_url: string | null;
+            /** @description Ambiente local com cobrança em modo mock: a tela pode oferecer simular o pagamento. */
+            simulated: boolean;
+        };
+        NewSubscription: {
+            /**
+             * Format: int64
+             * @description Assentos da mentoria. Ignorado no plano solo.
+             */
+            seats?: number;
+            /** @description CPF ou CNPJ de quem paga, com ou sem pontuação, exigido pelo gateway. */
+            tax_id: string;
+        };
+        ChangeSeats: {
+            /** Format: int64 */
+            seats: number;
         };
     };
     responses: {
-        /** @description Sem token ou token inválido (`nao_autenticado`) */
-        NaoAutenticado: {
+        /** @description Sem token ou token inválido (`unauthenticated`) */
+        Unauthenticated: {
             headers: {
+                "WWW-Authenticate"?: "Bearer";
                 [name: string]: unknown;
             };
             content: {
-                "application/json": components["schemas"]["Erro"];
+                "application/json": components["schemas"]["Error"];
             };
         };
-        /** @description Erro com código e mensagem para o usuário */
-        Erro: {
+        /** @description Corpo que não é JSON, com campo desconhecido ou grande demais (`invalid_json`) */
+        InvalidJSON: {
             headers: {
                 [name: string]: unknown;
             };
             content: {
-                "application/json": components["schemas"]["Erro"];
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description Parâmetro de consulta malformado (`invalid_request`) */
+        InvalidRequest: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description `workspace_not_found`: o workspace não existe ou o usuário não é membro dele */
+        WorkspaceNotFound: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description Workspace suspenso por falta de pagamento: `workspace_suspended_owner` para o dono, `workspace_suspended` para os demais */
+        WorkspaceSuspended: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description `item_not_found` ou `workspace_not_found` */
+        ItemNotFound: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description `video_not_found` ou `workspace_not_found` */
+        VideoNotFound: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description `list_not_found` (também um rascunho visto por afiliado) ou `workspace_not_found` */
+        ListNotFound: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description `list_item_not_found`, `list_not_found` ou `workspace_not_found` */
+        ListItemNotFound: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description `list_managers_only`: só dono e mentores montam listas */
+        ListManagersOnly: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description `lists_mentorship_only`: listas só existem em workspaces de mentoria */
+        ListsMentorshipOnly: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description `invalid_period`: datas malformadas, `from` depois de `to` ou mais de 366 dias */
+        InvalidPeriod: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description `internal_error` */
+        InternalError: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
             };
         };
     };
     parameters: {
         WorkspaceId: string;
         ItemId: string;
-        ListaId: string;
+        ProductId: string;
         VideoId: string;
-        TokenConvite: string;
-        /** @description Primeiro dia (AAAA-MM-DD, fuso de Brasília). Padrão, 29 dias antes de `ate`. */
-        De: string;
+        ListId: string;
+        /** @description Primeiro dia (AAAA-MM-DD, fuso de Brasília). Padrão, 29 dias antes de `to`. */
+        From: string;
         /** @description Último dia, inclusive (AAAA-MM-DD). Padrão, hoje. O período tem até 366 dias. */
-        Ate: string;
+        To: string;
+        InviteToken: string;
+        Page: number;
     };
     requestBodies: never;
     headers: never;
@@ -1995,7 +2298,7 @@ export interface operations {
                 content: {
                     "application/json": {
                         /** @constant */
-                        status?: "ok";
+                        status: "ok";
                     };
                 };
             };
@@ -2016,7 +2319,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Prontidao"];
+                    "application/json": components["schemas"]["Readiness"];
                 };
             };
             /** @description Alguma dependência falhou */
@@ -2025,7 +2328,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Prontidao"];
+                    "application/json": components["schemas"]["Readiness"];
                 };
             };
         };
@@ -2052,14 +2355,14 @@ export interface operations {
                     "application/json": components["schemas"]["AuthSession"];
                 };
             };
-            400: components["responses"]["Erro"];
+            400: components["responses"]["InvalidJSON"];
             /** @description `email_taken` */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
             /** @description `invalid_email`, `invalid_name` ou `weak_password` */
@@ -2068,10 +2371,18 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
-            429: components["responses"]["Erro"];
+            /** @description `too_many_attempts` */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
     authLogin: {
@@ -2096,23 +2407,23 @@ export interface operations {
                     "application/json": components["schemas"]["AuthSession"];
                 };
             };
-            400: components["responses"]["Erro"];
+            400: components["responses"]["InvalidJSON"];
             /** @description `invalid_credentials` */
             401: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description `too_many_attempts` */
+            /** @description `too_many_attempts` (por e-mail e por IP) */
             429: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
         };
@@ -2133,7 +2444,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            401: components["responses"]["NaoAutenticado"];
+            401: components["responses"]["Unauthenticated"];
         };
     };
     authVerifyEmail: {
@@ -2156,14 +2467,14 @@ export interface operations {
                 };
                 content?: never;
             };
-            400: components["responses"]["Erro"];
+            400: components["responses"]["InvalidJSON"];
             /** @description `invalid_auth_token`: o link expirou ou já foi usado */
             410: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
         };
@@ -2177,15 +2488,23 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Link enviado */
+            /** @description Link enviado, ou e-mail já confirmado */
             204: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            401: components["responses"]["NaoAutenticado"];
-            429: components["responses"]["Erro"];
+            401: components["responses"]["Unauthenticated"];
+            /** @description `too_many_attempts` */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
     authForgotPassword: {
@@ -2197,10 +2516,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    /** Format: email */
-                    email: string;
-                };
+                "application/json": components["schemas"]["AuthForgotPassword"];
             };
         };
         responses: {
@@ -2211,8 +2527,16 @@ export interface operations {
                 };
                 content?: never;
             };
-            400: components["responses"]["Erro"];
-            429: components["responses"]["Erro"];
+            400: components["responses"]["InvalidJSON"];
+            /** @description `too_many_attempts` */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
     authResetPassword: {
@@ -2224,10 +2548,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    token: string;
-                    password: string;
-                };
+                "application/json": components["schemas"]["AuthResetPassword"];
             };
         };
         responses: {
@@ -2238,14 +2559,14 @@ export interface operations {
                 };
                 content?: never;
             };
-            400: components["responses"]["Erro"];
+            400: components["responses"]["InvalidJSON"];
             /** @description `invalid_auth_token` */
             410: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
             /** @description `weak_password` */
@@ -2254,12 +2575,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
         };
     };
-    eu: {
+    getMe: {
         parameters: {
             query?: never;
             header?: never;
@@ -2274,13 +2595,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Usuario"];
+                    "application/json": components["schemas"]["User"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
+            401: components["responses"]["Unauthenticated"];
         };
     };
-    listarWorkspaces: {
+    listWorkspaces: {
         parameters: {
             query?: never;
             header?: never;
@@ -2298,10 +2619,10 @@ export interface operations {
                     "application/json": components["schemas"]["Workspace"][];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
+            401: components["responses"]["Unauthenticated"];
         };
     };
-    criarMentoria: {
+    createMentorship: {
         parameters: {
             query?: never;
             header?: never;
@@ -2310,14 +2631,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    nome: string;
-                    /**
-                     * Format: uri
-                     * @description URL https
-                     */
-                    foto_url?: string | null;
-                };
+                "application/json": components["schemas"]["CreateMentorship"];
             };
         };
         responses: {
@@ -2330,11 +2644,20 @@ export interface operations {
                     "application/json": components["schemas"]["Workspace"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            422: components["responses"]["Erro"];
+            400: components["responses"]["InvalidJSON"];
+            401: components["responses"]["Unauthenticated"];
+            /** @description `invalid_workspace_name` ou `invalid_photo_url` */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
-    verWorkspace: {
+    getWorkspace: {
         parameters: {
             query?: never;
             header?: never;
@@ -2354,11 +2677,11 @@ export interface operations {
                     "application/json": components["schemas"]["Workspace"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            404: components["responses"]["Erro"];
+            401: components["responses"]["Unauthenticated"];
+            404: components["responses"]["WorkspaceNotFound"];
         };
     };
-    atualizarWorkspace: {
+    updateWorkspace: {
         parameters: {
             query?: never;
             header?: never;
@@ -2369,11 +2692,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    nome?: string;
-                    /** @description URL https. String vazia remove a foto. */
-                    foto_url?: string;
-                };
+                "application/json": components["schemas"]["UpdateWorkspace"];
             };
         };
         responses: {
@@ -2386,13 +2705,31 @@ export interface operations {
                     "application/json": components["schemas"]["Workspace"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            403: components["responses"]["Erro"];
-            404: components["responses"]["Erro"];
-            422: components["responses"]["Erro"];
+            400: components["responses"]["InvalidJSON"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            /** @description `forbidden` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            404: components["responses"]["WorkspaceNotFound"];
+            /** @description `invalid_workspace_name` ou `invalid_photo_url` */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
-    listarMembros: {
+    listMembers: {
         parameters: {
             query?: never;
             header?: never;
@@ -2409,21 +2746,30 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Membro"][];
+                    "application/json": components["schemas"]["Member"][];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            403: components["responses"]["Erro"];
-            404: components["responses"]["Erro"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            /** @description `forbidden` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            404: components["responses"]["WorkspaceNotFound"];
         };
     };
-    removerMembro: {
+    removeMember: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 workspaceId: components["parameters"]["WorkspaceId"];
-                usuarioId: string;
+                userId: string;
             };
             cookie?: never;
         };
@@ -2436,13 +2782,37 @@ export interface operations {
                 };
                 content?: never;
             };
-            401: components["responses"]["NaoAutenticado"];
-            403: components["responses"]["Erro"];
-            404: components["responses"]["Erro"];
-            409: components["responses"]["Erro"];
+            401: components["responses"]["Unauthenticated"];
+            /** @description `forbidden` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `member_not_found` ou `workspace_not_found` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `owner_cannot_leave` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
-    listarConvites: {
+    listInvites: {
         parameters: {
             query?: never;
             header?: never;
@@ -2459,15 +2829,24 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Convite"][];
+                    "application/json": components["schemas"]["Invite"][];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            403: components["responses"]["Erro"];
-            404: components["responses"]["Erro"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            /** @description `forbidden` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            404: components["responses"]["WorkspaceNotFound"];
         };
     };
-    criarConvite: {
+    createInvite: {
         parameters: {
             query?: never;
             header?: never;
@@ -2478,12 +2857,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    /** Format: email */
-                    email?: string | null;
-                    /** @default 168 */
-                    validade_horas?: number;
-                };
+                "application/json": components["schemas"]["CreateInvite"];
             };
         };
         responses: {
@@ -2493,31 +2867,49 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ConviteCriado"];
+                    "application/json": components["schemas"]["CreatedInvite"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            403: components["responses"]["Erro"];
-            404: components["responses"]["Erro"];
-            /** @description `so_mentoria` ou `sem_assentos` */
+            400: components["responses"]["InvalidJSON"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            /** @description `forbidden` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            404: components["responses"]["WorkspaceNotFound"];
+            /** @description `mentorship_only` ou `no_seats` */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
-            422: components["responses"]["Erro"];
+            /** @description `invalid_invite_email` ou `invalid_invite_validity` */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
-    revogarConvite: {
+    revokeInvite: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 workspaceId: components["parameters"]["WorkspaceId"];
-                conviteId: string;
+                inviteId: string;
             };
             cookie?: never;
         };
@@ -2530,17 +2922,34 @@ export interface operations {
                 };
                 content?: never;
             };
-            401: components["responses"]["NaoAutenticado"];
-            403: components["responses"]["Erro"];
-            404: components["responses"]["Erro"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            /** @description `forbidden` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `invite_not_found` ou `workspace_not_found` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
-    verConvite: {
+    viewInvite: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                token: components["parameters"]["TokenConvite"];
+                token: components["parameters"]["InviteToken"];
             };
             cookie?: never;
         };
@@ -2552,18 +2961,26 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ConvitePublico"];
+                    "application/json": components["schemas"]["PublicInvite"];
                 };
             };
-            404: components["responses"]["Erro"];
+            /** @description `invite_not_found` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
-    aceitarConvite: {
+    acceptInvite: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                token: components["parameters"]["TokenConvite"];
+                token: components["parameters"]["InviteToken"];
             };
             cookie?: never;
         };
@@ -2578,38 +2995,46 @@ export interface operations {
                     "application/json": components["schemas"]["Workspace"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            /** @description `convite_outro_email` */
+            401: components["responses"]["Unauthenticated"];
+            /** @description `invite_other_email` */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
-            404: components["responses"]["Erro"];
-            /** @description `ja_membro` ou `sem_assentos` */
+            /** @description `invite_not_found` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `already_member` ou `no_seats` */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description `convite_expirado`, `convite_usado` ou `convite_revogado` */
+            /** @description `invite_expired`, `invite_used` ou `invite_revoked` */
             410: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
         };
     };
-    verConexaoShopee: {
+    getShopeeConnection: {
         parameters: {
             query?: never;
             header?: never;
@@ -2624,13 +3049,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ConexaoShopee"];
+                    "application/json": components["schemas"]["ShopeeConnection"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
+            401: components["responses"]["Unauthenticated"];
         };
     };
-    conectarShopee: {
+    connectShopee: {
         parameters: {
             query?: never;
             header?: never;
@@ -2639,10 +3064,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    app_id: string;
-                    secret: string;
-                };
+                "application/json": components["schemas"]["ConnectShopee"];
             };
         };
         responses: {
@@ -2652,40 +3074,41 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ConexaoShopee"];
+                    "application/json": components["schemas"]["ShopeeConnection"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            /** @description `dados_invalidos` ou `credencial_invalida` (a Shopee recusou o AppID ou o Secret) */
+            400: components["responses"]["InvalidJSON"];
+            401: components["responses"]["Unauthenticated"];
+            /** @description `invalid_app_id`, `invalid_secret`, `invalid_shopee_credential` (a Shopee recusou o AppID ou o Secret) ou `shopee_access_denied` (a conta não tem acesso à Open API) */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description `shopee_limite` (a Shopee limitou as chamadas; tente de novo em instantes) */
+            /** @description `shopee_rate_limited` (a Shopee limitou as chamadas; tente de novo em instantes) */
             429: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description `shopee_indisponivel` */
+            /** @description `shopee_unavailable` */
             502: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
         };
     };
-    desconectarShopee: {
+    disconnectShopee: {
         parameters: {
             query?: never;
             header?: never;
@@ -2701,25 +3124,26 @@ export interface operations {
                 };
                 content?: never;
             };
-            401: components["responses"]["NaoAutenticado"];
+            401: components["responses"]["Unauthenticated"];
         };
     };
-    radar: {
+    getRadar: {
         parameters: {
             query?: {
-                categoria?: number;
+                /** @description Categoria de nível 1 */
+                category?: number;
                 /** @description Centavos */
-                preco_min?: number;
+                min_price?: number;
                 /** @description Centavos */
-                preco_max?: number;
+                max_price?: number;
                 /** @description Basis points */
-                comissao_min?: number;
-                nota_min?: number;
+                min_commission?: number;
+                min_rating?: number;
                 /** @description Busca no nome do produto e da loja */
                 q?: string;
-                ordem?: "tendencia" | "comissao" | "ganho" | "vendas";
-                pagina?: number;
-                por_pagina?: number;
+                sort?: components["schemas"]["RadarSort"];
+                page?: components["parameters"]["Page"];
+                per_page?: number;
             };
             header?: never;
             path: {
@@ -2735,15 +3159,25 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RadarPagina"];
+                    "application/json": components["schemas"]["RadarPage"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            404: components["responses"]["Erro"];
-            422: components["responses"]["Erro"];
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            404: components["responses"]["WorkspaceNotFound"];
+            /** @description `invalid_page`, `invalid_per_page`, `negative_price`, `invalid_min_commission`, `invalid_min_rating`, `invalid_sort` ou `query_too_long` */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
-    radarCategorias: {
+    getRadarCategories: {
         parameters: {
             query?: never;
             header?: never;
@@ -2760,23 +3194,24 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Categoria"][];
+                    "application/json": components["schemas"]["RadarCategory"][];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            404: components["responses"]["Erro"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            404: components["responses"]["WorkspaceNotFound"];
         };
     };
-    radarProduto: {
+    getRadarProduct: {
         parameters: {
             query?: {
                 /** @description Janela do histórico */
-                dias?: number;
+                days?: number;
             };
             header?: never;
             path: {
                 workspaceId: components["parameters"]["WorkspaceId"];
-                produtoId: string;
+                productId: components["parameters"]["ProductId"];
             };
             cookie?: never;
         };
@@ -2788,24 +3223,43 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RadarDetalhe"];
+                    "application/json": components["schemas"]["ProductDetail"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            404: components["responses"]["Erro"];
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            /** @description `product_not_found` ou `workspace_not_found` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `invalid_history_days` */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
-    listarItens: {
+    listItems: {
         parameters: {
             query?: {
                 /** @description Busca no título próprio e no nome do produto */
                 q?: string;
-                status?: components["schemas"]["StatusItem"];
+                status?: components["schemas"]["ItemStatus"];
                 /** @description Só os itens desta coleção */
-                colecao?: string;
+                collection?: string;
                 tag?: string;
-                pagina?: number;
-                por_pagina?: number;
+                page?: components["parameters"]["Page"];
+                per_page?: number;
             };
             header?: never;
             path: {
@@ -2821,15 +3275,25 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ItensPagina"];
+                    "application/json": components["schemas"]["ItemPage"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            404: components["responses"]["Erro"];
-            422: components["responses"]["Erro"];
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            404: components["responses"]["WorkspaceNotFound"];
+            /** @description `invalid_item_page`, `query_too_long` ou `invalid_item_status` */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
-    salvarItem: {
+    saveItem: {
         parameters: {
             query?: never;
             header?: never;
@@ -2840,12 +3304,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    /** Format: uuid */
-                    produto_id?: string;
-                    /** @description Link do produto na Shopee, ex.: https://shopee.com.br/Nome-i.123.456 */
-                    url?: string;
-                };
+                "application/json": components["schemas"]["SaveItem"];
             };
         };
         responses: {
@@ -2867,55 +3326,57 @@ export interface operations {
                     "application/json": components["schemas"]["Item"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            /** @description `produto_nao_encontrado` (nem no catálogo nem na Shopee) ou `workspace_nao_encontrado` */
+            400: components["responses"]["InvalidJSON"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            /** @description `product_not_found` (nem no catálogo nem na Shopee) ou `workspace_not_found` */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description `dados_invalidos`, `link_invalido` ou `link_curto` */
+            /** @description `product_or_link_required`, `invalid_product_link` ou `short_link` */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description `shopee_limite` */
+            /** @description `link_rate_limited` (a Shopee limitou as chamadas) */
             429: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description `shopee_indisponivel` */
+            /** @description `product_lookup_failed` */
             502: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description `importacao_indisponivel` (o servidor não tem a credencial do app para buscar produtos fora do catálogo) */
+            /** @description `import_unavailable` (o servidor não tem a credencial do app para buscar produtos fora do catálogo) */
             503: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
         };
     };
-    produtosSalvos: {
+    listSavedProducts: {
         parameters: {
             query?: never;
             header?: never;
@@ -2926,7 +3387,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description produto_id de cada item salvo */
+            /** @description product_id de cada item salvo */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2935,11 +3396,12 @@ export interface operations {
                     "application/json": string[];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            404: components["responses"]["Erro"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            404: components["responses"]["WorkspaceNotFound"];
         };
     };
-    gerarLinksPendentes: {
+    generatePendingLinks: {
         parameters: {
             query?: never;
             header?: never;
@@ -2956,25 +3418,24 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        enfileirados: number;
-                    };
+                    "application/json": components["schemas"]["PendingLinks"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            404: components["responses"]["Erro"];
-            /** @description `sem_credencial` (conecte a conta da Shopee antes) */
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            404: components["responses"]["WorkspaceNotFound"];
+            /** @description `no_credential` (conecte a conta da Shopee antes) */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
         };
     };
-    verItem: {
+    getItem: {
         parameters: {
             query?: never;
             header?: never;
@@ -2995,11 +3456,12 @@ export interface operations {
                     "application/json": components["schemas"]["Item"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            404: components["responses"]["Erro"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            404: components["responses"]["ItemNotFound"];
         };
     };
-    removerItem: {
+    removeItem: {
         parameters: {
             query?: never;
             header?: never;
@@ -3018,11 +3480,12 @@ export interface operations {
                 };
                 content?: never;
             };
-            401: components["responses"]["NaoAutenticado"];
-            404: components["responses"]["Erro"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            404: components["responses"]["ItemNotFound"];
         };
     };
-    atualizarItem: {
+    updateItem: {
         parameters: {
             query?: never;
             header?: never;
@@ -3034,15 +3497,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    titulo?: string;
-                    descricao?: string;
-                    notas?: string;
-                    tags?: string[];
-                    status?: components["schemas"]["StatusItem"];
-                    /** @description URL https */
-                    link_afiliado?: string | null;
-                };
+                "application/json": components["schemas"]["UpdateItem"];
             };
         };
         responses: {
@@ -3055,12 +3510,22 @@ export interface operations {
                     "application/json": components["schemas"]["Item"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            404: components["responses"]["Erro"];
-            422: components["responses"]["Erro"];
+            400: components["responses"]["InvalidJSON"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            404: components["responses"]["ItemNotFound"];
+            /** @description `invalid_item_title`, `invalid_item_description`, `invalid_item_notes`, `invalid_tag`, `too_many_tags`, `invalid_item_status` ou `invalid_affiliate_link` */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
-    gerarLinkItem: {
+    generateItemLink: {
         parameters: {
             query?: never;
             header?: never;
@@ -3072,7 +3537,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Item com `link_status` = `gerando`, ou `pendente` sem credencial */
+            /** @description Item com `link_status` = `generating`, ou `pending` sem credencial */
             202: {
                 headers: {
                     [name: string]: unknown;
@@ -3081,11 +3546,12 @@ export interface operations {
                     "application/json": components["schemas"]["Item"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            404: components["responses"]["Erro"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            404: components["responses"]["ItemNotFound"];
         };
     };
-    definirColecoesItem: {
+    setItemCollections: {
         parameters: {
             query?: never;
             header?: never;
@@ -3097,9 +3563,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    colecao_ids: string[];
-                };
+                "application/json": components["schemas"]["SetItemCollections"];
             };
         };
         responses: {
@@ -3112,19 +3576,30 @@ export interface operations {
                     "application/json": components["schemas"]["Item"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            /** @description `item_nao_encontrado` ou `colecao_nao_encontrada` */
+            400: components["responses"]["InvalidJSON"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            /** @description `item_not_found`, `collection_not_found` ou `workspace_not_found` */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `too_many_item_collections` */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
                 };
             };
         };
     };
-    listarColecoes: {
+    listCollections: {
         parameters: {
             query?: never;
             header?: never;
@@ -3141,14 +3616,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Colecao"][];
+                    "application/json": components["schemas"]["Collection"][];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            404: components["responses"]["Erro"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            404: components["responses"]["WorkspaceNotFound"];
         };
     };
-    criarColecao: {
+    createCollection: {
         parameters: {
             query?: never;
             header?: never;
@@ -3159,9 +3635,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    nome: string;
-                };
+                "application/json": components["schemas"]["CollectionName"];
             };
         };
         responses: {
@@ -3171,30 +3645,40 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Colecao"];
+                    "application/json": components["schemas"]["Collection"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            404: components["responses"]["Erro"];
-            /** @description `colecao_existente` */
+            400: components["responses"]["InvalidJSON"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            404: components["responses"]["WorkspaceNotFound"];
+            /** @description `collection_exists` */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
-            422: components["responses"]["Erro"];
+            /** @description `invalid_collection_name` */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
-    apagarColecao: {
+    deleteCollection: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 workspaceId: components["parameters"]["WorkspaceId"];
-                colecaoId: string;
+                collectionId: string;
             };
             cookie?: never;
         };
@@ -3207,25 +3691,32 @@ export interface operations {
                 };
                 content?: never;
             };
-            401: components["responses"]["NaoAutenticado"];
-            404: components["responses"]["Erro"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            /** @description `collection_not_found` ou `workspace_not_found` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
-    renomearColecao: {
+    renameCollection: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 workspaceId: components["parameters"]["WorkspaceId"];
-                colecaoId: string;
+                collectionId: string;
             };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": {
-                    nome: string;
-                };
+                "application/json": components["schemas"]["CollectionName"];
             };
         };
         responses: {
@@ -3235,24 +3726,42 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Colecao"];
+                    "application/json": components["schemas"]["Collection"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            404: components["responses"]["Erro"];
-            /** @description `colecao_existente` */
+            400: components["responses"]["InvalidJSON"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            /** @description `collection_not_found` ou `workspace_not_found` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `collection_exists` */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
-            422: components["responses"]["Erro"];
+            /** @description `invalid_collection_name` */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
-    listarListas: {
+    listCuratedLists: {
         parameters: {
             query?: never;
             header?: never;
@@ -3269,14 +3778,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Lista"][];
+                    "application/json": components["schemas"]["CuratedList"][];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            404: components["responses"]["Erro"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            404: components["responses"]["WorkspaceNotFound"];
         };
     };
-    criarLista: {
+    createCuratedList: {
         parameters: {
             query?: never;
             header?: never;
@@ -3287,10 +3797,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    titulo: string;
-                    descricao?: string;
-                };
+                "application/json": components["schemas"]["CreateCuratedList"];
             };
         };
         responses: {
@@ -3300,31 +3807,41 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ListaDetalhe"];
+                    "application/json": components["schemas"]["CuratedListDetail"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            403: components["responses"]["Erro"];
-            404: components["responses"]["Erro"];
-            /** @description `so_mentoria` ou `limite_listas` */
+            400: components["responses"]["InvalidJSON"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            403: components["responses"]["ListManagersOnly"];
+            404: components["responses"]["WorkspaceNotFound"];
+            /** @description `lists_mentorship_only` ou `list_limit` */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
-            422: components["responses"]["Erro"];
+            /** @description `invalid_list_title` ou `invalid_list_description` */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
-    verLista: {
+    getCuratedList: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 workspaceId: components["parameters"]["WorkspaceId"];
-                listaId: components["parameters"]["ListaId"];
+                listId: components["parameters"]["ListId"];
             };
             cookie?: never;
         };
@@ -3336,20 +3853,21 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ListaDetalhe"];
+                    "application/json": components["schemas"]["CuratedListDetail"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            404: components["responses"]["Erro"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            404: components["responses"]["ListNotFound"];
         };
     };
-    apagarLista: {
+    deleteCuratedList: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 workspaceId: components["parameters"]["WorkspaceId"];
-                listaId: components["parameters"]["ListaId"];
+                listId: components["parameters"]["ListId"];
             };
             cookie?: never;
         };
@@ -3362,27 +3880,26 @@ export interface operations {
                 };
                 content?: never;
             };
-            401: components["responses"]["NaoAutenticado"];
-            403: components["responses"]["Erro"];
-            404: components["responses"]["Erro"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            403: components["responses"]["ListManagersOnly"];
+            404: components["responses"]["ListNotFound"];
+            409: components["responses"]["ListsMentorshipOnly"];
         };
     };
-    editarLista: {
+    updateCuratedList: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 workspaceId: components["parameters"]["WorkspaceId"];
-                listaId: components["parameters"]["ListaId"];
+                listId: components["parameters"]["ListId"];
             };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": {
-                    titulo?: string;
-                    descricao?: string;
-                };
+                "application/json": components["schemas"]["UpdateCuratedList"];
             };
         };
         responses: {
@@ -3392,34 +3909,39 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ListaDetalhe"];
+                    "application/json": components["schemas"]["CuratedListDetail"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            403: components["responses"]["Erro"];
-            404: components["responses"]["Erro"];
-            422: components["responses"]["Erro"];
+            400: components["responses"]["InvalidJSON"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            403: components["responses"]["ListManagersOnly"];
+            404: components["responses"]["ListNotFound"];
+            409: components["responses"]["ListsMentorshipOnly"];
+            /** @description `invalid_list_title` ou `invalid_list_description` */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
-    adicionarProdutoLista: {
+    addCuratedListItem: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 workspaceId: components["parameters"]["WorkspaceId"];
-                listaId: components["parameters"]["ListaId"];
+                listId: components["parameters"]["ListId"];
             };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": {
-                    /** Format: uuid */
-                    produto_id?: string;
-                    url?: string;
-                    /** @description Dica do mentor sobre o produto */
-                    comentario?: string;
-                };
+                "application/json": components["schemas"]["AddCuratedListItem"];
             };
         };
         responses: {
@@ -3429,51 +3951,77 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ListaDetalhe"];
+                    "application/json": components["schemas"]["CuratedListDetail"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            403: components["responses"]["Erro"];
-            /** @description `lista_nao_encontrada` ou `produto_nao_encontrado` */
+            400: components["responses"]["InvalidJSON"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            403: components["responses"]["ListManagersOnly"];
+            /** @description `list_not_found`, `product_not_found` ou `workspace_not_found` */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description `ja_na_lista` ou `lista_cheia` */
+            /** @description `lists_mentorship_only`, `already_in_list` ou `list_full` */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description `dados_invalidos`, `link_invalido` ou `link_curto` */
+            /** @description `invalid_list_comment`, `product_or_link_required`, `invalid_product_link` ou `short_link` */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
-            429: components["responses"]["Erro"];
-            502: components["responses"]["Erro"];
-            503: components["responses"]["Erro"];
+            /** @description `link_rate_limited` */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `product_lookup_failed` */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `import_unavailable` */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
-    removerProdutoLista: {
+    removeCuratedListItem: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 workspaceId: components["parameters"]["WorkspaceId"];
-                listaId: components["parameters"]["ListaId"];
-                produtoId: string;
+                listId: components["parameters"]["ListId"];
+                productId: components["parameters"]["ProductId"];
             };
             cookie?: never;
         };
@@ -3485,30 +4033,30 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ListaDetalhe"];
+                    "application/json": components["schemas"]["CuratedListDetail"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            403: components["responses"]["Erro"];
-            404: components["responses"]["Erro"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            403: components["responses"]["ListManagersOnly"];
+            404: components["responses"]["ListItemNotFound"];
+            409: components["responses"]["ListsMentorshipOnly"];
         };
     };
-    comentarProdutoLista: {
+    commentCuratedListItem: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 workspaceId: components["parameters"]["WorkspaceId"];
-                listaId: components["parameters"]["ListaId"];
-                produtoId: string;
+                listId: components["parameters"]["ListId"];
+                productId: components["parameters"]["ProductId"];
             };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": {
-                    comentario: string;
-                };
+                "application/json": components["schemas"]["CommentCuratedListItem"];
             };
         };
         responses: {
@@ -3518,30 +4066,39 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ListaDetalhe"];
+                    "application/json": components["schemas"]["CuratedListDetail"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            403: components["responses"]["Erro"];
-            404: components["responses"]["Erro"];
-            422: components["responses"]["Erro"];
+            400: components["responses"]["InvalidJSON"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            403: components["responses"]["ListManagersOnly"];
+            404: components["responses"]["ListItemNotFound"];
+            409: components["responses"]["ListsMentorshipOnly"];
+            /** @description `list_comment_required` ou `invalid_list_comment` */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
-    ordenarLista: {
+    reorderCuratedList: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 workspaceId: components["parameters"]["WorkspaceId"];
-                listaId: components["parameters"]["ListaId"];
+                listId: components["parameters"]["ListId"];
             };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": {
-                    produto_ids: string[];
-                };
+                "application/json": components["schemas"]["ReorderCuratedList"];
             };
         };
         responses: {
@@ -3551,22 +4108,33 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ListaDetalhe"];
+                    "application/json": components["schemas"]["CuratedListDetail"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            403: components["responses"]["Erro"];
-            404: components["responses"]["Erro"];
-            422: components["responses"]["Erro"];
+            400: components["responses"]["InvalidJSON"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            403: components["responses"]["ListManagersOnly"];
+            404: components["responses"]["ListNotFound"];
+            409: components["responses"]["ListsMentorshipOnly"];
+            /** @description `invalid_list_order` */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
-    publicarLista: {
+    publishCuratedList: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 workspaceId: components["parameters"]["WorkspaceId"];
-                listaId: components["parameters"]["ListaId"];
+                listId: components["parameters"]["ListId"];
             };
             cookie?: never;
         };
@@ -3578,40 +4146,37 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ListaDetalhe"];
+                    "application/json": components["schemas"]["CuratedListDetail"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            403: components["responses"]["Erro"];
-            404: components["responses"]["Erro"];
-            /** @description `lista_vazia` */
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            403: components["responses"]["ListManagersOnly"];
+            404: components["responses"]["ListNotFound"];
+            /** @description `lists_mentorship_only` ou `list_empty` */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
         };
     };
-    importarLista: {
+    importCuratedList: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 workspaceId: components["parameters"]["WorkspaceId"];
-                listaId: components["parameters"]["ListaId"];
+                listId: components["parameters"]["ListId"];
             };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": {
-                    produto_ids?: string[];
-                    /** @default true */
-                    colecao?: boolean;
-                };
+                "application/json": components["schemas"]["ImportCuratedList"];
             };
         };
         responses: {
@@ -3621,30 +4186,40 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ResultadoImportacao"];
+                    "application/json": components["schemas"]["ListImport"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            404: components["responses"]["Erro"];
-            /** @description `lista_nao_publicada` ou `lista_vazia` */
+            400: components["responses"]["InvalidJSON"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            404: components["responses"]["ListNotFound"];
+            /** @description `list_not_published` ou `list_empty` */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
-            422: components["responses"]["Erro"];
+            /** @description `product_not_in_list` */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
-    painelLista: {
+    getCuratedListDashboard: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 workspaceId: components["parameters"]["WorkspaceId"];
-                listaId: components["parameters"]["ListaId"];
+                listId: components["parameters"]["ListId"];
             };
             cookie?: never;
         };
@@ -3656,21 +4231,23 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PainelLista"];
+                    "application/json": components["schemas"]["ListDashboard"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            403: components["responses"]["Erro"];
-            404: components["responses"]["Erro"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            403: components["responses"]["ListManagersOnly"];
+            404: components["responses"]["ListNotFound"];
+            409: components["responses"]["ListsMentorshipOnly"];
         };
     };
-    anexarVideoLista: {
+    attachCuratedListVideo: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 workspaceId: components["parameters"]["WorkspaceId"];
-                listaId: components["parameters"]["ListaId"];
+                listId: components["parameters"]["ListId"];
                 videoId: components["parameters"]["VideoId"];
             };
             cookie?: never;
@@ -3683,29 +4260,39 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ListaDetalhe"];
+                    "application/json": components["schemas"]["CuratedListDetail"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            403: components["responses"]["Erro"];
-            /** @description `lista_nao_encontrada` ou `video_nao_encontrado` */
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            /** @description `list_managers_only`, `video_owner_only` ou `video_share_managers_only` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `list_not_found`, `video_not_found` ou `workspace_not_found` */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
+            409: components["responses"]["ListsMentorshipOnly"];
         };
     };
-    tirarVideoLista: {
+    detachCuratedListVideo: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 workspaceId: components["parameters"]["WorkspaceId"];
-                listaId: components["parameters"]["ListaId"];
+                listId: components["parameters"]["ListId"];
                 videoId: components["parameters"]["VideoId"];
             };
             cookie?: never;
@@ -3718,20 +4305,31 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ListaDetalhe"];
+                    "application/json": components["schemas"]["CuratedListDetail"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            403: components["responses"]["Erro"];
-            404: components["responses"]["Erro"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            403: components["responses"]["ListManagersOnly"];
+            /** @description `list_not_found`, `video_not_found`, `video_not_in_list` ou `workspace_not_found` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            409: components["responses"]["ListsMentorshipOnly"];
         };
     };
-    listarVideos: {
+    listVideos: {
         parameters: {
             query?: {
-                produto_id?: string;
-                /** @description Só os vídeos do próprio usuário */
-                meus?: boolean;
+                /** @description Um id malformado responde 404 `product_not_found`. */
+                product_id?: string;
+                /** @description Só os vídeos do próprio usuário (só o valor `true` liga o filtro) */
+                mine?: boolean;
             };
             header?: never;
             path: {
@@ -3750,11 +4348,20 @@ export interface operations {
                     "application/json": components["schemas"]["Video"][];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            404: components["responses"]["Erro"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            /** @description `product_not_found` ou `workspace_not_found` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
-    cotaVideos: {
+    getVideoQuota: {
         parameters: {
             query?: never;
             header?: never;
@@ -3771,14 +4378,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CotaVideos"];
+                    "application/json": components["schemas"]["VideoQuota"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            404: components["responses"]["Erro"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            404: components["responses"]["WorkspaceNotFound"];
         };
     };
-    colarVideo: {
+    pasteVideo: {
         parameters: {
             query?: never;
             header?: never;
@@ -3789,14 +4397,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    url: string;
-                    /**
-                     * Format: uuid
-                     * @description Liga o vídeo a este produto
-                     */
-                    produto_id?: string;
-                };
+                "application/json": components["schemas"]["PasteVideo"];
             };
         };
         responses: {
@@ -3818,37 +4419,39 @@ export interface operations {
                     "application/json": components["schemas"]["Video"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            /** @description `produto_nao_encontrado` */
+            400: components["responses"]["InvalidJSON"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            /** @description `product_not_found` ou `workspace_not_found` */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description `link_video_invalido` ou `video_indisponivel` */
+            /** @description `invalid_video_link` ou `video_unavailable` */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description `plataforma_indisponivel` */
+            /** @description `platform_unavailable` */
             502: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
         };
     };
-    iniciarUploadVideo: {
+    startVideoUpload: {
         parameters: {
             query?: never;
             header?: never;
@@ -3859,21 +4462,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    /** @description Nome do arquivo */
-                    nome: string;
-                    /** @enum {string} */
-                    content_type: "video/mp4" | "video/quicktime" | "video/webm";
-                    /** Format: int64 */
-                    tamanho: number;
-                    /** @description Declaração "tenho direito de uso" (precisa ser true) */
-                    direito_uso: boolean;
-                    /**
-                     * Format: uuid
-                     * @description Liga o vídeo a este produto
-                     */
-                    produto_id?: string;
-                };
+                "application/json": components["schemas"]["StartUpload"];
             };
         };
         responses: {
@@ -3883,41 +4472,51 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UploadIniciado"];
+                    "application/json": components["schemas"]["StartedUpload"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            404: components["responses"]["Erro"];
-            /** @description `cota_videos` */
+            400: components["responses"]["InvalidJSON"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            /** @description `product_not_found` ou `workspace_not_found` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `video_quota_exceeded` */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description `direito_uso_obrigatorio`, `formato_invalido`, `arquivo_grande` ou `dados_invalidos` */
+            /** @description `usage_rights_required`, `invalid_video_format`, `invalid_video_size` ou `video_too_large` */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description `uploads_indisponiveis` (servidor sem bucket) */
+            /** @description `uploads_unavailable` (servidor sem bucket) */
             503: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
         };
     };
-    verVideo: {
+    getVideo: {
         parameters: {
             query?: never;
             header?: never;
@@ -3938,11 +4537,12 @@ export interface operations {
                     "application/json": components["schemas"]["Video"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            404: components["responses"]["Erro"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            404: components["responses"]["VideoNotFound"];
         };
     };
-    apagarVideo: {
+    deleteVideo: {
         parameters: {
             query?: never;
             header?: never;
@@ -3961,12 +4561,30 @@ export interface operations {
                 };
                 content?: never;
             };
-            401: components["responses"]["NaoAutenticado"];
-            403: components["responses"]["Erro"];
-            404: components["responses"]["Erro"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            /** @description `video_owner_only` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            404: components["responses"]["VideoNotFound"];
+            /** @description `uploads_unavailable` */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
-    editarVideo: {
+    updateVideo: {
         parameters: {
             query?: never;
             header?: never;
@@ -3978,10 +4596,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    titulo?: string;
-                    compartilhado?: boolean;
-                };
+                "application/json": components["schemas"]["UpdateVideo"];
             };
         };
         responses: {
@@ -3994,13 +4609,31 @@ export interface operations {
                     "application/json": components["schemas"]["Video"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            403: components["responses"]["Erro"];
-            404: components["responses"]["Erro"];
-            422: components["responses"]["Erro"];
+            400: components["responses"]["InvalidJSON"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            /** @description `video_owner_only` ou `video_share_managers_only` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            404: components["responses"]["VideoNotFound"];
+            /** @description `video_title_too_long` */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
-    partesUploadVideo: {
+    listVideoUploadParts: {
         parameters: {
             query?: never;
             header?: never;
@@ -4018,24 +4651,42 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ParteUpload"][];
+                    "application/json": components["schemas"]["UploadPart"][];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            403: components["responses"]["Erro"];
-            404: components["responses"]["Erro"];
-            /** @description `upload_encerrado` */
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            /** @description `video_owner_only` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            404: components["responses"]["VideoNotFound"];
+            /** @description `upload_closed` */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `uploads_unavailable` */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
                 };
             };
         };
     };
-    assinarParteVideo: {
+    signVideoUploadPart: {
         parameters: {
             query?: never;
             header?: never;
@@ -4047,9 +4698,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    numero: number;
-                };
+                "application/json": components["schemas"]["SignPart"];
             };
         };
         responses: {
@@ -4059,27 +4708,52 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        url: string;
-                    };
+                    "application/json": components["schemas"]["SignedURL"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            403: components["responses"]["Erro"];
-            404: components["responses"]["Erro"];
-            /** @description `upload_encerrado` */
+            400: components["responses"]["InvalidJSON"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            /** @description `video_owner_only` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            404: components["responses"]["VideoNotFound"];
+            /** @description `upload_closed` */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
-            422: components["responses"]["Erro"];
+            /** @description `invalid_part_number` */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `uploads_unavailable` */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
-    concluirUploadVideo: {
+    completeVideoUpload: {
         parameters: {
             query?: never;
             header?: never;
@@ -4091,9 +4765,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    partes: components["schemas"]["ParteUpload"][];
-                };
+                "application/json": components["schemas"]["CompleteUpload"];
             };
         };
         responses: {
@@ -4106,30 +4778,49 @@ export interface operations {
                     "application/json": components["schemas"]["Video"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            403: components["responses"]["Erro"];
-            404: components["responses"]["Erro"];
-            /** @description `upload_encerrado` */
+            400: components["responses"]["InvalidJSON"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            /** @description `video_owner_only` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            404: components["responses"]["VideoNotFound"];
+            /** @description `upload_closed` */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description `upload_incompleto` ou `dados_invalidos` */
+            /** @description `upload_parts_required` ou `upload_incomplete` */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `uploads_unavailable` */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
                 };
             };
         };
     };
-    baixarVideo: {
+    downloadVideo: {
         parameters: {
             query?: never;
             header?: never;
@@ -4147,33 +4838,49 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        url: string;
-                    };
+                    "application/json": components["schemas"]["SignedURL"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            404: components["responses"]["Erro"];
-            /** @description `video_nao_pronto` */
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            404: components["responses"]["VideoNotFound"];
+            /** @description `video_not_ready` */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
-            422: components["responses"]["Erro"];
+            /** @description `embed_not_downloadable` */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `uploads_unavailable` */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
-    vincularVideoProduto: {
+    linkVideoProduct: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 workspaceId: components["parameters"]["WorkspaceId"];
                 videoId: components["parameters"]["VideoId"];
-                produtoId: string;
+                productId: components["parameters"]["ProductId"];
             };
             cookie?: never;
         };
@@ -4188,19 +4895,36 @@ export interface operations {
                     "application/json": components["schemas"]["Video"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            403: components["responses"]["Erro"];
-            404: components["responses"]["Erro"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            /** @description `video_owner_only` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `video_not_found`, `product_not_found` ou `workspace_not_found` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
-    desvincularVideoProduto: {
+    unlinkVideoProduct: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 workspaceId: components["parameters"]["WorkspaceId"];
                 videoId: components["parameters"]["VideoId"];
-                produtoId: string;
+                productId: components["parameters"]["ProductId"];
             };
             cookie?: never;
         };
@@ -4215,12 +4939,29 @@ export interface operations {
                     "application/json": components["schemas"]["Video"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            403: components["responses"]["Erro"];
-            404: components["responses"]["Erro"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            /** @description `video_owner_only` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `video_not_found`, `product_not_found` ou `workspace_not_found` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
-    caixaNotificacoes: {
+    getInbox: {
         parameters: {
             query?: never;
             header?: never;
@@ -4237,14 +4978,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CaixaNotificacoes"];
+                    "application/json": components["schemas"]["Inbox"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            404: components["responses"]["Erro"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            404: components["responses"]["WorkspaceNotFound"];
         };
     };
-    marcarTodasLidas: {
+    markAllNotificationsRead: {
         parameters: {
             query?: never;
             header?: never;
@@ -4262,17 +5004,18 @@ export interface operations {
                 };
                 content?: never;
             };
-            401: components["responses"]["NaoAutenticado"];
-            404: components["responses"]["Erro"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            404: components["responses"]["WorkspaceNotFound"];
         };
     };
-    marcarLida: {
+    markNotificationRead: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 workspaceId: components["parameters"]["WorkspaceId"];
-                notificacaoId: string;
+                notificationId: string;
             };
             cookie?: never;
         };
@@ -4285,11 +5028,20 @@ export interface operations {
                 };
                 content?: never;
             };
-            401: components["responses"]["NaoAutenticado"];
-            404: components["responses"]["Erro"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            /** @description `notification_not_found` ou `workspace_not_found` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
-    preferenciasNotificacao: {
+    getNotificationPreferences: {
         parameters: {
             query?: never;
             header?: never;
@@ -4304,13 +5056,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PreferenciasNotificacao"];
+                    "application/json": components["schemas"]["NotificationPreferences"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
+            401: components["responses"]["Unauthenticated"];
         };
     };
-    definirPreferenciasNotificacao: {
+    setNotificationPreferences: {
         parameters: {
             query?: never;
             header?: never;
@@ -4319,9 +5071,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    email: boolean;
-                };
+                "application/json": components["schemas"]["SetNotificationPreferences"];
             };
         };
         responses: {
@@ -4331,14 +5081,23 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PreferenciasNotificacao"];
+                    "application/json": components["schemas"]["NotificationPreferences"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            422: components["responses"]["Erro"];
+            400: components["responses"]["InvalidJSON"];
+            401: components["responses"]["Unauthenticated"];
+            /** @description `invalid_notification_preferences` (sem `email`) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
-    inscreverPush: {
+    subscribePush: {
         parameters: {
             query?: never;
             header?: never;
@@ -4347,7 +5106,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["InscricaoPush"];
+                "application/json": components["schemas"]["PushSubscription"];
             };
         };
         responses: {
@@ -4358,37 +5117,38 @@ export interface operations {
                 };
                 content?: never;
             };
-            401: components["responses"]["NaoAutenticado"];
-            /** @description `inscricoes_demais` */
+            400: components["responses"]["InvalidJSON"];
+            401: components["responses"]["Unauthenticated"];
+            /** @description `too_many_push_subscriptions` */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description `inscricao_invalida` */
+            /** @description `invalid_push_subscription` */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description `push_indisponivel` (servidor sem chaves VAPID) */
+            /** @description `push_unavailable` (servidor sem chaves VAPID) */
             503: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
         };
     };
-    desinscreverPush: {
+    unsubscribePush: {
         parameters: {
             query?: never;
             header?: never;
@@ -4397,9 +5157,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    endpoint: string;
-                };
+                "application/json": components["schemas"]["PushUnsubscribe"];
             };
         };
         responses: {
@@ -4410,10 +5168,11 @@ export interface operations {
                 };
                 content?: never;
             };
-            401: components["responses"]["NaoAutenticado"];
+            400: components["responses"]["InvalidJSON"];
+            401: components["responses"]["Unauthenticated"];
         };
     };
-    verSincronizacao: {
+    getResultsSync: {
         parameters: {
             query?: never;
             header?: never;
@@ -4428,13 +5187,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Sincronizacao"];
+                    "application/json": components["schemas"]["ConversionSync"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
+            401: components["responses"]["Unauthenticated"];
         };
     };
-    sincronizarResultados: {
+    requestResultsSync: {
         parameters: {
             query?: never;
             header?: never;
@@ -4449,37 +5208,37 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Sincronizacao"];
+                    "application/json": components["schemas"]["ConversionSync"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            /** @description `sem_credencial`: a Shopee não está conectada */
+            401: components["responses"]["Unauthenticated"];
+            /** @description `sync_no_credential`: a Shopee não está conectada */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description `sincronizado_agora`: a última terminou há menos de 10 minutos */
+            /** @description `synced_recently`: a última terminou há menos de 10 minutos */
             429: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
         };
     };
-    meusResultados: {
+    getMyResults: {
         parameters: {
             query?: {
-                /** @description Primeiro dia (AAAA-MM-DD, fuso de Brasília). Padrão, 29 dias antes de `ate`. */
-                de?: components["parameters"]["De"];
+                /** @description Primeiro dia (AAAA-MM-DD, fuso de Brasília). Padrão, 29 dias antes de `to`. */
+                from?: components["parameters"]["From"];
                 /** @description Último dia, inclusive (AAAA-MM-DD). Padrão, hoje. O período tem até 366 dias. */
-                ate?: components["parameters"]["Ate"];
+                to?: components["parameters"]["To"];
             };
             header?: never;
             path: {
@@ -4495,21 +5254,22 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MeusResultados"];
+                    "application/json": components["schemas"]["MyResults"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            404: components["responses"]["Erro"];
-            422: components["responses"]["Erro"];
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            404: components["responses"]["WorkspaceNotFound"];
+            422: components["responses"]["InvalidPeriod"];
         };
     };
-    resultadosTurma: {
+    getGroupResults: {
         parameters: {
             query?: {
-                /** @description Primeiro dia (AAAA-MM-DD, fuso de Brasília). Padrão, 29 dias antes de `ate`. */
-                de?: components["parameters"]["De"];
+                /** @description Primeiro dia (AAAA-MM-DD, fuso de Brasília). Padrão, 29 dias antes de `to`. */
+                from?: components["parameters"]["From"];
                 /** @description Último dia, inclusive (AAAA-MM-DD). Padrão, hoje. O período tem até 366 dias. */
-                ate?: components["parameters"]["Ate"];
+                to?: components["parameters"]["To"];
             };
             header?: never;
             path: {
@@ -4525,25 +5285,34 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ResultadosTurma"];
+                    "application/json": components["schemas"]["GroupResults"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            403: components["responses"]["Erro"];
-            404: components["responses"]["Erro"];
-            /** @description `so_mentoria` */
+            401: components["responses"]["Unauthenticated"];
+            402: components["responses"]["WorkspaceSuspended"];
+            /** @description `group_results_forbidden` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            404: components["responses"]["WorkspaceNotFound"];
+            /** @description `group_results_mentorship_only` */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
-            422: components["responses"]["Erro"];
+            422: components["responses"]["InvalidPeriod"];
         };
     };
-    definirConsentimento: {
+    setResultsConsent: {
         parameters: {
             query?: never;
             header?: never;
@@ -4554,7 +5323,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["Consentimento"];
+                "application/json": components["schemas"]["Consent"];
             };
         };
         responses: {
@@ -4564,27 +5333,46 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Consentimento"];
+                    "application/json": components["schemas"]["Consent"];
                 };
             };
-            400: components["responses"]["Erro"];
-            401: components["responses"]["NaoAutenticado"];
-            404: components["responses"]["Erro"];
-            /** @description `so_mentoria`: o consentimento vale só em mentorias */
+            /** @description `invalid_json` (também sem `shares_results`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description `member_not_found` ou `workspace_not_found` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `consent_mentorship_only`: o consentimento vale só em mentorias */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
         };
     };
-    webhookCobranca: {
+    billingWebhook: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Segredo do webhook configurado no painel do Asaas (gateway em produção). */
+                "asaas-access-token"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -4604,19 +5392,28 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description `nao_autenticado`: o aviso não veio do gateway */
+            /** @description `invalid_billing_webhook`: o aviso não veio do gateway, ou o corpo não foi reconhecido */
             401: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
-            500: components["responses"]["Erro"];
+            500: components["responses"]["InternalError"];
+            /** @description `billing_unavailable`: o servidor está sem gateway de cobrança */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
-    verAssinatura: {
+    getSubscription: {
         parameters: {
             query?: never;
             header?: never;
@@ -4633,15 +5430,23 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Assinatura"];
+                    "application/json": components["schemas"]["Subscription"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            403: components["responses"]["Erro"];
-            404: components["responses"]["Erro"];
+            401: components["responses"]["Unauthenticated"];
+            /** @description `billing_managers_only` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            404: components["responses"]["WorkspaceNotFound"];
         };
     };
-    assinar: {
+    subscribe: {
         parameters: {
             query?: never;
             header?: never;
@@ -4652,7 +5457,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["NovaAssinatura"];
+                "application/json": components["schemas"]["NewSubscription"];
             };
         };
         responses: {
@@ -4662,35 +5467,51 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Assinatura"];
+                    "application/json": components["schemas"]["Subscription"];
                 };
             };
-            400: components["responses"]["Erro"];
-            401: components["responses"]["NaoAutenticado"];
-            403: components["responses"]["Erro"];
-            404: components["responses"]["Erro"];
-            /** @description `ja_assinada`, `assentos_em_uso`, `sem_preco` */
+            400: components["responses"]["InvalidJSON"];
+            401: components["responses"]["Unauthenticated"];
+            /** @description `billing_owner_only` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            404: components["responses"]["WorkspaceNotFound"];
+            /** @description `already_subscribed`, `seats_in_use` ou `no_price` */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
-            422: components["responses"]["Erro"];
-            /** @description `cobranca_indisponivel`: o gateway não respondeu */
+            /** @description `invalid_tax_id`, `minimum_seats` ou `seats_above_plan` */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `billing_unavailable`: o gateway não respondeu */
             502: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
         };
     };
-    cancelarAssinatura: {
+    cancelSubscription: {
         parameters: {
             query?: never;
             header?: never;
@@ -4707,32 +5528,40 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Assinatura"];
+                    "application/json": components["schemas"]["Subscription"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            403: components["responses"]["Erro"];
-            /** @description `sem_assinatura`, `workspace_nao_encontrado` */
+            401: components["responses"]["Unauthenticated"];
+            /** @description `billing_owner_only` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `no_subscription` ou `workspace_not_found` */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description `cobranca_indisponivel` */
+            /** @description `billing_unavailable` */
             502: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
         };
     };
-    mudarAssentos: {
+    changeSeats: {
         parameters: {
             query?: never;
             header?: never;
@@ -4743,9 +5572,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    assentos: number;
-                };
+                "application/json": components["schemas"]["ChangeSeats"];
             };
         };
         responses: {
@@ -4755,43 +5582,59 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Assinatura"];
+                    "application/json": components["schemas"]["Subscription"];
                 };
             };
-            400: components["responses"]["Erro"];
-            401: components["responses"]["NaoAutenticado"];
-            403: components["responses"]["Erro"];
-            /** @description `sem_assinatura`, `workspace_nao_encontrado` */
+            400: components["responses"]["InvalidJSON"];
+            401: components["responses"]["Unauthenticated"];
+            /** @description `billing_owner_only` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `no_subscription` ou `workspace_not_found` */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description `assentos_em_uso` */
+            /** @description `seats_in_use` ou `no_price` */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
-            422: components["responses"]["Erro"];
-            /** @description `cobranca_indisponivel` */
+            /** @description `minimum_seats` ou `seats_above_plan` */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `billing_unavailable` */
             502: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erro"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
         };
     };
-    simularPagamento: {
+    simulatePayment: {
         parameters: {
             query?: never;
             header?: never;
@@ -4808,12 +5651,28 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Assinatura"];
+                    "application/json": components["schemas"]["Subscription"];
                 };
             };
-            401: components["responses"]["NaoAutenticado"];
-            403: components["responses"]["Erro"];
-            404: components["responses"]["Erro"];
+            401: components["responses"]["Unauthenticated"];
+            /** @description `billing_owner_only` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `simulation_unavailable`, `no_subscription` ou `workspace_not_found` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
 }
