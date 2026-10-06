@@ -116,7 +116,11 @@ test("mentor and affiliate go through the app from the invite to the subscriptio
 
   // The affiliate refreshes her results and authorizes the mentor.
   await a.getByTitle("Resultados").click();
-  await a.getByRole("button", { name: "Atualizar agora" }).click();
+  // Wait for the sync request to finish: reloading the page earlier cancels it.
+  await Promise.all([
+    a.waitForResponse((r) => r.request().method() === "POST" && r.url().endsWith("/v1/me/results/sync") && r.ok()),
+    a.getByRole("button", { name: "Atualizar agora" }).click(),
+  ]);
   await expect(async () => {
     await a.reload();
     await expect(a.getByText(/com os pedidos dos últimos 89 dias/)).toBeVisible({ timeout: 2_000 });
