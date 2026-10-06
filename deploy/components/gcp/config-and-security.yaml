@@ -1,6 +1,6 @@
-# Aplicado a todo Deployment e Job do app: a configuração não secreta do
-# ambiente (ConfigMap parceiros-config, gerado no overlay) junto do Secret, e
-# contêineres sem root nem privilégios extras.
+# Applied to every Deployment and Job of the app: containers without root and
+# without extra privileges. (The non-secret configuration, the parceiros-config
+# ConfigMap, and the Secret are mounted by resources.yaml.)
 - op: add
   path: /spec/template/spec/securityContext
   value:

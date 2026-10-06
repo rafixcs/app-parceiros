@@ -3,7 +3,7 @@ kind: Job
 metadata:
   name: parceiros-migrate
   annotations:
-    # No Argo CD, as migrations rodam antes de cada sync.
+    # On Argo CD, the migrations run before each sync.
     argocd.argoproj.io/hook: PreSync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
 spec:

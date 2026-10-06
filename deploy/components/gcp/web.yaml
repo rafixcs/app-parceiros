@@ -22,7 +22,7 @@ spec:
               containerPort: 8080
           readinessProbe:
             httpGet:
-              path: /nginx-saude
+              path: /nginx-health
               port: http
           resources:
             requests:

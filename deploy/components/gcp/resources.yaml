@@ -1,10 +1,10 @@
-# Recursos de produção. No GKE Autopilot, o que se paga é o request de cada pod.
+# Production resources. On GKE Autopilot, what we pay for is the request of each pod.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: parceiros-api
 spec:
-  replicas: null # quem decide é o HPA (api-hpa.yaml)
+  replicas: null # the HPA decides (api-hpa.yaml)
   template:
     spec:
       containers:

@@ -1,17 +1,18 @@
-# Um domínio só: /v1 (e o /healthz do uptime check) vão para a API, o resto
-# para o front. Assim o front chama a API no mesmo endereço, sem CORS.
+# A single domain: /v1 (and the /healthz of the uptime check) go to the API,
+# everything else to the front end. So the front end calls the API on the same
+# address, without CORS.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: parceiros
   annotations:
     kubernetes.io/ingress.class: gce
-    kubernetes.io/ingress.global-static-ip-name: TROCAR-nome-do-ip
+    kubernetes.io/ingress.global-static-ip-name: CHANGE-ME-ip-name
     networking.gke.io/managed-certificates: parceiros
     networking.gke.io/v1beta1.FrontendConfig: parceiros
 spec:
   rules:
-    - host: TROCAR.dominio
+    - host: CHANGE-ME.domain
       http:
         paths:
           - path: /v1
@@ -42,7 +43,7 @@ metadata:
   name: parceiros
 spec:
   domains:
-    - TROCAR.dominio
+    - CHANGE-ME.domain
 ---
 apiVersion: networking.gke.io/v1beta1
 kind: FrontendConfig

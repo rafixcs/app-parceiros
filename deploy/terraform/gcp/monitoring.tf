@@ -1,9 +1,9 @@
-# Uptime check do /healthz pelo domínio público, de três regiões, e alerta por
-# e-mail quando ele falha. Os logs (JSON do slog) e as métricas dos pods já vão
-# para o Cloud Logging e o Cloud Monitoring pelo GKE, sem agente extra.
+# Uptime check of /healthz through the public domain, from three regions, and
+# an email alert when it fails. The logs (slog JSON) and the pod metrics already
+# go to Cloud Logging and Cloud Monitoring through GKE, with no extra agent.
 
 resource "google_monitoring_uptime_check_config" "api" {
-  display_name = "parceiros-${var.ambiente} /healthz"
+  display_name = "parceiros-${var.environment} /healthz"
   timeout      = "10s"
   period       = "60s"
 
@@ -17,8 +17,8 @@ resource "google_monitoring_uptime_check_config" "api" {
   monitored_resource {
     type = "uptime_url"
     labels = {
-      project_id = var.projeto
-      host       = var.dominio
+      project_id = var.project
+      host       = var.domain
     }
   }
 
@@ -27,21 +27,21 @@ resource "google_monitoring_uptime_check_config" "api" {
 }
 
 resource "google_monitoring_notification_channel" "email" {
-  count        = var.email_alertas == "" ? 0 : 1
-  display_name = "Alertas parceiros-${var.ambiente}"
+  count        = var.alert_email == "" ? 0 : 1
+  display_name = "parceiros-${var.environment} alerts"
   type         = "email"
   labels = {
-    email_address = var.email_alertas
+    email_address = var.alert_email
   }
 }
 
-resource "google_monitoring_alert_policy" "fora_do_ar" {
-  count        = var.email_alertas == "" ? 0 : 1
-  display_name = "parceiros-${var.ambiente} fora do ar"
+resource "google_monitoring_alert_policy" "down" {
+  count        = var.alert_email == "" ? 0 : 1
+  display_name = "parceiros-${var.environment} down"
   combiner     = "OR"
 
   conditions {
-    display_name = "uptime check falhando"
+    display_name = "uptime check failing"
     condition_threshold {
       filter          = "metric.type=\"monitoring.googleapis.com/uptime_check/check_passed\" AND resource.type=\"uptime_url\" AND metric.label.check_id=\"${google_monitoring_uptime_check_config.api.uptime_check_id}\""
       comparison      = "COMPARISON_GT"

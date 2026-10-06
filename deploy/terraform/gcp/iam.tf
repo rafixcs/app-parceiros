@@ -1,29 +1,30 @@
 locals {
-  pool_gke = "${var.projeto}.svc.id.goog"
-  # Conta de serviço do Kubernetes do External Secrets Operator (instalado pelo
-  # Helm chart oficial no namespace external-secrets).
-  principal_eso = "principal://iam.googleapis.com/projects/${data.google_project.atual.number}/locations/global/workloadIdentityPools/${local.pool_gke}/subject/ns/external-secrets/sa/external-secrets"
+  gke_pool = "${var.project}.svc.id.goog"
+  # Kubernetes service account of the External Secrets Operator (installed by
+  # the official Helm chart in the external-secrets namespace).
+  eso_principal = "principal://iam.googleapis.com/projects/${data.google_project.current.number}/locations/global/workloadIdentityPools/${local.gke_pool}/subject/ns/external-secrets/sa/external-secrets"
 }
 
-# External Secrets lê os segredos pelo Workload Identity, sem chave de conta de
-# serviço. Listar é no projeto (a busca por rótulo); ler é segredo a segredo.
-resource "google_project_iam_member" "eso_listar" {
-  project    = var.projeto
+# External Secrets reads the secrets through Workload Identity, without a
+# service account key. Listing is on the project (the search by label); reading
+# is secret by secret.
+resource "google_project_iam_member" "eso_list" {
+  project    = var.project
   role       = "roles/secretmanager.viewer"
-  member     = local.principal_eso
+  member     = local.eso_principal
   depends_on = [google_container_cluster.gke]
 }
 
-resource "google_secret_manager_secret_iam_member" "eso_ler" {
-  for_each   = merge(google_secret_manager_secret.manual, google_secret_manager_secret.gerado)
+resource "google_secret_manager_secret_iam_member" "eso_read" {
+  for_each   = merge(google_secret_manager_secret.manual, google_secret_manager_secret.generated)
   secret_id  = each.value.id
   role       = "roles/secretmanager.secretAccessor"
-  member     = local.principal_eso
+  member     = local.eso_principal
   depends_on = [google_container_cluster.gke]
 }
 
-# GitHub Actions publica imagens no Artifact Registry por Workload Identity
-# Federation: só este repositório e só a partir da branch main.
+# GitHub Actions pushes images to Artifact Registry through Workload Identity
+# Federation: only this repository and only from the main branch.
 resource "google_iam_workload_identity_pool" "github" {
   workload_identity_pool_id = "github"
   display_name              = "GitHub Actions"
@@ -40,16 +41,16 @@ resource "google_iam_workload_identity_pool_provider" "github" {
     "attribute.repository" = "assertion.repository"
     "attribute.ref"        = "assertion.ref"
   }
-  attribute_condition = "assertion.repository == \"${var.repositorio_github}\" && assertion.ref == \"refs/heads/main\""
+  attribute_condition = "assertion.repository == \"${var.github_repository}\" && assertion.ref == \"refs/heads/main\""
 
   oidc {
     issuer_uri = "https://token.actions.githubusercontent.com"
   }
 }
 
-resource "google_artifact_registry_repository_iam_member" "github_publicar" {
-  location   = google_artifact_registry_repository.imagens.location
-  repository = google_artifact_registry_repository.imagens.name
+resource "google_artifact_registry_repository_iam_member" "github_push" {
+  location   = google_artifact_registry_repository.images.location
+  repository = google_artifact_registry_repository.images.name
   role       = "roles/artifactregistry.writer"
-  member     = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.repository/${var.repositorio_github}"
+  member     = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.repository/${var.github_repository}"
 }
