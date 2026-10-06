@@ -18,19 +18,19 @@ export default defineConfig({
         theme_color: "#ee4d2d",
         background_color: "#ffffff",
         display: "standalone",
-        icons: [{ src: "/icone.svg", sizes: "any", type: "image/svg+xml", purpose: "any maskable" }],
+        icons: [{ src: "/icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any maskable" }],
       },
-      // A API nunca vai para o cache do service worker. O push-sw.js mostra
-      // as notificações de Web Push.
+      // The API never goes to the service worker cache. push-sw.js shows the
+      // Web Push notifications.
       workbox: { navigateFallbackDenylist: [/^\/v1\//], importScripts: ["/push-sw.js"] },
-      // O service worker também roda no `npm run dev`, para testar o push localmente.
+      // The service worker also runs on `npm run dev`, to test push locally.
       devOptions: { enabled: true, type: "classic", navigateFallbackAllowlist: [/^\/$/] },
     }),
   ],
   resolve: { alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) } },
   server: {
     port: 5173,
-    // Em dev, a API (porta 8080 do Tilt) responde na mesma origem.
+    // In dev, the API (Tilt's port 8080) answers on the same origin.
     proxy: { "/v1": "http://localhost:8080" },
   },
 });

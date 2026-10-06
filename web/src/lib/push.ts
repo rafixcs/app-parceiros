@@ -1,11 +1,11 @@
-import { api, exigir } from "@/api/cliente";
+import { api, unwrap } from "@/api/client";
 
-/** O navegador tem service worker e Push API (no iPhone, só com o app instalado na tela inicial). */
-export function pushSuportado(): boolean {
+/** The browser has a service worker and the Push API (on the iPhone, only with the app installed on the home screen). */
+export function pushSupported(): boolean {
   return typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
 }
 
-function chaveParaBytes(base64url: string): Uint8Array<ArrayBuffer> {
+function keyToBytes(base64url: string): Uint8Array<ArrayBuffer> {
   const pad = "=".repeat((4 - (base64url.length % 4)) % 4);
   const b64 = (base64url + pad).replace(/-/g, "+").replace(/_/g, "/");
   const bin = atob(b64);
@@ -14,41 +14,41 @@ function chaveParaBytes(base64url: string): Uint8Array<ArrayBuffer> {
   return out;
 }
 
-async function registro(): Promise<ServiceWorkerRegistration> {
+async function registration(): Promise<ServiceWorkerRegistration> {
   const r = await navigator.serviceWorker.getRegistration();
   if (r) return r;
   return navigator.serviceWorker.ready;
 }
 
-/** A inscrição deste navegador, se houver. */
-export async function inscricaoAtual(): Promise<PushSubscription | null> {
-  if (!pushSuportado()) return null;
+/** This browser's subscription, if any. */
+export async function currentSubscription(): Promise<PushSubscription | null> {
+  if (!pushSupported()) return null;
   const r = await navigator.serviceWorker.getRegistration();
   return (await r?.pushManager.getSubscription()) ?? null;
 }
 
-/** Pede permissão, inscreve o navegador e manda a inscrição para a API. */
-export async function ativarPush(chavePublica: string): Promise<void> {
-  if (!pushSuportado()) throw new Error("Este navegador não recebe notificações. No iPhone, instale o app na tela inicial.");
-  const permissao = await Notification.requestPermission();
-  if (permissao !== "granted") throw new Error("O navegador não deu permissão para notificações. Libere nas configurações do site.");
-  const r = await registro();
+/** Asks for permission, subscribes the browser and sends the subscription to the API. */
+export async function enablePush(publicKey: string): Promise<void> {
+  if (!pushSupported()) throw new Error("Este navegador não recebe notificações. No iPhone, instale o app na tela inicial.");
+  const permission = await Notification.requestPermission();
+  if (permission !== "granted") throw new Error("O navegador não deu permissão para notificações. Libere nas configurações do site.");
+  const r = await registration();
   let sub = await r.pushManager.getSubscription();
   if (!sub) {
-    sub = await r.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: chaveParaBytes(chavePublica) });
+    sub = await r.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyToBytes(publicKey) });
   }
   const json = sub.toJSON();
-  await exigir(
-    api.POST("/v1/eu/push", {
+  await unwrap(
+    api.POST("/v1/me/push", {
       body: { endpoint: sub.endpoint, keys: { p256dh: json.keys?.p256dh ?? "", auth: json.keys?.auth ?? "" } },
     }),
   );
 }
 
-/** Cancela a inscrição neste navegador e na API. */
-export async function desativarPush(): Promise<void> {
-  const sub = await inscricaoAtual();
+/** Cancels the subscription in this browser and in the API. */
+export async function disablePush(): Promise<void> {
+  const sub = await currentSubscription();
   if (!sub) return;
-  await exigir(api.DELETE("/v1/eu/push", { body: { endpoint: sub.endpoint } }));
+  await unwrap(api.DELETE("/v1/me/push", { body: { endpoint: sub.endpoint } }));
   await sub.unsubscribe();
 }

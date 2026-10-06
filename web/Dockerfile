@@ -1,8 +1,8 @@
 # syntax=docker/dockerfile:1
 
-# Front de produção: build do Vite servido pelo nginx no mesmo domínio da API
-# (o Ingress manda /v1 para a API e o resto para cá). As variáveis VITE_* entram
-# no build, então a imagem é de um ambiente só.
+# Production front end: the Vite build served by nginx on the API's domain
+# (the Ingress sends /v1 to the API and everything else here). The VITE_*
+# variables go into the build, so an image serves a single environment.
 FROM node:22-bookworm-slim AS build
 WORKDIR /src
 COPY package.json package-lock.json ./

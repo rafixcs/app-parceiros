@@ -25,7 +25,7 @@ async function linkFromEmail(page: Page, subject: string): Promise<string> {
   return new URL(link).pathname + new URL(link).search;
 }
 
-test("afiliada cria a conta, confirma o e-mail e troca a senha", async ({ page }) => {
+test("an affiliate signs up, confirms the email and resets the password", async ({ page }) => {
   await page.goto("/entrar");
   await page.getByRole("link", { name: "Criar conta" }).click();
   await page.getByLabel("Nome").fill("Ana");
