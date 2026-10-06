@@ -46,20 +46,20 @@ Detalhes de produto e mercado: [pesquisa.md](pesquisa.md).
 ### Arquitetura: `api` + `worker`
 Sem scraping nem download de terceiros, não há mais carga imprevisível que justifique coletor e mídia separados. O mesmo binário Go roda como:
 - `api`: atende o front, gera URLs de upload, serve dados;
-- `worker`: roda os jobs do River em filas separadas (`shopee`, `midia`, `default`), cada uma com seu limite de concorrência.
+- `worker`: roda os jobs do River em filas separadas (`shopee`, `media`, `default`), cada uma com seu limite de concorrência.
 
-Se a fila `midia` crescer, basta subir um segundo Deployment do `worker` ouvindo só essa fila. Nenhuma mudança de código.
+Se a fila `media` crescer, basta subir um segundo Deployment do `worker` ouvindo só essa fila. Nenhuma mudança de código.
 
-Módulos de domínio: `contas` (usuários, workspaces, papéis, convites), `fontes/shopee`, `produtos`, `tendencias`, `colecoes`, `curadoria`, `midia`, `resultados`, `assinaturas`, `notificacoes`.
+Módulos (com o mesmo nome em todas as camadas, ver `docs/arquitetura.md`): `account` (usuários, workspaces, papéis, convites), `shopee_credential`, `product`, `trend`, `collection`, `curation`, `media`, `result`, `billing`, `notification`.
 
 ### Shopee
 - **Credencial do app** (AppID/Secret nosso): alimenta o catálogo global e o radar.
 - **Credencial de cada afiliado**: gera o link dele (`generateShortLink`, com subId por canal) e sincroniza as conversões (`conversionReport`). Pertence ao **usuário**, não ao workspace, porque a comissão é do afiliado.
 - Jobs:
-  - `snapshot_catalogo` (periódico): percorre `productOfferV2` por categoria e ordenação. A paginação fica sequencial dentro do job, porque o `scrollId` expira em ~30 s e cada página traz no máximo 50 itens;
-  - `calcular_tendencias`: score de crescimento (vendas, comissão, nota) e ganho por venda (preço × comissão);
-  - `gerar_link`: quando o afiliado salva um produto ou importa uma lista do mentor;
-  - `sync_conversoes` (diário por afiliado): janela deslizante dentro do limite de ~90 dias.
+  - `snapshot_catalog` (periódico): percorre `productOfferV2` por categoria e ordenação. A paginação fica sequencial dentro do job, porque o `scrollId` expira em ~30 s e cada página traz no máximo 50 itens;
+  - `compute_trends`: score de crescimento (vendas, comissão, nota) e ganho por venda (preço × comissão);
+  - `generate_affiliate_link`: quando o afiliado salva um produto ou importa uma lista do mentor;
+  - `sync_conversions` (diário por afiliado): janela deslizante dentro do limite de ~90 dias.
 - Rate limit por credencial no Redis, para não bloquear a conta de ninguém.
 - Cada resposta bruta fica guardada (JSON comprimido no R2) para reprocessar se o parser mudar.
 
@@ -70,11 +70,11 @@ Módulos de domínio: `contas` (usuários, workspaces, papéis, convites), `font
 3. O front mostra o player oficial (iframe) no card do produto.
 4. Um job periódico revalida os links e marca "indisponível" se o vídeo sumir.
 
-Links da Shopee Video não têm oEmbed e ficam de fora no MVP: a API recusa o link com `link_video_invalido`.
+Links da Shopee Video não têm oEmbed e ficam de fora no MVP: a API recusa o link com o código `invalid_video_link`.
 
 **Upload próprio:**
 1. O front (Uppy) pede à API uma URL pré-assinada de upload multipart e envia o arquivo **direto ao R2**, sem passar pelo nosso servidor. Isso funciona bem no celular e com arquivos grandes.
-2. Ao terminar, a API valida tipo, tamanho e cota do plano e enfileira o job `processar_video`.
+2. Ao terminar, a API valida tipo, tamanho e cota do plano e enfileira o job `process_video`.
 3. O worker (imagem com `ffmpeg`) extrai duração e resolução, gera miniatura e uma prévia leve (720p H.264).
 4. O download de volta usa URL assinada de curta duração. O R2 não cobra a saída, o que importa porque o afiliado baixa o vídeo para postar.
 5. O usuário marca "tenho direito de uso" no upload, e isso fica registrado.
@@ -83,11 +83,11 @@ Links da Shopee Video não têm oEmbed e ficam de fora no MVP: a API recusa o li
 
 ### Workspaces: mentor + afiliados e avulsos
 - **Zitadel cuida só da identidade** (login, senha, Google, MFA). Workspaces, papéis e convites ficam no nosso Postgres. Isso mantém a regra de negócio no nosso código e evita depender do modelo de organizações do provedor.
-- Tabelas centrais: `usuarios`, `workspaces` (tipo `mentoria` ou `pessoal`), `membros` (papel `dono`, `mentor` ou `afiliado`), `convites`.
-- **Afiliado avulso** = workspace `pessoal` criado no cadastro. **Mentor** cria um workspace `mentoria` e convida a turma por link ou e-mail.
+- Tabelas centrais: `users`, `workspaces` (tipo `mentorship` ou `personal`), `members` (papel `owner`, `mentor` ou `affiliate`), `invites`.
+- **Afiliado avulso** = workspace `personal` criado no cadastro. **Mentor** cria um workspace `mentorship` e convida a turma por link ou e-mail.
 - Um usuário pode estar em vários workspaces, por exemplo no da mentoria e no pessoal.
 - Toda tabela de dados de cliente tem `workspace_id`. A API filtra por ele, e o **Row-Level Security do Postgres** é a segunda barreira contra vazamento entre workspaces.
-- **Curadoria:** o mentor monta uma lista no workspace. Cada afiliado recebe uma notificação e "importa" a lista. Os produtos vão para a coleção dele, e o job `gerar_link` cria os links com a credencial **do próprio afiliado**.
+- **Curadoria:** o mentor monta uma lista no workspace. Cada afiliado recebe uma notificação e "importa" a lista. Os produtos vão para a coleção dele, e o job `generate_affiliate_link` cria os links com a credencial **do próprio afiliado**.
 - **Painel do mentor:** mostra o desempenho agregado da turma só com consentimento registrado de cada afiliado (LGPD).
 
 ### Cobrança
@@ -95,9 +95,9 @@ A assinatura é **por workspace**:
 - plano **Mentoria**: cobrado do mentor por quantidade de afiliados (assentos);
 - plano **Avulso**: cobrado do próprio afiliado.
 
-Asaas e Mercado Pago cobrem PIX recorrente, boleto e cartão, com webhooks. Uma tabela de `limites` por plano (assentos, cota de vídeo em GB, listas, preços) é consultada pela API, para que mudar um plano não exija deploy.
+Asaas e Mercado Pago cobrem PIX recorrente, boleto e cartão, com webhooks. Uma tabela de limites por plano (`plan_limits`) (assentos, cota de vídeo em GB, listas, preços) é consultada pela API, para que mudar um plano não exija deploy.
 
-O M7 implementou a cobrança com o **Asaas** (escolha provisória), atrás da interface `assinaturas.Gateway`: trocar de provedor é escrever outra implementação dessa interface. O acesso de cada workspace é a data `workspaces.acesso_ate`: o cadastro dá 7 dias de teste, cada pagamento confirmado estende a data e, passada ela, o workspace se suspende sozinho, sem depender de job nem de um webhook que pode se perder.
+O M7 implementou a cobrança com o **Asaas** (escolha provisória), atrás da interface `domain.PaymentGateway`: trocar de provedor é escrever outra implementação dessa interface. O acesso de cada workspace é a data `workspaces.access_until`: o cadastro dá 7 dias de teste, cada pagamento confirmado estende a data e, passada ela, o workspace se suspende sozinho, sem depender de job nem de um webhook que pode se perder.
 
 ### Frontend
 React + Vite em PWA, responsivo e pensado primeiro para o celular. Uppy cuida do upload com retomada, e Web Push avisa quando o mentor manda uma lista nova. Se o uso no celular exigir mais (salvar na galeria do iPhone, push mais confiável), a fase 2 é Expo, reaproveitando o cliente TypeScript gerado do OpenAPI.
@@ -109,29 +109,25 @@ OpenAPI primeiro; `pgx` + `sqlc` + `goose`; OpenTelemetry + Grafana + Sentry (co
 
 ```
 app-parceiros/
-├── api/openapi.yaml
+├── api/openapi.yaml              # contrato da API, em inglês
 ├── backend/
-│   ├── cmd/parceiros/            # modos: api, worker
+│   ├── cmd/parceiros/            # modos: api, worker, migrate, vapid
 │   ├── internal/
-│   │   ├── contas/               # usuários, workspaces, papéis, convites
-│   │   ├── fontes/shopee/
-│   │   ├── produtos/
-│   │   ├── tendencias/
-│   │   ├── colecoes/
-│   │   ├── curadoria/
-│   │   ├── midia/                # oEmbed, uploads, ffmpeg
-│   │   ├── resultados/
-│   │   ├── assinaturas/
-│   │   ├── notificacoes/
-│   │   └── ...                   # camadas domain, service, infrastructure e server (docs/arquitetura.md)
+│   │   ├── domain/               # entidades, regras e interfaces de cada módulo
+│   │   ├── service/              # casos de uso
+│   │   ├── infrastructure/       # http, repository, queue, shopee, billing, oembed, ffmpeg...
+│   │   ├── observability/
+│   │   └── server/               # configuração, ligação das peças e testes de integração
 │   ├── db/migrations/
 │   ├── db/queries/
 │   └── Dockerfile                # inclui ffmpeg
 ├── web/                          # React + Vite (PWA)
 ├── deploy/
 │   ├── base/
-│   └── overlays/{dev,staging,prod}
-├── infra/                        # OpenTofu
+│   ├── components/gcp/
+│   ├── overlays/{dev,staging,prod}
+│   ├── terraform/gcp/            # produção na GCP
+│   └── argocd/
 ├── Tiltfile
 └── .github/workflows/
 ```
@@ -146,7 +142,7 @@ app-parceiros/
 
 ## Decisões em aberto
 1. **Cloud:** GCP, AWS ou DigitalOcean. Sugiro GCP (GKE Autopilot + Cloud SQL), com R2 para vídeos.
-2. **Cobrança:** Asaas, confirmado pelo Rafael em 05/10/2026. Mercado Pago entra como outra implementação de `assinaturas.Gateway`.
+2. **Cobrança:** Asaas, confirmado pelo Rafael em 05/10/2026. Mercado Pago entra como outra implementação de `domain.PaymentGateway`.
 3. **Mentor paga pela turma ou cada aluno paga?** Por enquanto o mentor paga por assento e o workspace pessoal do aluno é grátis; a regra definitiva fica para depois (veja `docs/mvp.md` §8).
 4. **Preços:** `limites` saiu com R$ 29,90 por mês no avulso e R$ 14,90 por assento na mentoria, valores provisórios.
 

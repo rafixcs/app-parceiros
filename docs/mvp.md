@@ -89,61 +89,72 @@ O critério de aceite vem abaixo de cada história.
 3. **Consentimento:** o afiliado autoriza, ou não, que o mentor veja seus resultados agregados naquele workspace.
 
 ### E8. Assinatura
-1. Planos `avulso` e `mentoria` (por assento), com limites e preços em tabela (`limites`): assentos, assentos do teste, cota de vídeo, número de listas e preço.
-2. Checkout no gateway (Asaas, atrás da interface `assinaturas.Gateway`), com a fatura paga em PIX, boleto ou cartão, e webhook que ativa ou suspende o workspace.
-   - O acesso é a data `workspaces.acesso_ate`: cada pagamento confirmado a estende até o fim do ciclo, mais 3 dias de tolerância; passada a data, o workspace fica suspenso sem depender de job nem de webhook.
+1. Planos avulso (`solo`) e mentoria (`mentorship`, por assento), com limites e preços em tabela (`plan_limits`): assentos, assentos do teste, cota de vídeo, número de listas e preço.
+2. Checkout no gateway (Asaas, atrás da interface `domain.PaymentGateway`), com a fatura paga em PIX, boleto ou cartão, e webhook que ativa ou suspende o workspace.
+   - O acesso é a data `workspaces.access_until`: cada pagamento confirmado a estende até o fim do ciclo, mais 3 dias de tolerância; passada a data, o workspace fica suspenso sem depender de job nem de webhook.
    - Um estorno suspende na hora. Cancelar mantém o acesso até o fim do período já pago.
    - Suspenso, o workspace só deixa ver a si mesmo, sair dele, mexer no consentimento e cuidar da assinatura; o resto responde 402.
 3. Período de teste de 7 dias, com assentos de teste (5 na mentoria).
 4. Assentos: um por afiliado da turma (convite pendente já ocupa). Diminuir vale na hora, nunca abaixo dos em uso; aumentar vale no próximo pagamento confirmado.
 
-## 5. Modelo de dados (inicial)
+## 5. Modelo de dados
+
+Tabelas, colunas e valores de enum em inglês (as migrations ficam em `backend/db/migrations`). Resumo das colunas principais:
 
 ```
-usuarios(id, zitadel_sub, nome, email, criado_em)
-workspaces(id, tipo[pessoal|mentoria], nome, dono_id, plano, status, criado_em)
-membros(workspace_id, usuario_id, papel[dono|mentor|afiliado], consente_resultados bool, entrou_em)
-convites(id, workspace_id, email?, token, expira_em, usado_por?, criado_por)
-credenciais_shopee(usuario_id, app_id, secret_cifrado, dek_cifrada, status, verificado_em)
+users(id, auth_provider, auth_subject, name, email, email_verified, created_at)
+workspaces(id, kind[personal|mentorship], name, photo_url, owner_id, plan, access_until, paid_at, seats, created_at)
+members(workspace_id, user_id, role[owner|mentor|affiliate], shares_results, joined_at)
+invites(id, workspace_id, email?, token_hash, expires_at, used_by?, used_at?, revoked_at?, created_by)
+shopee_credentials(user_id, app_id, encrypted_secret, encrypted_dek, kek_id, status[connected|invalid|expired], verified_at)
+auth_accounts, auth_sessions, auth_tokens  -- só o provedor interno de autenticação
 
-produtos(id, fonte[shopee], item_id, loja_id, nome, imagem_url, categoria_id, url, atualizado_em)
-produto_snapshots(produto_id, coletado_em, preco_min_centavos, preco_max_centavos, comissao_bp, vendas, nota)  -- particionada por mês
-tendencias(produto_id, calculado_em, score, ganho_por_venda_centavos, variacao_vendas_7d)
+categories(source, id, name, monitored)
+products(id, source[shopee], item_id, shop_id, shop_name, name, image_url, category_id, categories[], url, min_price_cents, max_price_cents, commission_bp, sales, rating, collected_at)
+product_snapshots(product_id, collected_at, min_price_cents, max_price_cents, commission_bp, sales, rating)  -- particionada por mês
+trends(product_id, computed_at, score, earnings_per_sale_cents, sales_growth_7d, ...)  -- cópia dos dados do produto para o radar
 
-itens_colecao(id, workspace_id, usuario_id, produto_id, titulo, descricao, notas, tags[], status, link_afiliado, link_origem[auto|manual], criado_em)
-colecoes(id, workspace_id, usuario_id, nome)
-colecao_itens(colecao_id, item_id)
+saved_items(id, workspace_id, user_id, product_id, title, description, notes, tags[], status[testing|winner|discarded], affiliate_link, link_origin[auto|manual], link_status[pending|generating|ready|failed])
+collections(id, workspace_id, user_id, name)
+collection_items(collection_id, item_id, workspace_id, user_id)
+channel_links(item_id, workspace_id, user_id, channel[instagram|tiktok|whatsapp|other], sub_id, url)
 
-listas_curadoria(id, workspace_id, autor_id, titulo, descricao, publicada_em)
-lista_itens(lista_id, produto_id, comentario, ordem)
-importacoes(lista_id, usuario_id, importado_em)
+curated_lists(id, workspace_id, author_id, title, description, published_at)
+curated_list_items(list_id, workspace_id, product_id, comment, position)
+list_imports(list_id, workspace_id, user_id, product_id, imported_at)
 
-videos(id, workspace_id, dono_id, tipo[embed|upload], plataforma, url, titulo, autor, thumb_url, storage_key, duracao_s, status, compartilhado, direito_uso_em)
-video_vinculos(video_id, workspace_id, dono_id, alvo_tipo[produto|lista], alvo_id)
-uso_videos(workspace_id, bytes)
+videos(id, workspace_id, owner_id, kind[embed|upload], platform, status, title, author, shared, url, embed_id, thumbnail_url, storage_key, size_bytes, duration_s, usage_rights_at)
+video_links(video_id, workspace_id, owner_id, target_kind[product|list], target_id)
+video_usage(workspace_id, bytes)
 
-links_canal(item_id, canal, sub_id, url)
-conversoes(id, usuario_id, workspace_id?, produto_id?, sub_id, pedido_id, status, valor_centavos, comissao_centavos, ocorrido_em)
+notifications(id, workspace_id, user_id, kind, key, title, body, url, read_at, emailed_at, pushed_at)
+push_subscriptions(id, user_id, endpoint, p256dh, auth)
+notification_preferences(user_id, email)
 
-limites(plano, chave, valor)
-workspaces.acesso_ate, workspaces.pago_em, workspaces.assentos  -- acesso e assentos contratados
-assinaturas(workspace_id, provedor, cliente_externo_id, externo_id, status, assentos, valor_centavos, proximo_ciclo, url_pagamento, criado_por, cancelada_em)
-eventos_cobranca(provedor, evento_id, workspace_id, tipo, recebido_em)  -- reenvios do webhook
+conversions(id, user_id, workspace_id, conversion_id, order_id, item_id, product_id?, sub_id, channel, status[unpaid|pending|completed|cancelled], quantity, amount_cents, commission_cents, occurred_at)
+conversion_syncs(user_id, status, requested_at, finished_at, conversions, error)
+
+plan_limits(plan[solo|mentorship], key, value)
+subscriptions(workspace_id, provider, external_customer_id, external_id, status, seats, amount_cents, next_due_date, payment_url, created_by, cancelled_at)
+billing_events(provider, event_id, workspace_id, kind, received_at)  -- reenvios do webhook
 ```
 
-Toda tabela com `workspace_id` tem RLS. Valores em dinheiro ficam em centavos (`bigint`) e comissões em basis points (`comissao_bp`, 1% = 100).
+Toda tabela com `workspace_id` tem RLS. Valores em dinheiro ficam em centavos (`bigint`, colunas `*_cents`) e comissões em basis points (`commission_bp`, 1% = 100).
 
 ## 6. Jobs (River)
 
 | Job | Fila | Gatilho | Observações |
 |---|---|---|---|
-| `snapshot_catalogo` | shopee | a cada 6 h por categoria | Paginação sequencial (`scrollId` dura ~30 s, 50 itens por página). Guarda o JSON bruto no R2. |
-| `calcular_tendencias` | default | depois de cada snapshot | Score = crescimento de vendas em 7 dias, ponderado por comissão e nota. |
-| `gerar_link` | shopee | ao salvar ou importar | Usa a credencial do usuário. Retry com backoff. |
-| `sync_conversoes` | shopee | diário por usuário | Janela ≤ 90 dias. |
-| `revalidar_embed` | default | 7 dias depois de colar, e a cada 7 dias | Um job por vídeo, com o escopo do dono. O oEmbed ao colar é síncrono, com cache de 24 h no Redis. |
-| `processar_video` | midia | fim do upload | ffmpeg: duração, miniatura e prévia em 720p. |
-| `limpar_upload` | midia | 24 h depois de iniciar o upload | Um job por upload; descarta o que não terminou e devolve a cota. |
+| `schedule_snapshots` | shopee | a cada 6 h e quando o worker sobe | Enfileira um `snapshot_catalog` geral e um por categoria monitorada. |
+| `snapshot_catalog` | shopee | por categoria | Paginação sequencial (`scrollId` dura ~30 s, 50 itens por página). Guarda o JSON bruto no bucket. |
+| `compute_trends` | default | depois de cada snapshot | Score = crescimento de vendas em 7 dias, ponderado por comissão e nota. |
+| `generate_affiliate_link` | shopee | ao salvar ou importar | Usa a credencial do usuário. Retry com backoff. |
+| `schedule_conversion_syncs` | default | diário | Enfileira um `sync_conversions` por usuário conectado. |
+| `sync_conversions` | shopee | diário por usuário e sob pedido | Janela ≤ 90 dias (usa 89). |
+| `revalidate_embed` | default | 7 dias depois de colar, e a cada 7 dias | Um job por vídeo, com o escopo do dono. O oEmbed ao colar é síncrono, com cache de 24 h no Redis. |
+| `process_video` | media | fim do upload | ffmpeg: duração, miniatura e prévia em 720p. |
+| `clean_upload` | media | 24 h depois de iniciar o upload | Um job por upload; descarta o que não terminou e devolve a cota. |
+| `deliver_notification` | default | a cada aviso, por destinatário | Caixa do app, e-mail e Web Push. |
 
 O rate limit é por credencial (token bucket no Redis).
 
@@ -165,9 +176,9 @@ O rate limit é por credencial (token bucket no Redis).
 ## 8. Decisões em aberto
 
 1. Cloud de produção: a infraestrutura saiu em GCP (`deploy/terraform/gcp`), a confirmar. Pendências do lançamento em `docs/lancamento.md`.
-2. Asaas ou Mercado Pago: o M7 saiu com Asaas, a confirmar. Trocar é escrever outra implementação de `assinaturas.Gateway`.
+2. Asaas ou Mercado Pago: o M7 saiu com Asaas, a confirmar. Trocar é escrever outra implementação de `domain.PaymentGateway`.
 3. No plano Mentoria, quem paga: o M7 saiu com o mentor pagando por assento (o afiliado avulso paga o próprio plano), a confirmar.
-4. Preços: R$ 29,90 por mês no avulso e R$ 14,90 por assento na mentoria, provisórios na tabela `limites`.
-5. **Cobrança da mentoria e do aluno (a revisitar).** Decisão provisória do Rafael (05/10/2026): o Asaas é o gateway; nesse primeiro momento o mentor paga a mentoria por assento e o **workspace pessoal do aluno é grátis** enquanto ele for afiliado de uma mentoria em dia (situação `gratuito`). No futuro o workspace do aluno pode passar a ser pago. Falta definir:
+4. Preços: R$ 29,90 por mês no avulso e R$ 14,90 por assento na mentoria, provisórios na tabela `plan_limits`.
+5. **Cobrança da mentoria e do aluno (a revisitar).** Decisão provisória do Rafael (05/10/2026): o Asaas é o gateway; nesse primeiro momento o mentor paga a mentoria por assento e o **workspace pessoal do aluno é grátis** enquanto ele for afiliado de uma mentoria em dia (situação `free`). No futuro o workspace do aluno pode passar a ser pago. Falta definir:
    - como cobrar os workspaces dos mentores (modelo e valores);
    - quanto o aluno paga por cadeira, e se é o aluno ou o mentor quem paga por ela.

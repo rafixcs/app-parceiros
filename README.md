@@ -5,6 +5,8 @@ App para afiliados da Shopee descobrirem produtos em alta, organizarem o que vã
 - [Especificação do MVP](docs/mvp.md)
 - [Stack](docs/stack.md)
 - [Pesquisa de mercado e viabilidade](docs/pesquisa.md)
+- [Arquitetura do backend](docs/arquitetura.md)
+- [Lançamento](docs/lancamento.md)
 
 ## Rodando localmente
 
@@ -45,6 +47,8 @@ make migrate
 ./bin/parceiros api      # ou: ./bin/parceiros worker
 ```
 
+O esquema do banco foi reescrito em inglês. Um banco local criado antes disso é recusado pelas migrations (`this database has the old schema`) e precisa ser recriado; o passo a passo está em [docs/arquitetura.md](docs/arquitetura.md).
+
 ## Autenticação
 
 O provedor de identidade é plugável (detalhes em [docs/arquitetura.md](docs/arquitetura.md)). `AUTH_PROVIDER` escolhe:
@@ -67,12 +71,12 @@ Com `internal`, os e-mails de confirmação e de redefinição da senha saem pel
 
 No app do Zitadel, configure o token de acesso como **JWT** e peça os escopos `openid profile email`.
 
-No cluster local não há Zitadel: o overlay `dev` liga `AUTH_PROVIDER=dev`, que aceita `Authorization: Bearer dev:<qualquer-nome>` (recusado fora de `APP_ENV=dev`). No front, o mesmo vale para o nome digitado em "Entrar". Exemplo do fluxo de convite pela API (pelo app, use "Mentoria" no topo):
+No cluster local não há Zitadel: o overlay `dev` liga `AUTH_PROVIDER=dev`, que aceita `Authorization: Bearer dev:<qualquer-nome>` (recusado fora de `APP_ENV=dev`). No front, o mesmo vale para o nome digitado em "Entrar". Exemplo do fluxo de convite pela API (pelo app, use "Mentoria" no topo). O contrato da API, em inglês, está em `api/openapi.yaml`; os erros vêm como `{code, message}`, com a mensagem em português:
 
 ```sh
-curl -s -X POST localhost:8080/v1/workspaces -H 'Authorization: Bearer dev:mentor' -d '{"nome":"Minha turma"}'
-curl -s -X POST localhost:8080/v1/workspaces/<id>/convites -H 'Authorization: Bearer dev:mentor' -d '{}'
-curl -s -X POST localhost:8080/v1/convites/<token>/aceitar -H 'Authorization: Bearer dev:afiliada'
+curl -s -X POST localhost:8080/v1/workspaces -H 'Authorization: Bearer dev:mentor' -d '{"name":"Minha turma"}'
+curl -s -X POST localhost:8080/v1/workspaces/<id>/invites -H 'Authorization: Bearer dev:mentor' -d '{}'
+curl -s -X POST localhost:8080/v1/invites/<token>/accept -H 'Authorization: Bearer dev:afiliada'
 ```
 
 ## Shopee
@@ -89,8 +93,8 @@ O radar usa a **credencial do app** (`SHOPEE_APP_ID` e `SHOPEE_APP_SECRET`) para
 | `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` | Bucket onde ficam as respostas brutas da Shopee (R2 em produção, SeaweedFS local) |
 
 Como funciona:
-- O job `agendar_snapshots` roda a cada 6 h (e quando o worker sobe) e enfileira um `snapshot_catalogo` geral e um por categoria com `monitorar = true` na tabela `categorias`.
-- Cada `snapshot_catalogo` pagina o `productOfferV2` em sequência, grava os produtos e um snapshot por hora, guarda a resposta bruta no bucket e agenda o `calcular_tendencias`.
+- O job `schedule_snapshots` roda a cada 6 h (e quando o worker sobe) e enfileira um `snapshot_catalog` geral e um por categoria com `monitored = true` na tabela `categories`.
+- Cada `snapshot_catalog` pagina o `productOfferV2` em sequência, grava os produtos e um snapshot por hora, guarda a resposta bruta no bucket e agenda o `compute_trends`.
 - O score vai de 0 a 100: crescimento de vendas em 7 dias (escala log) × comissão (0,5× a 1,5×) × nota (0,5× a 1×). Sem um dia de histórico, o produto aparece como "Sem histórico".
 
 ## Coleção e links de afiliado
@@ -98,19 +102,19 @@ Como funciona:
 Em "Coleção", o afiliado guarda os produtos que vai divulgar, salvos do radar ou colando o link da Shopee (`shopee.com.br/Nome-i.<loja>.<item>` ou `shopee.com.br/product/<loja>/<item>`; links curtos como `s.shopee.com.br` não são aceitos). Um produto colado que ainda não está no catálogo é buscado no `productOfferV2` com a credencial do app e entra no catálogo.
 
 - A coleção é do usuário dentro de cada workspace. Nem o mentor a vê.
-- Ao salvar, o job `gerar_link` (fila `shopee`) chama o `generateShortLink` com a credencial **do próprio usuário**, uma vez por canal (Instagram, TikTok, WhatsApp e outro), com os subIds `<canal>` e `w<12 primeiros caracteres do workspace>`. O link do canal "outro" é o principal.
+- Ao salvar, o job `generate_affiliate_link` (fila `shopee`) chama o `generateShortLink` com a credencial **do próprio usuário**, uma vez por canal (Instagram, TikTok, WhatsApp e outro), com os subIds `<canal>` e `w<12 primeiros caracteres do workspace>`. O link do canal "outro" é o principal.
 - Sem credencial conectada, o link fica "pendente". Depois de conectar, o botão "Gerar links pendentes" enfileira todos. Se a Shopee recusar a credencial, a conexão fica inválida e o link volta a "pendente".
 - O usuário pode gravar um link manual, que vale para todos os canais e o job não sobrescreve.
 - "Copiar" junta título, descrição e o link do canal escolhido.
 
 No mock, o `generateShortLink` devolve um link fixo para cada AppID, página e subIds.
 
-**Modo mock.** Sem credencial aprovada, a Shopee é simulada com as respostas gravadas em `backend/internal/fontes/shopee/testdata/`, e as vendas crescem um pouco a cada dia para o radar ter tendência. Qualquer AppID numérico conecta, exceto estes, que simulam erros da Open API: `10020` (credencial recusada), `10030` (limite de chamadas) e `10031` (acesso negado).
+**Modo mock.** Sem credencial aprovada, a Shopee é simulada com as respostas gravadas em `backend/internal/infrastructure/shopee/testdata/`, e as vendas crescem um pouco a cada dia para o radar ter tendência. Qualquer AppID numérico conecta, exceto estes, que simulam erros da Open API: `10020` (credencial recusada), `10030` (limite de chamadas) e `10031` (acesso negado).
 
 Para ligar a Shopee de verdade: defina `SHOPEE_MODE=api`, `SHOPEE_APP_ID` e `SHOPEE_APP_SECRET` e marque as categorias a monitorar:
 
 ```sql
-INSERT INTO categorias (fonte, id, nome, monitorar) VALUES ('shopee', <id>, '<nome>', true);
+INSERT INTO categories (source, id, name, monitored) VALUES ('shopee', <id>, '<nome>', true);
 ```
 
 ## Curadoria e notificações
@@ -118,12 +122,12 @@ INSERT INTO categorias (fonte, id, nome, monitorar) VALUES ('shopee', <id>, '<no
 Num workspace de mentoria, dono e mentores montam **listas** em "Listas": buscam produtos do radar ou colam o link da Shopee, escrevem uma dica por produto, ordenam e publicam. Antes de publicar, a lista é um rascunho que só eles veem.
 
 - **Publicar** mostra a lista para a turma e avisa cada membro, menos quem publicou: na caixa de notificações do app (o sino no topo), por e-mail e por Web Push no navegador. Publicar de novo não avisa de novo.
-- **Importar:** o afiliado leva a lista inteira ou só os produtos marcados para a coleção dele. A dica do mentor vai para as notas, os itens podem ir para uma coleção com o nome da lista, e os links saem pelo `gerar_link` com a credencial da Shopee **do próprio afiliado**. Sem credencial, ficam pendentes como na coleção.
+- **Importar:** o afiliado leva a lista inteira ou só os produtos marcados para a coleção dele. A dica do mentor vai para as notas, os itens podem ir para uma coleção com o nome da lista, e os links saem pelo `generate_affiliate_link` com a credencial da Shopee **do próprio afiliado**. Sem credencial, ficam pendentes como na coleção.
 - Na lista, cada produto que o afiliado já importou mostra o link dele e o botão de copiar. O mentor vê quantos afiliados importaram a lista e cada produto.
-- O plano limita o número de listas (`limites`, chave `listas`; mentoria = 200 por enquanto).
+- O plano limita o número de listas (`plan_limits`, chave `lists`; mentoria = 200 por enquanto).
 - Em "Mentoria" (no workspace pessoal), qualquer usuário cria uma mentoria; em "Turma", dono e mentores convidam por link ou e-mail e veem os membros. O link do convite abre `/convite/<token>`, que leva ao login e depois aceita.
 
-A entrega é o job `entregar_notificacao` (fila `default`), um por destinatário. Ele grava a notificação com o escopo do destinatário e manda e-mail e push, sem repetir o que já saiu quando o job é refeito. E-mail só vai para endereços verificados e pode ser desligado pelo usuário em "Notificações".
+A entrega é o job `deliver_notification` (fila `default`), um por destinatário. Ele grava a notificação com o escopo do destinatário e manda e-mail e push, sem repetir o que já saiu quando o job é refeito. E-mail só vai para endereços verificados e pode ser desligado pelo usuário em "Notificações".
 
 | Variável | Uso |
 |---|---|
