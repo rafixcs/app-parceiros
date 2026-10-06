@@ -2,7 +2,7 @@ import type { HTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
 
 export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("rounded-xl border border-borda bg-white", className)} {...props} />;
+  return <div className={cn("rounded-xl border border-border bg-white", className)} {...props} />;
 }
 
 export function Badge({ className, ...props }: HTMLAttributes<HTMLSpanElement>) {
@@ -14,6 +14,6 @@ export function Badge({ className, ...props }: HTMLAttributes<HTMLSpanElement>) 
   );
 }
 
-export function Aviso({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
+export function Notice({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return <div role="alert" className={cn("rounded-lg border px-4 py-3 text-sm", className)} {...props} />;
 }

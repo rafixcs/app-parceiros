@@ -1,0 +1,37 @@
+# Production environment, synced before the app: the namespace, the non-secret
+# configuration (parceiros-config ConfigMap) and the secrets. The External
+# Secrets Operator reads from Secret Manager the secrets labeled app=parceiros
+# and environment=prod (created by Terraform) and builds the parceiros-env
+# Secret, without the "prod-" prefix in the names. It is apart from the app
+# because the migration (PreSync) already needs both.
+#
+# The ConfigMap has a fixed name: after changing a value, restart the pods
+# (kubectl -n parceiros-prod rollout restart deploy).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: parceiros-prod
+resources:
+  - namespace.yaml
+  - external-secret.yaml
+configMapGenerator:
+  - name: parceiros-config
+    literals:
+      - APP_ENV=prod
+      - APP_URL=https://CHANGE-ME.domain
+      - AUTH_PROVIDER=oidc
+      - OIDC_ISSUER=https://CHANGE-ME-instance.zitadel.cloud
+      - OIDC_AUDIENCE=CHANGE-ME-web-app-client-id
+      - CRYPTO_KEK_ID=prod-1
+      - SHOPEE_MODE=api
+      - BILLING_MODE=asaas
+      - ASAAS_URL=https://api.asaas.com/v3
+      - S3_ENDPOINT=https://CHANGE-ME-account.r2.cloudflarestorage.com
+      - S3_PUBLIC_ENDPOINT=https://CHANGE-ME-account.r2.cloudflarestorage.com
+      - S3_BUCKET=parceiros-prod
+      - S3_REGION=auto
+      - SMTP_ADDR=CHANGE-ME-smtp:587
+      - SMTP_FROM=App Parceiros <nao-responda@CHANGE-ME.domain>
+      - VAPID_PUBLIC_KEY=CHANGE-ME-from-parceiros-vapid
+      - VAPID_SUBJECT=contato@CHANGE-ME.domain
+    options:
+      disableNameSuffixHash: true

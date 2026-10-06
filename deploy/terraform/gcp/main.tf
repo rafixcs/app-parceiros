@@ -13,10 +13,10 @@ locals {
     "monitoring.googleapis.com",
     "logging.googleapis.com",
   ]
-  namespace = "parceiros-${var.ambiente}"
+  namespace = "parceiros-${var.environment}"
 }
 
-data "google_project" "atual" {}
+data "google_project" "current" {}
 
 resource "google_project_service" "apis" {
   for_each           = toset(local.apis)
@@ -24,18 +24,18 @@ resource "google_project_service" "apis" {
   disable_on_destroy = false
 }
 
-# GKE Autopilot: o Google cuida dos nós; paga-se pelos pods. Nós privados,
-# Workload Identity ligado (padrão do Autopilot) e canal de versões regular.
+# GKE Autopilot: Google runs the nodes and we pay for the pods. Private nodes,
+# Workload Identity on (the Autopilot default) and the regular release channel.
 resource "google_container_cluster" "gke" {
-  name             = "parceiros-${var.ambiente}"
-  location         = var.regiao
+  name             = "parceiros-${var.environment}"
+  location         = var.region
   enable_autopilot = true
   network          = google_compute_network.vpc.id
   subnetwork       = google_compute_subnetwork.gke.id
 
   ip_allocation_policy {
     cluster_secondary_range_name  = "pods"
-    services_secondary_range_name = "servicos"
+    services_secondary_range_name = "services"
   }
 
   private_cluster_config {
@@ -51,24 +51,24 @@ resource "google_container_cluster" "gke" {
   deletion_protection = true
 }
 
-resource "google_artifact_registry_repository" "imagens" {
-  location      = var.regiao
+resource "google_artifact_registry_repository" "images" {
+  location      = var.region
   repository_id = "parceiros"
   format        = "DOCKER"
-  description   = "Imagens do App Parceiros (api/worker e web)."
+  description   = "App Parceiros images (api/worker and web)."
 
   cleanup_policies {
-    id     = "manter-recentes"
+    id     = "keep-recent"
     action = "KEEP"
     most_recent_versions {
       keep_count = 30
     }
   }
   cleanup_policies {
-    id     = "apagar-antigas"
+    id     = "delete-old"
     action = "DELETE"
     condition {
-      older_than = "2592000s" # 30 dias
+      older_than = "2592000s" # 30 days
     }
   }
 

@@ -1,5 +1,5 @@
-# Ambiente staging: Postgres e Redis gerenciados. O secret parceiros-env é criado
-# fora do repositório (External Secrets / secret manager da cloud).
+# Staging environment: managed Postgres and Redis. The parceiros-env secret is
+# created outside the repository (External Secrets / the cloud secret manager).
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: parceiros-staging
@@ -8,4 +8,4 @@ resources:
 images:
   - name: parceiros
     newName: ghcr.io/rafixcs/app-parceiros
-    newTag: latest # o CI substitui pela tag do commit
+    newTag: latest # CI replaces it with the commit tag

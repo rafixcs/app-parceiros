@@ -20,10 +20,10 @@ jobs:
         with:
           go-version-file: backend/go.mod
           cache-dependency-path: backend/go.sum
-      - name: ffmpeg para os testes de mídia
+      - name: ffmpeg for the media tests
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
       - run: go vet ./...
-      - name: código do sqlc em dia
+      - name: sqlc code up to date
         run: go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1 diff
       - run: go test -race ./...
       - uses: golangci/golangci-lint-action@v8
@@ -44,7 +44,7 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
       - run: npm ci
-      - name: tipos da API em dia com o openapi.yaml
+      - name: API types up to date with openapi.yaml
         run: npm run api && git diff --exit-code src/api/schema.d.ts
       - run: npm test
       - run: npm run build
@@ -65,9 +65,13 @@ jobs:
       redis:
         image: redis:7
         ports: ["6379:6379"]
+      # Receives the emails of the internal identity provider.
+      mailpit:
+        image: axllent/mailpit:v1.31
+        ports: ["1025:1025", "8025:8025"]
     env:
       APP_ENV: dev
-      AUTH_MODE: dev
+      AUTH_PROVIDER: dev
       DATABASE_URL: postgres://parceiros:parceiros@localhost:5432/parceiros?sslmode=disable
       REDIS_URL: redis://localhost:6379/0
       CRYPTO_KEK: FqpezR/uQXmGJwq4y1/m3ULeVkNyjxAF5OpNgmPmqVE=
@@ -83,7 +87,7 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: web/package-lock.json
-      - name: API e worker
+      - name: API and worker
         working-directory: backend
         run: |
           go build -o /tmp/parceiros ./cmd/parceiros
@@ -98,8 +102,20 @@ jobs:
         working-directory: web
       - run: npm run e2e
         working-directory: web
+      - name: API with the internal identity provider (email and password)
+        working-directory: backend
+        run: |
+          pkill -f '^/tmp/parceiros api' || true
+          sleep 1
+          AUTH_PROVIDER=internal SMTP_ADDR=localhost:1025 /tmp/parceiros api > /tmp/api-internal.log 2>&1 &
+          for i in $(seq 30); do curl -sf localhost:8080/readyz && exit 0; sleep 1; done
+          cat /tmp/api-internal.log; exit 1
+      - run: npm run e2e
+        working-directory: web
+        env:
+          E2E_AUTH_PROVIDER: internal
       - if: failure()
-        run: tail -n 100 /tmp/api.log /tmp/worker.log
+        run: tail -n 100 /tmp/api.log /tmp/worker.log /tmp/api-internal.log
       - if: failure()
         uses: actions/upload-artifact@v4
         with:
@@ -115,7 +131,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: imranismail/setup-kustomize@v2
       - run: |
-          for o in dev staging prod prod/ambiente; do
+          for o in dev staging prod prod/environment; do
             kustomize build deploy/overlays/$o > /dev/null
           done
 
@@ -153,7 +169,7 @@ jobs:
           context: web
           push: false
           build-args: |
-            VITE_OIDC_ISSUER=https://exemplo.zitadel.cloud
+            VITE_OIDC_ISSUER=https://example.zitadel.cloud
             VITE_OIDC_CLIENT_ID=ci
           cache-from: type=gha,scope=web
           cache-to: type=gha,mode=max,scope=web

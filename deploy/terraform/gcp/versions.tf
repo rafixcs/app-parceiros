@@ -12,12 +12,12 @@ terraform {
     }
   }
 
-  # Estado remoto num bucket GCS privado, criado à mão uma vez (veja o README).
-  # O estado guarda a senha do banco: o bucket não pode ser público.
+  # Remote state in a private GCS bucket, created by hand once (see docs/lancamento.md).
+  # The state holds the database password: the bucket must not be public.
   backend "gcs" {}
 }
 
 provider "google" {
-  project = var.projeto
-  region  = var.regiao
+  project = var.project
+  region  = var.region
 }

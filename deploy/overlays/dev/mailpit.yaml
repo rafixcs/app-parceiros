@@ -1,5 +1,5 @@
-# Mailpit: servidor SMTP local que guarda os e-mails (convites e notificações)
-# numa caixa web em http://localhost:8025, sem entregar nada de verdade.
+# Mailpit: local SMTP server that keeps the emails (invites and notifications)
+# in a web inbox at http://localhost:8025, without delivering anything.
 apiVersion: apps/v1
 kind: Deployment
 metadata:

@@ -1,7 +1,7 @@
-# Produção na GCP (GKE Autopilot + Cloud SQL + Memorystore), criada pelo
-# Terraform em deploy/terraform/gcp. Antes do primeiro deploy, troque os valores
-# marcados com TROCAR aqui e em ambiente/ (domínio, projeto, Zitadel, R2, SMTP,
-# VAPID). O passo a passo está em docs/lancamento.md.
+# Production on GCP (GKE Autopilot + Cloud SQL + Memorystore), created by the
+# Terraform in deploy/terraform/gcp. Before the first deploy, replace the values
+# marked with CHANGE-ME here and in environment/ (domain, project, Zitadel, R2,
+# SMTP, VAPID). The step by step is in docs/lancamento.md.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: parceiros-prod
@@ -11,10 +11,10 @@ components:
   - ../../components/gcp
 images:
   - name: parceiros
-    newName: southamerica-east1-docker.pkg.dev/TROCAR-projeto/parceiros/parceiros
-    newTag: latest # o deploy troca pela tag do commit (sha)
+    newName: southamerica-east1-docker.pkg.dev/CHANGE-ME-project/parceiros/parceiros
+    newTag: latest # the deploy replaces it with the commit tag (sha)
   - name: parceiros-web
-    newName: southamerica-east1-docker.pkg.dev/TROCAR-projeto/parceiros/parceiros-web
+    newName: southamerica-east1-docker.pkg.dev/CHANGE-ME-project/parceiros/parceiros-web
     newTag: latest
 patches:
   - target:
@@ -26,11 +26,11 @@ patches:
         value: parceiros-prod-ingress
       - op: replace
         path: /spec/rules/0/host
-        value: TROCAR.dominio
+        value: CHANGE-ME.domain
   - target:
       kind: ManagedCertificate
       name: parceiros
     patch: |-
       - op: replace
         path: /spec/domains/0
-        value: TROCAR.dominio
+        value: CHANGE-ME.domain
