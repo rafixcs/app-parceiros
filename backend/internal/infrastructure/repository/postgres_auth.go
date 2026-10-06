@@ -1,17 +1,12 @@
-// Package repository implements the domain repositories: postgres_*.go on
-// Postgres (with the RLS scope of each call) and inmem_*.go in memory, for
-// service tests.
 package repository
 
 import (
 	"context"
 	"encoding/hex"
-	"errors"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/rafixcs/app-parceiros/backend/internal/domain"
@@ -29,9 +24,7 @@ var _ domain.AuthRepository = (*PostgresAuth)(nil)
 func NewPostgresAuth(pool *pgxpool.Pool) *PostgresAuth { return &PostgresAuth{pool: pool} }
 
 func (r *PostgresAuth) tx(ctx context.Context, s database.Scope, fn func(*dbgen.Queries, pgx.Tx) error) error {
-	return database.InTx(ctx, r.pool, s, func(tx pgx.Tx) error {
-		return fn(dbgen.New(tx), tx)
-	})
+	return run(ctx, r.pool, s, fn)
 }
 
 // accountScope is the scope of a signed-in internal account.
@@ -166,14 +159,3 @@ func authAccountOf(a dbgen.AuthAccount) domain.AuthAccount {
 }
 
 // notFound turns pgx.ErrNoRows into domain.ErrNotFound.
-func notFound(err error) error {
-	if errors.Is(err, pgx.ErrNoRows) {
-		return domain.ErrNotFound
-	}
-	return err
-}
-
-func isUniqueViolation(err error) bool {
-	var pgErr *pgconn.PgError
-	return errors.As(err, &pgErr) && pgErr.Code == "23505"
-}

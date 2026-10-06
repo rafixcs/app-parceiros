@@ -13,184 +13,99 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-type AssinaturaStatus string
+type Channel string
 
 const (
-	AssinaturaStatusAguardando AssinaturaStatus = "aguardando"
-	AssinaturaStatusAtiva      AssinaturaStatus = "ativa"
-	AssinaturaStatusAtrasada   AssinaturaStatus = "atrasada"
-	AssinaturaStatusCancelada  AssinaturaStatus = "cancelada"
+	ChannelInstagram Channel = "instagram"
+	ChannelTiktok    Channel = "tiktok"
+	ChannelWhatsapp  Channel = "whatsapp"
+	ChannelOther     Channel = "other"
 )
 
-func (e *AssinaturaStatus) Scan(src interface{}) error {
+func (e *Channel) Scan(src interface{}) error {
 	switch s := src.(type) {
 	case []byte:
-		*e = AssinaturaStatus(s)
+		*e = Channel(s)
 	case string:
-		*e = AssinaturaStatus(s)
+		*e = Channel(s)
 	default:
-		return fmt.Errorf("unsupported scan type for AssinaturaStatus: %T", src)
+		return fmt.Errorf("unsupported scan type for Channel: %T", src)
 	}
 	return nil
 }
 
-type NullAssinaturaStatus struct {
-	AssinaturaStatus AssinaturaStatus
-	Valid            bool // Valid is true if AssinaturaStatus is not NULL
+type NullChannel struct {
+	Channel Channel
+	Valid   bool // Valid is true if Channel is not NULL
 }
 
 // Scan implements the Scanner interface.
-func (ns *NullAssinaturaStatus) Scan(value interface{}) error {
+func (ns *NullChannel) Scan(value interface{}) error {
 	if value == nil {
-		ns.AssinaturaStatus, ns.Valid = "", false
+		ns.Channel, ns.Valid = "", false
 		return nil
 	}
 	ns.Valid = true
-	return ns.AssinaturaStatus.Scan(value)
+	return ns.Channel.Scan(value)
 }
 
 // Value implements the driver Valuer interface.
-func (ns NullAssinaturaStatus) Value() (driver.Value, error) {
+func (ns NullChannel) Value() (driver.Value, error) {
 	if !ns.Valid {
 		return nil, nil
 	}
-	return string(ns.AssinaturaStatus), nil
+	return string(ns.Channel), nil
 }
 
-type Canal string
+type CredentialStatus string
 
 const (
-	CanalInstagram Canal = "instagram"
-	CanalTiktok    Canal = "tiktok"
-	CanalWhatsapp  Canal = "whatsapp"
-	CanalOutro     Canal = "outro"
+	CredentialStatusConnected CredentialStatus = "connected"
+	CredentialStatusInvalid   CredentialStatus = "invalid"
+	CredentialStatusExpired   CredentialStatus = "expired"
 )
 
-func (e *Canal) Scan(src interface{}) error {
+func (e *CredentialStatus) Scan(src interface{}) error {
 	switch s := src.(type) {
 	case []byte:
-		*e = Canal(s)
+		*e = CredentialStatus(s)
 	case string:
-		*e = Canal(s)
+		*e = CredentialStatus(s)
 	default:
-		return fmt.Errorf("unsupported scan type for Canal: %T", src)
+		return fmt.Errorf("unsupported scan type for CredentialStatus: %T", src)
 	}
 	return nil
 }
 
-type NullCanal struct {
-	Canal Canal
-	Valid bool // Valid is true if Canal is not NULL
+type NullCredentialStatus struct {
+	CredentialStatus CredentialStatus
+	Valid            bool // Valid is true if CredentialStatus is not NULL
 }
 
 // Scan implements the Scanner interface.
-func (ns *NullCanal) Scan(value interface{}) error {
+func (ns *NullCredentialStatus) Scan(value interface{}) error {
 	if value == nil {
-		ns.Canal, ns.Valid = "", false
+		ns.CredentialStatus, ns.Valid = "", false
 		return nil
 	}
 	ns.Valid = true
-	return ns.Canal.Scan(value)
+	return ns.CredentialStatus.Scan(value)
 }
 
 // Value implements the driver Valuer interface.
-func (ns NullCanal) Value() (driver.Value, error) {
+func (ns NullCredentialStatus) Value() (driver.Value, error) {
 	if !ns.Valid {
 		return nil, nil
 	}
-	return string(ns.Canal), nil
-}
-
-type CredencialStatus string
-
-const (
-	CredencialStatusConectado CredencialStatus = "conectado"
-	CredencialStatusInvalido  CredencialStatus = "invalido"
-	CredencialStatusExpirado  CredencialStatus = "expirado"
-)
-
-func (e *CredencialStatus) Scan(src interface{}) error {
-	switch s := src.(type) {
-	case []byte:
-		*e = CredencialStatus(s)
-	case string:
-		*e = CredencialStatus(s)
-	default:
-		return fmt.Errorf("unsupported scan type for CredencialStatus: %T", src)
-	}
-	return nil
-}
-
-type NullCredencialStatus struct {
-	CredencialStatus CredencialStatus
-	Valid            bool // Valid is true if CredencialStatus is not NULL
-}
-
-// Scan implements the Scanner interface.
-func (ns *NullCredencialStatus) Scan(value interface{}) error {
-	if value == nil {
-		ns.CredencialStatus, ns.Valid = "", false
-		return nil
-	}
-	ns.Valid = true
-	return ns.CredencialStatus.Scan(value)
-}
-
-// Value implements the driver Valuer interface.
-func (ns NullCredencialStatus) Value() (driver.Value, error) {
-	if !ns.Valid {
-		return nil, nil
-	}
-	return string(ns.CredencialStatus), nil
-}
-
-type Fonte string
-
-const (
-	FonteShopee Fonte = "shopee"
-)
-
-func (e *Fonte) Scan(src interface{}) error {
-	switch s := src.(type) {
-	case []byte:
-		*e = Fonte(s)
-	case string:
-		*e = Fonte(s)
-	default:
-		return fmt.Errorf("unsupported scan type for Fonte: %T", src)
-	}
-	return nil
-}
-
-type NullFonte struct {
-	Fonte Fonte
-	Valid bool // Valid is true if Fonte is not NULL
-}
-
-// Scan implements the Scanner interface.
-func (ns *NullFonte) Scan(value interface{}) error {
-	if value == nil {
-		ns.Fonte, ns.Valid = "", false
-		return nil
-	}
-	ns.Valid = true
-	return ns.Fonte.Scan(value)
-}
-
-// Value implements the driver Valuer interface.
-func (ns NullFonte) Value() (driver.Value, error) {
-	if !ns.Valid {
-		return nil, nil
-	}
-	return string(ns.Fonte), nil
+	return string(ns.CredentialStatus), nil
 }
 
 type ItemStatus string
 
 const (
-	ItemStatusTestando   ItemStatus = "testando"
-	ItemStatusCampeao    ItemStatus = "campeao"
-	ItemStatusDescartado ItemStatus = "descartado"
+	ItemStatusTesting   ItemStatus = "testing"
+	ItemStatusWinner    ItemStatus = "winner"
+	ItemStatusDiscarded ItemStatus = "discarded"
 )
 
 func (e *ItemStatus) Scan(src interface{}) error {
@@ -228,55 +143,55 @@ func (ns NullItemStatus) Value() (driver.Value, error) {
 	return string(ns.ItemStatus), nil
 }
 
-type LinkOrigem string
+type LinkOrigin string
 
 const (
-	LinkOrigemAuto   LinkOrigem = "auto"
-	LinkOrigemManual LinkOrigem = "manual"
+	LinkOriginAuto   LinkOrigin = "auto"
+	LinkOriginManual LinkOrigin = "manual"
 )
 
-func (e *LinkOrigem) Scan(src interface{}) error {
+func (e *LinkOrigin) Scan(src interface{}) error {
 	switch s := src.(type) {
 	case []byte:
-		*e = LinkOrigem(s)
+		*e = LinkOrigin(s)
 	case string:
-		*e = LinkOrigem(s)
+		*e = LinkOrigin(s)
 	default:
-		return fmt.Errorf("unsupported scan type for LinkOrigem: %T", src)
+		return fmt.Errorf("unsupported scan type for LinkOrigin: %T", src)
 	}
 	return nil
 }
 
-type NullLinkOrigem struct {
-	LinkOrigem LinkOrigem
-	Valid      bool // Valid is true if LinkOrigem is not NULL
+type NullLinkOrigin struct {
+	LinkOrigin LinkOrigin
+	Valid      bool // Valid is true if LinkOrigin is not NULL
 }
 
 // Scan implements the Scanner interface.
-func (ns *NullLinkOrigem) Scan(value interface{}) error {
+func (ns *NullLinkOrigin) Scan(value interface{}) error {
 	if value == nil {
-		ns.LinkOrigem, ns.Valid = "", false
+		ns.LinkOrigin, ns.Valid = "", false
 		return nil
 	}
 	ns.Valid = true
-	return ns.LinkOrigem.Scan(value)
+	return ns.LinkOrigin.Scan(value)
 }
 
 // Value implements the driver Valuer interface.
-func (ns NullLinkOrigem) Value() (driver.Value, error) {
+func (ns NullLinkOrigin) Value() (driver.Value, error) {
 	if !ns.Valid {
 		return nil, nil
 	}
-	return string(ns.LinkOrigem), nil
+	return string(ns.LinkOrigin), nil
 }
 
 type LinkStatus string
 
 const (
-	LinkStatusPendente LinkStatus = "pendente"
-	LinkStatusGerando  LinkStatus = "gerando"
-	LinkStatusPronto   LinkStatus = "pronto"
-	LinkStatusFalhou   LinkStatus = "falhou"
+	LinkStatusPending    LinkStatus = "pending"
+	LinkStatusGenerating LinkStatus = "generating"
+	LinkStatusReady      LinkStatus = "ready"
+	LinkStatusFailed     LinkStatus = "failed"
 )
 
 func (e *LinkStatus) Scan(src interface{}) error {
@@ -314,143 +229,228 @@ func (ns NullLinkStatus) Value() (driver.Value, error) {
 	return string(ns.LinkStatus), nil
 }
 
-type MembroPapel string
+type MemberRole string
 
 const (
-	MembroPapelDono     MembroPapel = "dono"
-	MembroPapelMentor   MembroPapel = "mentor"
-	MembroPapelAfiliado MembroPapel = "afiliado"
+	MemberRoleOwner     MemberRole = "owner"
+	MemberRoleMentor    MemberRole = "mentor"
+	MemberRoleAffiliate MemberRole = "affiliate"
 )
 
-func (e *MembroPapel) Scan(src interface{}) error {
+func (e *MemberRole) Scan(src interface{}) error {
 	switch s := src.(type) {
 	case []byte:
-		*e = MembroPapel(s)
+		*e = MemberRole(s)
 	case string:
-		*e = MembroPapel(s)
+		*e = MemberRole(s)
 	default:
-		return fmt.Errorf("unsupported scan type for MembroPapel: %T", src)
+		return fmt.Errorf("unsupported scan type for MemberRole: %T", src)
 	}
 	return nil
 }
 
-type NullMembroPapel struct {
-	MembroPapel MembroPapel
-	Valid       bool // Valid is true if MembroPapel is not NULL
+type NullMemberRole struct {
+	MemberRole MemberRole
+	Valid      bool // Valid is true if MemberRole is not NULL
 }
 
 // Scan implements the Scanner interface.
-func (ns *NullMembroPapel) Scan(value interface{}) error {
+func (ns *NullMemberRole) Scan(value interface{}) error {
 	if value == nil {
-		ns.MembroPapel, ns.Valid = "", false
+		ns.MemberRole, ns.Valid = "", false
 		return nil
 	}
 	ns.Valid = true
-	return ns.MembroPapel.Scan(value)
+	return ns.MemberRole.Scan(value)
 }
 
 // Value implements the driver Valuer interface.
-func (ns NullMembroPapel) Value() (driver.Value, error) {
+func (ns NullMemberRole) Value() (driver.Value, error) {
 	if !ns.Valid {
 		return nil, nil
 	}
-	return string(ns.MembroPapel), nil
+	return string(ns.MemberRole), nil
 }
 
-type PedidoStatus string
+type OrderStatus string
 
 const (
-	PedidoStatusNaoPago   PedidoStatus = "nao_pago"
-	PedidoStatusPendente  PedidoStatus = "pendente"
-	PedidoStatusConcluido PedidoStatus = "concluido"
-	PedidoStatusCancelado PedidoStatus = "cancelado"
+	OrderStatusUnpaid    OrderStatus = "unpaid"
+	OrderStatusPending   OrderStatus = "pending"
+	OrderStatusCompleted OrderStatus = "completed"
+	OrderStatusCancelled OrderStatus = "cancelled"
 )
 
-func (e *PedidoStatus) Scan(src interface{}) error {
+func (e *OrderStatus) Scan(src interface{}) error {
 	switch s := src.(type) {
 	case []byte:
-		*e = PedidoStatus(s)
+		*e = OrderStatus(s)
 	case string:
-		*e = PedidoStatus(s)
+		*e = OrderStatus(s)
 	default:
-		return fmt.Errorf("unsupported scan type for PedidoStatus: %T", src)
+		return fmt.Errorf("unsupported scan type for OrderStatus: %T", src)
 	}
 	return nil
 }
 
-type NullPedidoStatus struct {
-	PedidoStatus PedidoStatus
-	Valid        bool // Valid is true if PedidoStatus is not NULL
+type NullOrderStatus struct {
+	OrderStatus OrderStatus
+	Valid       bool // Valid is true if OrderStatus is not NULL
 }
 
 // Scan implements the Scanner interface.
-func (ns *NullPedidoStatus) Scan(value interface{}) error {
+func (ns *NullOrderStatus) Scan(value interface{}) error {
 	if value == nil {
-		ns.PedidoStatus, ns.Valid = "", false
+		ns.OrderStatus, ns.Valid = "", false
 		return nil
 	}
 	ns.Valid = true
-	return ns.PedidoStatus.Scan(value)
+	return ns.OrderStatus.Scan(value)
 }
 
 // Value implements the driver Valuer interface.
-func (ns NullPedidoStatus) Value() (driver.Value, error) {
+func (ns NullOrderStatus) Value() (driver.Value, error) {
 	if !ns.Valid {
 		return nil, nil
 	}
-	return string(ns.PedidoStatus), nil
+	return string(ns.OrderStatus), nil
 }
 
-type VideoAlvo string
+type Source string
 
 const (
-	VideoAlvoProduto VideoAlvo = "produto"
-	VideoAlvoLista   VideoAlvo = "lista"
+	SourceShopee Source = "shopee"
 )
 
-func (e *VideoAlvo) Scan(src interface{}) error {
+func (e *Source) Scan(src interface{}) error {
 	switch s := src.(type) {
 	case []byte:
-		*e = VideoAlvo(s)
+		*e = Source(s)
 	case string:
-		*e = VideoAlvo(s)
+		*e = Source(s)
 	default:
-		return fmt.Errorf("unsupported scan type for VideoAlvo: %T", src)
+		return fmt.Errorf("unsupported scan type for Source: %T", src)
 	}
 	return nil
 }
 
-type NullVideoAlvo struct {
-	VideoAlvo VideoAlvo
-	Valid     bool // Valid is true if VideoAlvo is not NULL
+type NullSource struct {
+	Source Source
+	Valid  bool // Valid is true if Source is not NULL
 }
 
 // Scan implements the Scanner interface.
-func (ns *NullVideoAlvo) Scan(value interface{}) error {
+func (ns *NullSource) Scan(value interface{}) error {
 	if value == nil {
-		ns.VideoAlvo, ns.Valid = "", false
+		ns.Source, ns.Valid = "", false
 		return nil
 	}
 	ns.Valid = true
-	return ns.VideoAlvo.Scan(value)
+	return ns.Source.Scan(value)
 }
 
 // Value implements the driver Valuer interface.
-func (ns NullVideoAlvo) Value() (driver.Value, error) {
+func (ns NullSource) Value() (driver.Value, error) {
 	if !ns.Valid {
 		return nil, nil
 	}
-	return string(ns.VideoAlvo), nil
+	return string(ns.Source), nil
+}
+
+type SubscriptionStatus string
+
+const (
+	SubscriptionStatusPending   SubscriptionStatus = "pending"
+	SubscriptionStatusActive    SubscriptionStatus = "active"
+	SubscriptionStatusOverdue   SubscriptionStatus = "overdue"
+	SubscriptionStatusCancelled SubscriptionStatus = "cancelled"
+)
+
+func (e *SubscriptionStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = SubscriptionStatus(s)
+	case string:
+		*e = SubscriptionStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for SubscriptionStatus: %T", src)
+	}
+	return nil
+}
+
+type NullSubscriptionStatus struct {
+	SubscriptionStatus SubscriptionStatus
+	Valid              bool // Valid is true if SubscriptionStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullSubscriptionStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.SubscriptionStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.SubscriptionStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullSubscriptionStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.SubscriptionStatus), nil
+}
+
+type VideoKind string
+
+const (
+	VideoKindEmbed  VideoKind = "embed"
+	VideoKindUpload VideoKind = "upload"
+)
+
+func (e *VideoKind) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = VideoKind(s)
+	case string:
+		*e = VideoKind(s)
+	default:
+		return fmt.Errorf("unsupported scan type for VideoKind: %T", src)
+	}
+	return nil
+}
+
+type NullVideoKind struct {
+	VideoKind VideoKind
+	Valid     bool // Valid is true if VideoKind is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullVideoKind) Scan(value interface{}) error {
+	if value == nil {
+		ns.VideoKind, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.VideoKind.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullVideoKind) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.VideoKind), nil
 }
 
 type VideoStatus string
 
 const (
-	VideoStatusEnviando     VideoStatus = "enviando"
-	VideoStatusProcessando  VideoStatus = "processando"
-	VideoStatusPronto       VideoStatus = "pronto"
-	VideoStatusFalhou       VideoStatus = "falhou"
-	VideoStatusIndisponivel VideoStatus = "indisponivel"
+	VideoStatusUploading   VideoStatus = "uploading"
+	VideoStatusProcessing  VideoStatus = "processing"
+	VideoStatusReady       VideoStatus = "ready"
+	VideoStatusFailed      VideoStatus = "failed"
+	VideoStatusUnavailable VideoStatus = "unavailable"
 )
 
 func (e *VideoStatus) Scan(src interface{}) error {
@@ -488,104 +488,88 @@ func (ns NullVideoStatus) Value() (driver.Value, error) {
 	return string(ns.VideoStatus), nil
 }
 
-type VideoTipo string
+type VideoTarget string
 
 const (
-	VideoTipoEmbed  VideoTipo = "embed"
-	VideoTipoUpload VideoTipo = "upload"
+	VideoTargetProduct VideoTarget = "product"
+	VideoTargetList    VideoTarget = "list"
 )
 
-func (e *VideoTipo) Scan(src interface{}) error {
+func (e *VideoTarget) Scan(src interface{}) error {
 	switch s := src.(type) {
 	case []byte:
-		*e = VideoTipo(s)
+		*e = VideoTarget(s)
 	case string:
-		*e = VideoTipo(s)
+		*e = VideoTarget(s)
 	default:
-		return fmt.Errorf("unsupported scan type for VideoTipo: %T", src)
+		return fmt.Errorf("unsupported scan type for VideoTarget: %T", src)
 	}
 	return nil
 }
 
-type NullVideoTipo struct {
-	VideoTipo VideoTipo
-	Valid     bool // Valid is true if VideoTipo is not NULL
+type NullVideoTarget struct {
+	VideoTarget VideoTarget
+	Valid       bool // Valid is true if VideoTarget is not NULL
 }
 
 // Scan implements the Scanner interface.
-func (ns *NullVideoTipo) Scan(value interface{}) error {
+func (ns *NullVideoTarget) Scan(value interface{}) error {
 	if value == nil {
-		ns.VideoTipo, ns.Valid = "", false
+		ns.VideoTarget, ns.Valid = "", false
 		return nil
 	}
 	ns.Valid = true
-	return ns.VideoTipo.Scan(value)
+	return ns.VideoTarget.Scan(value)
 }
 
 // Value implements the driver Valuer interface.
-func (ns NullVideoTipo) Value() (driver.Value, error) {
+func (ns NullVideoTarget) Value() (driver.Value, error) {
 	if !ns.Valid {
 		return nil, nil
 	}
-	return string(ns.VideoTipo), nil
+	return string(ns.VideoTarget), nil
 }
 
-type WorkspaceTipo string
+type WorkspaceKind string
 
 const (
-	WorkspaceTipoPessoal  WorkspaceTipo = "pessoal"
-	WorkspaceTipoMentoria WorkspaceTipo = "mentoria"
+	WorkspaceKindPersonal   WorkspaceKind = "personal"
+	WorkspaceKindMentorship WorkspaceKind = "mentorship"
 )
 
-func (e *WorkspaceTipo) Scan(src interface{}) error {
+func (e *WorkspaceKind) Scan(src interface{}) error {
 	switch s := src.(type) {
 	case []byte:
-		*e = WorkspaceTipo(s)
+		*e = WorkspaceKind(s)
 	case string:
-		*e = WorkspaceTipo(s)
+		*e = WorkspaceKind(s)
 	default:
-		return fmt.Errorf("unsupported scan type for WorkspaceTipo: %T", src)
+		return fmt.Errorf("unsupported scan type for WorkspaceKind: %T", src)
 	}
 	return nil
 }
 
-type NullWorkspaceTipo struct {
-	WorkspaceTipo WorkspaceTipo
-	Valid         bool // Valid is true if WorkspaceTipo is not NULL
+type NullWorkspaceKind struct {
+	WorkspaceKind WorkspaceKind
+	Valid         bool // Valid is true if WorkspaceKind is not NULL
 }
 
 // Scan implements the Scanner interface.
-func (ns *NullWorkspaceTipo) Scan(value interface{}) error {
+func (ns *NullWorkspaceKind) Scan(value interface{}) error {
 	if value == nil {
-		ns.WorkspaceTipo, ns.Valid = "", false
+		ns.WorkspaceKind, ns.Valid = "", false
 		return nil
 	}
 	ns.Valid = true
-	return ns.WorkspaceTipo.Scan(value)
+	return ns.WorkspaceKind.Scan(value)
 }
 
 // Value implements the driver Valuer interface.
-func (ns NullWorkspaceTipo) Value() (driver.Value, error) {
+func (ns NullWorkspaceKind) Value() (driver.Value, error) {
 	if !ns.Valid {
 		return nil, nil
 	}
-	return string(ns.WorkspaceTipo), nil
-}
-
-type Assinatura struct {
-	WorkspaceID      uuid.UUID
-	Provedor         string
-	ClienteExternoID string
-	ExternoID        string
-	Status           AssinaturaStatus
-	Assentos         int32
-	ValorCentavos    int64
-	ProximoCiclo     pgtype.Date
-	UrlPagamento     *string
-	CriadoPor        uuid.UUID
-	CriadaEm         time.Time
-	AtualizadaEm     time.Time
-	CanceladaEm      *time.Time
+	return string(ns.WorkspaceKind), nil
 }
 
 type AuthAccount struct {
@@ -615,313 +599,329 @@ type AuthToken struct {
 	CreatedAt time.Time
 }
 
-type Categoria struct {
-	Fonte     Fonte
+type BillingEvent struct {
+	Provider    string
+	EventID     string
+	WorkspaceID uuid.UUID
+	Kind        string
+	ReceivedAt  time.Time
+}
+
+type Category struct {
+	Source    Source
 	ID        int64
-	Nome      string
-	Monitorar bool
+	Name      string
+	Monitored bool
 }
 
-type ColecaoIten struct {
-	ColecaoID    uuid.UUID
-	ItemID       uuid.UUID
-	WorkspaceID  uuid.UUID
-	UsuarioID    uuid.UUID
-	AdicionadoEm time.Time
+type ChannelLink struct {
+	ItemID      uuid.UUID
+	WorkspaceID uuid.UUID
+	UserID      uuid.UUID
+	Channel     Channel
+	SubID       string
+	URL         string
+	GeneratedAt time.Time
 }
 
-type Coleco struct {
+type Collection struct {
 	ID          uuid.UUID
 	WorkspaceID uuid.UUID
-	UsuarioID   uuid.UUID
-	Nome        string
-	CriadoEm    time.Time
+	UserID      uuid.UUID
+	Name        string
+	CreatedAt   time.Time
 }
 
-type Converso struct {
-	ID               uuid.UUID
-	UsuarioID        uuid.UUID
-	WorkspaceID      uuid.UUID
-	Fonte            string
-	ConversaoID      int64
-	PedidoID         string
-	ItemID           int64
-	ModeloID         int64
-	ProdutoID        *uuid.UUID
-	ItemNome         string
-	LojaNome         string
-	SubID            string
-	Canal            *Canal
-	Status           PedidoStatus
-	Quantidade       int32
-	ValorCentavos    int64
-	ComissaoCentavos int64
-	OcorridoEm       time.Time
-	ClicadoEm        *time.Time
-	SincronizadoEm   time.Time
+type CollectionItem struct {
+	CollectionID uuid.UUID
+	ItemID       uuid.UUID
+	WorkspaceID  uuid.UUID
+	UserID       uuid.UUID
+	AddedAt      time.Time
 }
 
-type Convite struct {
+type Conversion struct {
+	ID              uuid.UUID
+	UserID          uuid.UUID
+	WorkspaceID     uuid.UUID
+	Source          string
+	ConversionID    int64
+	OrderID         string
+	ItemID          int64
+	ModelID         int64
+	ProductID       *uuid.UUID
+	ItemName        string
+	ShopName        string
+	SubID           string
+	Channel         *Channel
+	Status          OrderStatus
+	Quantity        int32
+	AmountCents     int64
+	CommissionCents int64
+	OccurredAt      time.Time
+	ClickedAt       *time.Time
+	SyncedAt        time.Time
+}
+
+type ConversionSync struct {
+	UserID      uuid.UUID
+	Status      string
+	RequestedAt time.Time
+	FinishedAt  *time.Time
+	Conversions int32
+	Error       *string
+}
+
+type CuratedList struct {
+	ID          uuid.UUID
+	WorkspaceID uuid.UUID
+	AuthorID    uuid.UUID
+	Title       string
+	Description string
+	PublishedAt *time.Time
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+type CuratedListItem struct {
+	ListID      uuid.UUID
+	WorkspaceID uuid.UUID
+	ProductID   uuid.UUID
+	Comment     string
+	Position    int32
+}
+
+type Invite struct {
 	ID          uuid.UUID
 	WorkspaceID uuid.UUID
 	Email       *string
 	TokenHash   []byte
-	ExpiraEm    time.Time
-	UsadoPor    *uuid.UUID
-	UsadoEm     *time.Time
-	RevogadoEm  *time.Time
-	CriadoPor   uuid.UUID
-	CriadoEm    time.Time
+	ExpiresAt   time.Time
+	UsedBy      *uuid.UUID
+	UsedAt      *time.Time
+	RevokedAt   *time.Time
+	CreatedBy   uuid.UUID
+	CreatedAt   time.Time
 }
 
-type CredenciaisShopee struct {
-	UsuarioID     uuid.UUID
-	AppID         string
-	SecretCifrado []byte
-	DekCifrada    []byte
-	KekID         string
-	Status        CredencialStatus
-	VerificadoEm  time.Time
-	CriadoEm      time.Time
-	AtualizadoEm  time.Time
-}
-
-type EventosCobranca struct {
-	Provedor    string
-	EventoID    string
+type ListImport struct {
+	ListID      uuid.UUID
 	WorkspaceID uuid.UUID
-	Tipo        string
-	RecebidoEm  time.Time
+	UserID      uuid.UUID
+	ProductID   uuid.UUID
+	ImportedAt  time.Time
 }
 
-type Importacao struct {
-	ListaID     uuid.UUID
-	WorkspaceID uuid.UUID
-	UsuarioID   uuid.UUID
-	ProdutoID   uuid.UUID
-	ImportadoEm time.Time
+type Member struct {
+	WorkspaceID   uuid.UUID
+	UserID        uuid.UUID
+	Role          MemberRole
+	SharesResults bool
+	JoinedAt      time.Time
 }
 
-type ItensColecao struct {
-	ID           uuid.UUID
-	WorkspaceID  uuid.UUID
-	UsuarioID    uuid.UUID
-	ProdutoID    uuid.UUID
-	Titulo       string
-	Descricao    string
-	Notas        string
-	Tags         []string
-	Status       ItemStatus
-	LinkAfiliado *string
-	LinkOrigem   LinkOrigem
-	LinkStatus   LinkStatus
-	CriadoEm     time.Time
-	AtualizadoEm time.Time
-}
-
-type Limite struct {
-	Plano string
-	Chave string
-	Valor int64
-}
-
-type LinksCanal struct {
-	ItemID      uuid.UUID
-	WorkspaceID uuid.UUID
-	UsuarioID   uuid.UUID
-	Canal       Canal
-	SubID       string
-	Url         string
-	GeradoEm    time.Time
-}
-
-type ListaCuradoria struct {
-	ID           uuid.UUID
-	WorkspaceID  uuid.UUID
-	AutorID      uuid.UUID
-	Titulo       string
-	Descricao    string
-	PublicadaEm  *time.Time
-	CriadoEm     time.Time
-	AtualizadoEm time.Time
-}
-
-type ListaItem struct {
-	ListaID     uuid.UUID
-	WorkspaceID uuid.UUID
-	ProdutoID   uuid.UUID
-	Comentario  string
-	Ordem       int32
-}
-
-type Membro struct {
-	WorkspaceID        uuid.UUID
-	UsuarioID          uuid.UUID
-	Papel              MembroPapel
-	ConsenteResultados bool
-	EntrouEm           time.Time
-}
-
-type Notificacao struct {
+type Notification struct {
 	ID          uuid.UUID
 	WorkspaceID uuid.UUID
-	UsuarioID   uuid.UUID
-	Tipo        string
-	Chave       string
-	Titulo      string
-	Corpo       string
-	Url         string
-	CriadoEm    time.Time
-	LidaEm      *time.Time
-	EmailEm     *time.Time
-	PushEm      *time.Time
+	UserID      uuid.UUID
+	Kind        string
+	Key         string
+	Title       string
+	Body        string
+	URL         string
+	CreatedAt   time.Time
+	ReadAt      *time.Time
+	EmailedAt   *time.Time
+	PushedAt    *time.Time
 }
 
-type PreferenciaNotificacao struct {
-	UsuarioID    uuid.UUID
-	Email        bool
-	AtualizadoEm time.Time
+type NotificationPreference struct {
+	UserID    uuid.UUID
+	Email     bool
+	UpdatedAt time.Time
 }
 
-type Produto struct {
-	ID               uuid.UUID
-	Fonte            Fonte
-	ItemID           int64
-	LojaID           int64
-	LojaNome         string
-	Nome             string
-	ImagemUrl        *string
-	CategoriaID      *int64
-	Categorias       []int64
-	Url              string
-	PrecoMinCentavos int64
-	PrecoMaxCentavos int64
-	ComissaoBp       int32
-	Vendas           int64
-	Nota             *float64
-	ColetadoEm       time.Time
-	CriadoEm         time.Time
+type PlanLimit struct {
+	Plan  string
+	Key   string
+	Value int64
 }
 
-type ProdutoSnapshot struct {
-	ProdutoID        uuid.UUID
-	ColetadoEm       time.Time
-	PrecoMinCentavos int64
-	PrecoMaxCentavos int64
-	ComissaoBp       int32
-	Vendas           int64
-	Nota             *float64
+type Product struct {
+	ID            uuid.UUID
+	Source        Source
+	ItemID        int64
+	ShopID        int64
+	ShopName      string
+	Name          string
+	ImageURL      *string
+	CategoryID    *int64
+	Categories    []int64
+	URL           string
+	MinPriceCents int64
+	MaxPriceCents int64
+	CommissionBp  int32
+	Sales         int64
+	Rating        *float64
+	CollectedAt   time.Time
+	CreatedAt     time.Time
 }
 
-type ProdutoSnapshotsPadrao struct {
-	ProdutoID        uuid.UUID
-	ColetadoEm       time.Time
-	PrecoMinCentavos int64
-	PrecoMaxCentavos int64
-	ComissaoBp       int32
-	Vendas           int64
-	Nota             *float64
+type ProductSnapshot struct {
+	ProductID     uuid.UUID
+	CollectedAt   time.Time
+	MinPriceCents int64
+	MaxPriceCents int64
+	CommissionBp  int32
+	Sales         int64
+	Rating        *float64
 }
 
-type PushInscricao struct {
+type ProductSnapshotsDefault struct {
+	ProductID     uuid.UUID
+	CollectedAt   time.Time
+	MinPriceCents int64
+	MaxPriceCents int64
+	CommissionBp  int32
+	Sales         int64
+	Rating        *float64
+}
+
+type PushSubscription struct {
 	ID        uuid.UUID
-	UsuarioID uuid.UUID
+	UserID    uuid.UUID
 	Endpoint  string
 	P256dh    string
 	Auth      string
-	CriadoEm  time.Time
+	CreatedAt time.Time
 }
 
-type Sincronizacao struct {
-	UsuarioID   uuid.UUID
-	Status      string
-	PedidaEm    time.Time
-	ConcluidaEm *time.Time
-	Conversoes  int32
-	Erro        *string
+type SavedItem struct {
+	ID            uuid.UUID
+	WorkspaceID   uuid.UUID
+	UserID        uuid.UUID
+	ProductID     uuid.UUID
+	Title         string
+	Description   string
+	Notes         string
+	Tags          []string
+	Status        ItemStatus
+	AffiliateLink *string
+	LinkOrigin    LinkOrigin
+	LinkStatus    LinkStatus
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
 }
 
-type Tendencia struct {
-	ProdutoID             uuid.UUID
-	CalculadoEm           time.Time
-	Score                 float64
-	GanhoPorVendaCentavos int64
-	VariacaoVendas7d      *int64
-	Nome                  string
-	LojaNome              string
-	ImagemUrl             *string
-	CategoriaID           *int64
-	Categorias            []int64
-	Url                   string
-	PrecoMinCentavos      int64
-	PrecoMaxCentavos      int64
-	ComissaoBp            int32
-	Vendas                int64
-	Nota                  *float64
-	AtualizadoEm          time.Time
-	Busca                 interface{}
+type ShopeeCredential struct {
+	UserID          uuid.UUID
+	AppID           string
+	EncryptedSecret []byte
+	EncryptedDek    []byte
+	KekID           string
+	Status          CredentialStatus
+	VerifiedAt      time.Time
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
 }
 
-type UsoVideo struct {
-	WorkspaceID uuid.UUID
-	Bytes       int64
+type Subscription struct {
+	WorkspaceID        uuid.UUID
+	Provider           string
+	ExternalCustomerID string
+	ExternalID         string
+	Status             SubscriptionStatus
+	Seats              int32
+	AmountCents        int64
+	NextDueDate        pgtype.Date
+	PaymentURL         *string
+	CreatedBy          uuid.UUID
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+	CancelledAt        *time.Time
 }
 
-type Usuario struct {
-	ID              uuid.UUID
-	AuthSubject     string
-	Nome            string
-	Email           string
-	EmailVerificado bool
-	CriadoEm        time.Time
-	AuthProvider    string
+type Trend struct {
+	ProductID            uuid.UUID
+	ComputedAt           time.Time
+	Score                float64
+	EarningsPerSaleCents int64
+	SalesGrowth7d        *int64
+	Name                 string
+	ShopName             string
+	ImageURL             *string
+	CategoryID           *int64
+	Categories           []int64
+	URL                  string
+	MinPriceCents        int64
+	MaxPriceCents        int64
+	CommissionBp         int32
+	Sales                int64
+	Rating               *float64
+	UpdatedAt            time.Time
+	Search               interface{}
+}
+
+type User struct {
+	ID            uuid.UUID
+	AuthProvider  string
+	AuthSubject   string
+	Name          string
+	Email         string
+	EmailVerified bool
+	CreatedAt     time.Time
 }
 
 type Video struct {
 	ID            uuid.UUID
 	WorkspaceID   uuid.UUID
-	DonoID        uuid.UUID
-	Tipo          VideoTipo
-	Plataforma    string
+	OwnerID       uuid.UUID
+	Kind          VideoKind
+	Platform      string
 	Status        VideoStatus
-	Titulo        string
-	Autor         string
-	Compartilhado bool
-	Url           *string
+	Title         string
+	Author        string
+	Shared        bool
+	URL           *string
 	EmbedID       *string
-	ThumbUrl      *string
-	VerificadoEm  *time.Time
+	ThumbnailURL  *string
+	VerifiedAt    *time.Time
 	StorageKey    *string
 	UploadID      *string
-	NomeArquivo   *string
+	FileName      *string
 	ContentType   *string
-	TamanhoBytes  int64
-	DuracaoS      *int32
-	Largura       *int32
-	Altura        *int32
-	DireitoUsoEm  *time.Time
-	CriadoEm      time.Time
-	AtualizadoEm  time.Time
+	SizeBytes     int64
+	DurationS     *int32
+	Width         *int32
+	Height        *int32
+	UsageRightsAt *time.Time
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
 }
 
-type VideoVinculo struct {
+type VideoLink struct {
 	VideoID     uuid.UUID
 	WorkspaceID uuid.UUID
-	DonoID      uuid.UUID
-	AlvoTipo    VideoAlvo
-	AlvoID      uuid.UUID
-	CriadoEm    time.Time
+	OwnerID     uuid.UUID
+	TargetKind  VideoTarget
+	TargetID    uuid.UUID
+	CreatedAt   time.Time
+}
+
+type VideoUsage struct {
+	WorkspaceID uuid.UUID
+	Bytes       int64
 }
 
 type Workspace struct {
-	ID        uuid.UUID
-	Tipo      WorkspaceTipo
-	Nome      string
-	FotoUrl   *string
-	DonoID    uuid.UUID
-	Plano     string
-	CriadoEm  time.Time
-	AcessoAte time.Time
-	PagoEm    *time.Time
-	Assentos  *int32
+	ID          uuid.UUID
+	Kind        WorkspaceKind
+	Name        string
+	PhotoURL    *string
+	OwnerID     uuid.UUID
+	Plan        string
+	AccessUntil time.Time
+	PaidAt      *time.Time
+	Seats       *int32
+	CreatedAt   time.Time
 }

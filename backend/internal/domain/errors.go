@@ -21,6 +21,10 @@ const (
 	KindGone
 	KindPaymentRequired
 	KindTooManyRequests
+	// KindUnavailable: a feature the server has not configured.
+	KindUnavailable
+	// KindUpstream: an external provider (Shopee, the payment gateway) failed.
+	KindUpstream
 )
 
 // Error is a business error with a stable code. It carries no user-facing

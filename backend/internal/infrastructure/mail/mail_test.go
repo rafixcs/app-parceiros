@@ -99,3 +99,29 @@ func TestAuthMailer(t *testing.T) {
 		t.Fatalf("reset email: %q", box.sent[1].Text)
 	}
 }
+
+func TestNotificationMailer(t *testing.T) {
+	box := &outbox{}
+	m := NotificationMailer{Mailer: box, AppURL: "https://app.test/"}
+	ctx := context.Background()
+	n := domain.Notification{Title: "Nova lista: Verão", Body: "3 produtos", URL: "/w/1/listas/2"}
+	if err := m.SendNotification(ctx, "ana@example.com", n); err != nil {
+		t.Fatal(err)
+	}
+	expires := time.Date(2026, 10, 5, 15, 0, 0, 0, time.UTC)
+	invite := domain.InviteEmail{Email: "bia@example.com", WorkspaceName: "Turma Top", URL: "https://app.test/convite/tok", ExpiresAt: expires}
+	if err := m.SendInvite(ctx, invite); err != nil {
+		t.Fatal(err)
+	}
+	if len(box.sent) != 2 {
+		t.Fatalf("sent %d emails", len(box.sent))
+	}
+	if e := box.sent[0]; e.To != "ana@example.com" || e.Subject != n.Title ||
+		!strings.Contains(e.Text, "Abrir no app: https://app.test/w/1/listas/2") {
+		t.Fatalf("notification email: %+v", e)
+	}
+	if e := box.sent[1]; e.To != "bia@example.com" || !strings.Contains(e.Subject, "Turma Top") ||
+		!strings.Contains(e.Text, "Aceitar convite: https://app.test/convite/tok") || !strings.Contains(e.Text, "05/10/2026 12:00") {
+		t.Fatalf("invite email: %+v", e)
+	}
+}

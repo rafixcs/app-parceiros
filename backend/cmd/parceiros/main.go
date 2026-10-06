@@ -16,7 +16,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/rafixcs/app-parceiros/backend/internal/notificacoes"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/push"
 	"github.com/rafixcs/app-parceiros/backend/internal/observability"
 	"github.com/rafixcs/app-parceiros/backend/internal/server"
 )
@@ -35,7 +35,7 @@ func run(log *slog.Logger, args []string) error {
 	}
 	mode := args[0]
 	if mode == "vapid" {
-		public, private, err := notificacoes.GerarChavesVAPID()
+		public, private, err := push.GenerateVAPIDKeys()
 		if err != nil {
 			return err
 		}

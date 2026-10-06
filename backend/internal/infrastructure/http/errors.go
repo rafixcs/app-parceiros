@@ -20,6 +20,8 @@ var statusByKind = map[domain.ErrorKind]int{
 	domain.KindGone:            nethttp.StatusGone,
 	domain.KindPaymentRequired: nethttp.StatusPaymentRequired,
 	domain.KindTooManyRequests: nethttp.StatusTooManyRequests,
+	domain.KindUnavailable:     nethttp.StatusServiceUnavailable,
+	domain.KindUpstream:        nethttp.StatusBadGateway,
 }
 
 // WriteError answers a service error. A domain.Error becomes its status and
@@ -37,4 +39,19 @@ func WriteError(w nethttp.ResponseWriter, r *nethttp.Request, log *slog.Logger, 
 	}
 	log.Error("request failed", "err", err, "request_id", middleware.GetReqID(r.Context()))
 	httputil.Error(w, nethttp.StatusInternalServerError, CodeInternal, Message(CodeInternal))
+}
+
+// decodeBody reads the JSON request body into v. On failure it answers 400
+// and returns false.
+func decodeBody(w nethttp.ResponseWriter, r *nethttp.Request, maxBytes int64, v any) bool {
+	if err := httputil.DecodeJSON(w, r, maxBytes, v); err != nil {
+		httputil.Error(w, nethttp.StatusBadRequest, CodeInvalidJSON, Message(CodeInvalidJSON))
+		return false
+	}
+	return true
+}
+
+// invalidRequest answers 400 for a malformed path or query parameter.
+func invalidRequest(w nethttp.ResponseWriter) {
+	httputil.Error(w, nethttp.StatusBadRequest, CodeInvalidRequest, Message(CodeInvalidRequest))
 }

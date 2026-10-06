@@ -12,10 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alicebob/miniredis/v2"
-	"github.com/redis/go-redis/v9"
-
-	"github.com/rafixcs/app-parceiros/backend/internal/contas"
 	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/auth"
 	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/database/dbtest"
 	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/repository"
@@ -54,9 +50,8 @@ func TestInternalAuthEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rdb := redis.NewClient(&redis.Options{Addr: miniredis.RunT(t).Addr()})
 	identity := identityProvider{Authenticator: svc, internal: svc}
-	router := newRouter(log, pool, rdb, identity, contas.NewService(pool, identity, "https://app.test"), nil)
+	router := newRouter(log, nil, identity, newServices(infra{log: log, pool: pool, appURL: "https://app.test", profiles: identity}))
 
 	call := func(token, method, path string, body, out any) int {
 		t.Helper()
@@ -84,13 +79,13 @@ func TestInternalAuthEndToEnd(t *testing.T) {
 	}
 	type user struct {
 		ID            string `json:"id"`
-		Name          string `json:"nome"`
+		Name          string `json:"name"`
 		Email         string `json:"email"`
-		EmailVerified bool   `json:"email_verificado"`
+		EmailVerified bool   `json:"email_verified"`
 	}
 	type apiError struct {
-		Code    string `json:"codigo"`
-		Message string `json:"mensagem"`
+		Code    string `json:"code"`
+		Message string `json:"message"`
 	}
 
 	var s1 session
@@ -103,7 +98,7 @@ func TestInternalAuthEndToEnd(t *testing.T) {
 	}
 
 	var me user
-	if code := call(s1.Token, "GET", "/v1/eu", nil, &me); code != http.StatusOK || me.Email != "ana@example.com" || me.Name != "Ana" || me.EmailVerified {
+	if code := call(s1.Token, "GET", "/v1/me", nil, &me); code != http.StatusOK || me.Email != "ana@example.com" || me.Name != "Ana" || me.EmailVerified {
 		t.Fatalf("me after register: %d %+v", code, me)
 	}
 	var workspaces []map[string]any
@@ -116,7 +111,7 @@ func TestInternalAuthEndToEnd(t *testing.T) {
 		t.Fatalf("verify: %d", code)
 	}
 	var again user
-	if call(s1.Token, "GET", "/v1/eu", nil, &again); !again.EmailVerified || again.ID != me.ID {
+	if call(s1.Token, "GET", "/v1/me", nil, &again); !again.EmailVerified || again.ID != me.ID {
 		t.Fatalf("me after verify: %+v (was %+v)", again, me)
 	}
 
@@ -128,13 +123,13 @@ func TestInternalAuthEndToEnd(t *testing.T) {
 		t.Fatalf("login: %d", code)
 	}
 	var same user
-	if call(s2.Token, "GET", "/v1/eu", nil, &same); same.ID != me.ID {
+	if call(s2.Token, "GET", "/v1/me", nil, &same); same.ID != me.ID {
 		t.Fatalf("second session is another user: %+v", same)
 	}
 	if code := call(s2.Token, "POST", "/v1/auth/logout", nil, nil); code != http.StatusNoContent {
 		t.Fatalf("logout: %d", code)
 	}
-	if code := call(s2.Token, "GET", "/v1/eu", nil, nil); code != http.StatusUnauthorized {
+	if code := call(s2.Token, "GET", "/v1/me", nil, nil); code != http.StatusUnauthorized {
 		t.Fatalf("after logout: %d", code)
 	}
 
@@ -145,7 +140,7 @@ func TestInternalAuthEndToEnd(t *testing.T) {
 	if code := call("", "POST", "/v1/auth/password/reset", map[string]string{"token": box.reset["ana@example.com"], "password": "new-secret-1"}, nil); code != http.StatusNoContent {
 		t.Fatalf("reset: %d", code)
 	}
-	if code := call(s1.Token, "GET", "/v1/eu", nil, nil); code != http.StatusUnauthorized {
+	if code := call(s1.Token, "GET", "/v1/me", nil, nil); code != http.StatusUnauthorized {
 		t.Fatalf("old session after reset: %d", code)
 	}
 	if code := call("", "POST", "/v1/auth/password/reset", map[string]string{"token": box.reset["ana@example.com"], "password": "new-secret-2"}, &e); code != http.StatusGone || e.Code != "invalid_auth_token" {

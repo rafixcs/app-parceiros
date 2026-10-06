@@ -16,8 +16,8 @@ func JSON(w http.ResponseWriter, status int, v any) {
 // ErrorBody is the standard body of the API error responses. Code is stable
 // and meant for programs; Message is ready to show to the user, in pt-BR.
 type ErrorBody struct {
-	Code    string `json:"codigo"`
-	Message string `json:"mensagem"`
+	Code    string `json:"code"`
+	Message string `json:"message"`
 }
 
 // Error writes an error response in the standard format.

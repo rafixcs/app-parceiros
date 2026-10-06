@@ -59,7 +59,7 @@ func requestLogger(log *slog.Logger) func(nethttp.Handler) nethttp.Handler {
 			start := time.Now()
 			next.ServeHTTP(ww, r)
 			// Log the route pattern, not the path, so tokens carried in the
-			// URL (e.g. /v1/convites/{token}) never reach the logs.
+			// URL (e.g. /v1/invites/{token}) never reach the logs.
 			route := ""
 			if rctx := chi.RouteContext(r.Context()); rctx != nil {
 				route = rctx.RoutePattern()

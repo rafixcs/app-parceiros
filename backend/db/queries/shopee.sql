@@ -1,27 +1,27 @@
--- name: CredencialDoUsuario :one
-SELECT * FROM credenciais_shopee WHERE usuario_id = $1;
+-- name: ShopeeCredentialByUser :one
+SELECT * FROM shopee_credentials WHERE user_id = $1;
 
--- name: SalvarCredencial :one
-INSERT INTO credenciais_shopee (usuario_id, app_id, secret_cifrado, dek_cifrada, kek_id, status, verificado_em)
-VALUES ($1, $2, $3, $4, $5, 'conectado', $6)
-ON CONFLICT (usuario_id) DO UPDATE SET
+-- name: SaveShopeeCredential :one
+INSERT INTO shopee_credentials (user_id, app_id, encrypted_secret, encrypted_dek, kek_id, status, verified_at)
+VALUES ($1, $2, $3, $4, $5, 'connected', $6)
+ON CONFLICT (user_id) DO UPDATE SET
     app_id = excluded.app_id,
-    secret_cifrado = excluded.secret_cifrado,
-    dek_cifrada = excluded.dek_cifrada,
+    encrypted_secret = excluded.encrypted_secret,
+    encrypted_dek = excluded.encrypted_dek,
     kek_id = excluded.kek_id,
-    status = 'conectado',
-    verificado_em = excluded.verificado_em,
-    atualizado_em = now()
+    status = 'connected',
+    verified_at = excluded.verified_at,
+    updated_at = now()
 RETURNING *;
 
--- name: ApagarCredencial :exec
-DELETE FROM credenciais_shopee WHERE usuario_id = $1;
+-- name: DeleteShopeeCredential :exec
+DELETE FROM shopee_credentials WHERE user_id = $1;
 
--- name: MarcarStatusCredencial :execrows
-UPDATE credenciais_shopee
-SET status = $2, verificado_em = now(), atualizado_em = now()
-WHERE usuario_id = $1;
+-- name: SetShopeeCredentialStatus :execrows
+UPDATE shopee_credentials
+SET status = $2, verified_at = now(), updated_at = now()
+WHERE user_id = $1;
 
--- name: UsuariosConectados :many
--- Só o worker (papel dono das tabelas) usa, para agendar a sincronização.
-SELECT usuario_id FROM credenciais_shopee WHERE status = 'conectado' ORDER BY usuario_id;
+-- name: ConnectedShopeeUsers :many
+-- Only the worker (owner role of the tables) uses it, to schedule the sync.
+SELECT user_id FROM shopee_credentials WHERE status = 'connected' ORDER BY user_id;

@@ -137,11 +137,7 @@ func (h *AuthHandler) resetPassword(w nethttp.ResponseWriter, r *nethttp.Request
 }
 
 func (h *AuthHandler) decode(w nethttp.ResponseWriter, r *nethttp.Request, v any) bool {
-	if err := httputil.DecodeJSON(w, r, maxAuthBody, v); err != nil {
-		httputil.Error(w, nethttp.StatusBadRequest, CodeInvalidJSON, Message(CodeInvalidJSON))
-		return false
-	}
-	return true
+	return decodeBody(w, r, maxAuthBody, v)
 }
 
 // clientIP returns the address of the client: the first X-Forwarded-For hop

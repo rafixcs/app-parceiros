@@ -16,6 +16,8 @@ import (
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
+
+	"github.com/rafixcs/app-parceiros/backend/internal/domain"
 )
 
 // Storage keeps objects by key.
@@ -96,7 +98,7 @@ func (s *S3) Put(ctx context.Context, key string, data []byte, contentType strin
 }
 
 // ErrNotFound means the object (or the multipart upload) does not exist.
-var ErrNotFound = errors.New("object not found")
+var ErrNotFound = fmt.Errorf("object %w", domain.ErrNotFound)
 
 func translate(err error) error {
 	switch minio.ToErrorResponse(err).Code {
@@ -107,17 +109,13 @@ func translate(err error) error {
 }
 
 // Part is one part of a multipart upload.
-type Part struct {
-	Number int
-	ETag   string
-	Size   int64
-}
+type Part = domain.UploadPart
 
 // Object describes a stored object.
-type Object struct {
-	Size        int64
-	ContentType string
-}
+type Object = domain.ObjectInfo
+
+// S3 is the bucket of the videos.
+var _ domain.ObjectStore = (*S3)(nil)
 
 // StartMultipart opens a multipart upload and returns its uploadId. The parts
 // go straight from the browser to the bucket through URLs from SignPart.

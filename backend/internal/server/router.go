@@ -1,29 +1,29 @@
 package server
 
 import (
-	"context"
 	"log/slog"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/redis/go-redis/v9"
 
-	"github.com/rafixcs/app-parceiros/backend/internal/contas"
 	httpapi "github.com/rafixcs/app-parceiros/backend/internal/infrastructure/http"
 )
 
 // newRouter registers every route: health, the sign-in routes of the
-// internal provider (when active) and the modules behind the identity check.
-func newRouter(log *slog.Logger, pool *pgxpool.Pool, rdb *redis.Client, identity identityProvider,
-	accounts *contas.Service, modules []contas.Modulo,
-) chi.Router {
-	router := httpapi.NewRouter(log, map[string]httpapi.Checker{
-		"postgres": pinger(pool),
-		"redis":    func(ctx context.Context) error { return rdb.Ping(ctx).Err() },
-	})
+// internal provider (when active) and the features behind the identity check.
+func newRouter(log *slog.Logger, checks map[string]httpapi.Checker, identity identityProvider, s *services) chi.Router {
+	router := httpapi.NewRouter(log, checks)
 	if identity.internal != nil {
 		httpapi.NewAuthHandler(identity.internal, log).Routes(router)
 	}
-	contas.NewHandler(accounts, log).Rotas(router, identity, modules...)
+	httpapi.NewAccountHandler(s.accounts, log).Mount(router, identity,
+		httpapi.NewTrendHandler(s.trends, log).Routes(),
+		httpapi.NewNotificationHandler(s.notifications, log).Routes(),
+		httpapi.NewBillingHandler(s.billing, log).Routes(),
+		httpapi.NewShopeeHandler(s.shopeeCredentials, log).Routes(),
+		httpapi.NewCollectionHandler(s.collections, log).Routes(),
+		httpapi.NewMediaHandler(s.media, log).Routes(),
+		httpapi.NewResultHandler(s.results, log).Routes(),
+		httpapi.NewCurationHandler(s.curation, log).Routes(),
+	)
 	return router
 }

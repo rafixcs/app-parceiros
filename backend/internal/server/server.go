@@ -11,29 +11,22 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 	"github.com/riverqueue/river"
 
 	"github.com/rafixcs/app-parceiros/backend/db"
-	"github.com/rafixcs/app-parceiros/backend/internal/assinaturas"
-	"github.com/rafixcs/app-parceiros/backend/internal/colecoes"
-	"github.com/rafixcs/app-parceiros/backend/internal/contas"
-	"github.com/rafixcs/app-parceiros/backend/internal/curadoria"
 	"github.com/rafixcs/app-parceiros/backend/internal/domain"
-	"github.com/rafixcs/app-parceiros/backend/internal/fontes"
-	"github.com/rafixcs/app-parceiros/backend/internal/fontes/shopee"
-	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/crypto"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/billing"
 	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/database"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/ffmpeg"
+	httpapi "github.com/rafixcs/app-parceiros/backend/internal/infrastructure/http"
 	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/mail"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/oembed"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/push"
 	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/queue"
-	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/ratelimit"
+	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/shopee"
 	"github.com/rafixcs/app-parceiros/backend/internal/infrastructure/storage"
-	"github.com/rafixcs/app-parceiros/backend/internal/midia"
-	"github.com/rafixcs/app-parceiros/backend/internal/notificacoes"
-	"github.com/rafixcs/app-parceiros/backend/internal/produtos"
-	"github.com/rafixcs/app-parceiros/backend/internal/resultados"
-	"github.com/rafixcs/app-parceiros/backend/internal/tendencias"
+	"github.com/rafixcs/app-parceiros/backend/internal/service"
 )
 
 // Migrate applies the application and River migrations.
@@ -66,10 +59,6 @@ func RunAPI(ctx context.Context, log *slog.Logger, cfg Config) error {
 	}
 	defer func() { _ = rdb.Close() }()
 
-	kek, err := crypto.NewLocalKEK(cfg.CryptoKEKID, cfg.CryptoKEK)
-	if err != nil {
-		return err
-	}
 	mailer := newMailer(log, cfg)
 	identity, err := newIdentityProvider(ctx, log, cfg, pool, rdb, mailer)
 	if err != nil {
@@ -79,35 +68,22 @@ func RunAPI(ctx context.Context, log *slog.Logger, cfg Config) error {
 	if err != nil {
 		return err
 	}
-
-	accountsSvc := contas.NewService(pool, identity, cfg.AppURL)
-	shopeeClient := newShopeeClient(log, cfg, rdb)
-	credentials := shopee.NovasCredenciais(pool, crypto.NewVault(kek), shopeeClient)
-	affiliator := shopee.Afiliador{Credenciais: credentials, Cliente: shopeeClient}
-	productsSvc := produtos.NewService(pool)
-	trendsSvc := tendencias.NewService(pool, productsSvc)
-	collectionsSvc := colecoes.NewService(pool, productsSvc, appCatalog(cfg, shopeeClient),
-		affiliator, colecoes.FilaRiver{Client: jobs}, log)
-	notificationsSvc := notificacoes.NewService(pool, notificacoes.FilaRiver{Client: jobs}, accountsSvc,
-		mailer, newPush(log, cfg), cfg.AppURL, log)
-	accountsSvc.EnviarConvitesCom(notificationsSvc.EnviarConvite)
-	mediaSvc := midia.NewService(pool, productsSvc, &midia.OEmbed{Cache: midia.CacheRedis{R: rdb}},
-		mediaObjects(newBucket(ctx, log, cfg)), nil, accountsSvc, &midia.FilaRiver{Client: jobs}, log)
-	curationSvc := curadoria.NewService(pool, productsSvc, collectionsSvc, accountsSvc, notificationsSvc, mediaSvc, log)
-	resultsSvc := resultados.NewService(pool, shopee.Relatorio{Credenciais: credentials, Cliente: shopeeClient},
-		affiliator, productsSvc, accountsSvc, curationSvc, resultados.FilaRiver{Client: jobs}, log)
-	subscriptionsSvc := assinaturas.NewService(pool, newPaymentGateway(log, cfg), accountsSvc, notificationsSvc, log)
-
-	router := newRouter(log, pool, rdb, identity, accountsSvc, []contas.Modulo{
-		shopee.NewHandler(credentials, log).Modulo(),
-		tendencias.NewHandler(trendsSvc, log).Modulo(),
-		colecoes.NewHandler(collectionsSvc, log).Modulo(),
-		curadoria.NewHandler(curationSvc, log).Modulo(),
-		notificacoes.NewHandler(notificationsSvc, log).Modulo(),
-		midia.NewHandler(mediaSvc, log).Modulo(),
-		resultados.NewHandler(resultsSvc, log).Modulo(),
-		assinaturas.NewHandler(subscriptionsSvc, log).Modulo(),
-	})
+	in := infra{
+		log: log, pool: pool, appURL: cfg.AppURL, profiles: identity, mailer: mailer,
+		notificationQueue: &queue.River{Client: jobs}, linkQueue: &queue.River{Client: jobs}, push: newPush(log, cfg),
+		objects:    objectStore(newBucket(ctx, log, cfg)),
+		embeds:     &oembed.Client{Cache: oembed.RedisCache{R: rdb}},
+		mediaQueue: &queue.River{Client: jobs}, conversionSyncQueue: &queue.River{Client: jobs},
+		payments: newPaymentGateway(log, cfg),
+	}
+	if err := withShopee(&in, cfg, rdb); err != nil {
+		return err
+	}
+	svcs := newServices(in)
+	router := newRouter(log, map[string]httpapi.Checker{
+		"postgres": pool.Ping,
+		"redis":    func(ctx context.Context) error { return rdb.Ping(ctx).Err() },
+	}, identity, svcs)
 
 	srv := &http.Server{Addr: cfg.HTTPAddr, Handler: router, ReadHeaderTimeout: 10 * time.Second}
 	errCh := make(chan error, 1)
@@ -134,81 +110,65 @@ func RunWorker(ctx context.Context, log *slog.Logger, cfg Config) error {
 		return err
 	}
 	defer pool.Close()
+
 	rdb, err := newRedis(cfg)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = rdb.Close() }()
 
-	kek, err := crypto.NewLocalKEK(cfg.CryptoKEKID, cfg.CryptoKEK)
-	if err != nil {
+	// Jobs enqueue other jobs with the River client of the job being worked.
+	jobs := &queue.River{}
+	in := infra{
+		log: log, pool: pool, appURL: cfg.AppURL, mailer: newMailer(log, cfg),
+		notificationQueue: jobs, trendQueue: jobs, linkQueue: jobs, mediaQueue: jobs, push: newPush(log, cfg),
+		videoProcessor: ffmpeg.Processor{},
+	}
+	if bucket := newBucket(ctx, log, cfg); bucket != nil {
+		in.objects, in.raw = bucket, bucket
+	}
+	if err := withShopee(&in, cfg, rdb); err != nil {
 		return err
 	}
+	svcs := newServices(in)
 
-	productsSvc := produtos.NewService(pool)
-	shopeeClient := newShopeeClient(log, cfg, rdb)
-	catalog := appCatalog(cfg, shopeeClient)
 	var periodic []*river.PeriodicJob
-	switch {
-	case catalog == nil:
-		log.Warn("no SHOPEE_APP_ID and SHOPEE_APP_SECRET: the catalog will not be collected")
-	case cfg.ShopeeMode == "mock":
-		if err := registerMockCategories(ctx, productsSvc); err != nil {
-			return err
-		}
-		periodic = append(periodic, produtos.PeriodicoSnapshots())
-	default:
-		periodic = append(periodic, produtos.PeriodicoSnapshots())
-	}
-	credentials := shopee.NovasCredenciais(pool, crypto.NewVault(kek), shopeeClient)
-	affiliator := shopee.Afiliador{Credenciais: credentials, Cliente: shopeeClient}
-	periodic = append(periodic, resultados.PeriodicoSync())
-
 	workers := river.NewWorkers()
 	river.AddWorker(workers, &queue.PingWorker{Log: log})
-	river.AddWorker(workers, &produtos.AgendarSnapshotsWorker{
-		Svc: productsSvc, Fonte: fontes.Shopee, Paginas: cfg.ShopeePages,
+	river.AddWorker(workers, &queue.ScheduleSnapshotsWorker{
+		Svc: svcs.products, Source: domain.SourceShopee, Pages: cfg.ShopeePages, Queue: jobs,
 	})
-	bucket := newBucket(ctx, log, cfg)
-	if catalog != nil {
-		var raw storage.Storage = storage.Discard{}
-		if bucket != nil {
-			raw = bucket
+	if in.catalog == nil {
+		log.Warn("no SHOPEE_APP_ID and SHOPEE_APP_SECRET: the catalog will not be collected")
+	} else {
+		if cfg.ShopeeMode == "mock" {
+			// The recorded catalog's categories, all monitored, so the local
+			// radar has named filters.
+			cats, err := shopee.Categories()
+			if err != nil {
+				return err
+			}
+			if err := svcs.products.SaveCategories(ctx, domain.SourceShopee, cats); err != nil {
+				return err
+			}
 		}
-		river.AddWorker(workers, &produtos.SnapshotCatalogoWorker{
-			Svc: productsSvc, Catalogo: catalog, Storage: raw, Log: log,
-			Depois: tendencias.Enfileirar,
-		})
+		river.AddWorker(workers, &queue.SnapshotCatalogWorker{Svc: svcs.products, Log: log})
+		periodic = append(periodic, queue.PeriodicSnapshots(service.SnapshotInterval))
 	}
-	river.AddWorker(workers, &tendencias.CalcularTendenciasWorker{
-		Svc: tendencias.NewService(pool, productsSvc), Log: log,
-	})
-	river.AddWorker(workers, &colecoes.GerarLinkWorker{
-		Svc: colecoes.NewService(pool, productsSvc, catalog, affiliator, nil, log), Log: log,
-	})
-	accountsSvc := contas.NewService(pool, nil, cfg.AppURL) // only reads contacts
-	river.AddWorker(workers, &notificacoes.EntregarWorker{
-		Svc: notificacoes.NewService(pool, nil, accountsSvc, newMailer(log, cfg), newPush(log, cfg), cfg.AppURL, log),
-	})
-	// Revalidation schedules its next round through the queue, which gets the
-	// client right below, before the worker starts.
-	mediaQueue := &midia.FilaRiver{}
-	mediaSvc := midia.NewService(pool, productsSvc, &midia.OEmbed{}, mediaObjects(bucket), midia.FFmpeg{}, accountsSvc, mediaQueue, log)
-	river.AddWorker(workers, &midia.ProcessarVideoWorker{Svc: mediaSvc, Log: log})
-	river.AddWorker(workers, &midia.RevalidarEmbedWorker{Svc: mediaSvc})
-	river.AddWorker(workers, &midia.LimparUploadWorker{Svc: mediaSvc})
-	river.AddWorker(workers, &resultados.AgendarSyncWorker{Usuarios: credentials})
-	river.AddWorker(workers, &resultados.SyncConversoesWorker{
-		Svc: resultados.NewService(pool, shopee.Relatorio{Credenciais: credentials, Cliente: shopeeClient},
-			affiliator, productsSvc, accountsSvc, nil, nil, log),
-		Log: log,
-	})
+	river.AddWorker(workers, &queue.ComputeTrendsWorker{Svc: svcs.trends, Log: log})
+	river.AddWorker(workers, &queue.DeliverNotificationWorker{Service: svcs.notifications})
+	river.AddWorker(workers, &queue.GenerateAffiliateLinkWorker{Svc: svcs.collections, Log: log})
+	river.AddWorker(workers, &queue.ProcessVideoWorker{Svc: svcs.media, Log: log})
+	river.AddWorker(workers, &queue.RevalidateEmbedWorker{Svc: svcs.media})
+	river.AddWorker(workers, &queue.CleanUploadWorker{Svc: svcs.media})
+	river.AddWorker(workers, &queue.SyncConversionsWorker{Svc: svcs.results, Log: log})
+	river.AddWorker(workers, &queue.ScheduleConversionSyncsWorker{Users: svcs.shopeeCredentials, Queue: jobs})
+	periodic = append(periodic, queue.PeriodicConversionSyncs())
 
 	client, err := queue.NewWorkerClient(pool, workers, periodic, log)
 	if err != nil {
 		return err
 	}
-	mediaQueue.Client = client
 	if err := client.Start(ctx); err != nil {
 		return err
 	}
@@ -226,49 +186,6 @@ func newRedis(cfg Config) (*redis.Client, error) {
 	return redis.NewClient(opts), nil
 }
 
-// newShopeeClient creates the Open API client, or the mock in dev, with a
-// rate limit per credential in Redis.
-func newShopeeClient(log *slog.Logger, cfg Config, rdb *redis.Client) *shopee.Cliente {
-	c := shopee.Config{
-		URL: cfg.ShopeeURL,
-		Limitador: ratelimit.NewRedis(rdb, "rl:", ratelimit.Rate{
-			Per: cfg.ShopeeRatePerHour, Interval: time.Hour, Burst: 10,
-		}),
-	}
-	if cfg.ShopeeMode == "mock" {
-		log.Warn("shopee in mock mode: recorded answers, no API calls")
-		return shopee.NovoMock(&shopee.Mock{Evoluir: true}, c)
-	}
-	return shopee.NovoCliente(c)
-}
-
-// appCatalog binds the client to the app credential. Without it (outside the
-// mock) it returns nil: the catalog is not collected, and products pasted by
-// link that are not in the catalog cannot be imported.
-func appCatalog(cfg Config, client *shopee.Cliente) fontes.Catalogo {
-	switch {
-	case cfg.ShopeeMode == "mock":
-		return shopee.CatalogoDoApp{Cliente: client, Credencial: shopee.Credencial{AppID: "1", Secret: "mock"}}
-	case cfg.ShopeeAppID != "" && cfg.ShopeeAppSecret != "":
-		return shopee.CatalogoDoApp{Cliente: client, Credencial: shopee.Credencial{AppID: cfg.ShopeeAppID, Secret: cfg.ShopeeAppSecret}}
-	default:
-		return nil
-	}
-}
-
-// newPaymentGateway picks Asaas or, in dev, the mock, which charges nothing
-// and accepts simulated payments.
-func newPaymentGateway(log *slog.Logger, cfg Config) assinaturas.Gateway {
-	if cfg.BillingMode == "mock" {
-		log.Warn("billing in mock mode: nothing is charged and payments are simulated")
-		return assinaturas.NovoMock()
-	}
-	if cfg.AsaasWebhookSecret == "" {
-		log.Warn("no ASAAS_WEBHOOK_SECRET: Asaas billing notices will be refused")
-	}
-	return assinaturas.Asaas{URL: cfg.AsaasURL, Chave: cfg.AsaasAPIKey, SegredoWebhook: cfg.AsaasWebhookSecret}
-}
-
 // newMailer returns the SMTP mailer, or nil without SMTP_ADDR.
 func newMailer(log *slog.Logger, cfg Config) domain.Mailer {
 	if cfg.SMTPAddr == "" {
@@ -279,30 +196,29 @@ func newMailer(log *slog.Logger, cfg Config) domain.Mailer {
 }
 
 // newPush returns Web Push, or nil without the VAPID keys.
-func newPush(log *slog.Logger, cfg Config) notificacoes.Push {
+func newPush(log *slog.Logger, cfg Config) domain.PushSender {
 	if cfg.VAPIDPublicKey == "" {
 		log.Warn("no VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY: no Web Push notifications")
 		return nil
 	}
-	return notificacoes.WebPush{Publica: cfg.VAPIDPublicKey, Privada: cfg.VAPIDPrivateKey, Assunto: cfg.VAPIDSubject}
+	return push.WebPush{PublicKeyB64: cfg.VAPIDPublicKey, PrivateKeyB64: cfg.VAPIDPrivateKey, Subject: cfg.VAPIDSubject}
 }
 
-// registerMockCategories registers the categories of the recorded catalog,
-// all monitored, so the local radar has named filters.
-func registerMockCategories(ctx context.Context, svc *produtos.Service) error {
-	cats, err := shopee.Categorias()
-	if err != nil {
-		return err
+// newPaymentGateway picks Asaas or, in dev, the mock, which charges nothing
+// and lets the payment be simulated.
+func newPaymentGateway(log *slog.Logger, cfg Config) domain.PaymentGateway {
+	if cfg.BillingMode == "mock" {
+		log.Warn("billing in mock mode: nothing is charged and payments are simulated")
+		return billing.NewMock()
 	}
-	out := make([]produtos.Categoria, len(cats))
-	for i, c := range cats {
-		out[i] = produtos.Categoria{ID: c.ID, Nome: c.Nome, Monitorar: true}
+	if cfg.AsaasWebhookSecret == "" {
+		log.Warn("no ASAAS_WEBHOOK_SECRET: Asaas billing events will be refused")
 	}
-	return svc.SalvarCategorias(ctx, fontes.Shopee, out)
+	return billing.Asaas{URL: cfg.AsaasURL, APIKey: cfg.AsaasAPIKey, WebhookSecret: cfg.AsaasWebhookSecret}
 }
 
-// newBucket opens the S3 bucket (raw Shopee answers and videos). Without
-// S3_ENDPOINT it returns nil.
+// newBucket opens the S3 bucket (videos and raw answers of the sources).
+// Without S3_ENDPOINT it returns nil.
 func newBucket(ctx context.Context, log *slog.Logger, cfg Config) *storage.S3 {
 	if cfg.S3Endpoint == "" {
 		log.Warn("no S3_ENDPOINT: no bucket for videos and raw answers")
@@ -324,13 +240,10 @@ func newBucket(ctx context.Context, log *slog.Logger, cfg Config) *storage.S3 {
 	return s3
 }
 
-// mediaObjects avoids passing a nil *storage.S3 as a non-nil interface.
-func mediaObjects(s3 *storage.S3) midia.Objetos {
+// objectStore avoids passing a nil *storage.S3 as a non-nil interface.
+func objectStore(s3 *storage.S3) domain.ObjectStore {
 	if s3 == nil {
 		return nil
 	}
 	return s3
 }
-
-// pinger adapts a pool to the readiness check.
-func pinger(pool *pgxpool.Pool) func(context.Context) error { return pool.Ping }

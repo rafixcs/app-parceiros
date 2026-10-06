@@ -15,6 +15,11 @@ import (
 //go:embed migrations/*.sql
 var migrations embed.FS
 
+// versionTable tracks the applied migrations. It replaced goose's default
+// table when the schema was rewritten in English, so a database with the old
+// schema fails on the guard of 00001_extensions instead of skipping it.
+const versionTable = "schema_migrations"
+
 // Migrate applies every pending migration.
 func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 	sqlDB := stdlib.OpenDBFromPool(pool)
@@ -24,7 +29,7 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 	if err != nil {
 		return err
 	}
-	provider, err := goose.NewProvider(goose.DialectPostgres, sqlDB, dir)
+	provider, err := goose.NewProvider(goose.DialectPostgres, sqlDB, dir, goose.WithTableName(versionTable))
 	if err != nil {
 		return fmt.Errorf("creating goose provider: %w", err)
 	}
