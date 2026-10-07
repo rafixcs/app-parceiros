@@ -7,6 +7,7 @@ App para afiliados da Shopee descobrirem produtos em alta, organizarem o que vã
 - Pesquisa de mercado e viabilidade: `docs/pesquisa.md`
 - Lançamento (pendências, infraestrutura e passo a passo do deploy): `docs/lancamento.md`
 - Arquitetura do backend (camadas, regras de dependência, autenticação plugável e como recriar o banco local): `docs/arquitetura.md`
+- Documentação técnica consolidada (casos de uso implementados, stack, modelo de dados, diagramas de sequência dos fluxos principais e infraestrutura): `docs/documentacao-tecnica.md`
 
 ## Idioma
 - Documentação, mensagens de commit, descrições de PR e tudo o que o cliente vê (textos da interface, mensagens de erro da API, e-mails, notificações) em **português do Brasil**.
